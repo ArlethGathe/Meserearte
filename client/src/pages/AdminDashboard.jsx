@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import './AdminDashboard.css'
 import AdminEventos from './AdminEventos'
+import AdminSalas from './AdminSalas'
+import AdminUsuarios from './AdminUsuarios'
+import AdminAsignaciones from './AdminAsignaciones'
+import AdminNotificaciones from './AdminNotificaciones'
+import AdminReportes from './AdminReportes'
+
 
 function AdminDashboard({ onLogout }) {
   const [seccion, setSeccion] = useState('inicio')
@@ -79,9 +85,19 @@ function AdminDashboard({ onLogout }) {
 
       <main className="admin-contenido">
 
-        {seccion === 'eventos' ? (
-          <AdminEventos />
-        ) : (
+        {seccion === 'salas' ? (
+           <AdminSalas />
+         ) : seccion === 'usuarios' ? (
+           <AdminUsuarios />
+         ) : seccion === 'eventos' ? (
+           <AdminEventos />
+         ) : seccion === 'asignaciones' ? (
+           <AdminAsignaciones /> 
+         ) : seccion === 'notificaciones' ? (
+           <AdminNotificaciones />
+         ) : seccion === 'reportes' ? (
+           <AdminReportes />
+         ) : (
           <>
             <header className="admin-header">
 

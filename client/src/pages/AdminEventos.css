@@ -45,7 +45,7 @@
 }
 
 .eventos-filtros input {
-  width: 240px;
+  width: 260px;
   height: 40px;
 }
 
@@ -99,6 +99,8 @@
   color: #356d64;
 }
 
+/* ACCIONES */
+
 .acciones-evento {
   display: flex;
   gap: 5px;
@@ -125,11 +127,16 @@
   color: #a71d28;
 }
 
+.acciones-evento button:hover {
+  text-decoration: underline;
+}
+
 /* MODAL */
 
 .modal-fondo {
   position: fixed;
   inset: 0;
+
   background: rgba(30, 20, 15, 0.55);
 
   display: flex;
@@ -251,6 +258,8 @@
   grid-column: 1 / -1;
 }
 
+/* BOTONES DEL MODAL */
+
 .modal-botones {
   display: flex;
   justify-content: flex-end;
@@ -269,7 +278,6 @@
   border-radius: 8px;
 
   font-weight: bold;
-
   cursor: pointer;
 }
 
@@ -287,10 +295,49 @@
   background: #981824;
 }
 
+/* DETALLE DEL EVENTO */
+
+.detalle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  gap: 14px;
+}
+
+.detalle-grid > div {
+  background: #ffffff;
+
+  border: 1px solid #eadbca;
+  border-radius: 9px;
+
+  padding: 13px;
+}
+
+.detalle-grid span {
+  display: block;
+
+  color: #88776b;
+
+  font-size: 12px;
+
+  margin-bottom: 5px;
+}
+
+.detalle-grid strong {
+  display: block;
+
+  color: #2b201a;
+
+  font-size: 14px;
+}
+
+.detalle-completo {
+  grid-column: 1 / -1;
+}
+
 /* RESPONSIVO */
 
 @media (max-width: 700px) {
-
   .eventos-encabezado {
     flex-direction: column;
     align-items: flex-start;
@@ -300,21 +347,20 @@
   .eventos-filtros input {
     width: 100%;
   }
-
 }
 
 @media (max-width: 650px) {
-
-  .form-grid {
+  .form-grid,
+  .detalle-grid {
     grid-template-columns: 1fr;
   }
 
-  .campo-completo {
+  .campo-completo,
+  .detalle-completo {
     grid-column: auto;
   }
 
   .modal-fondo {
     padding: 10px;
   }
-
 }

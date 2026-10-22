@@ -1,0 +1,337 @@
+.asignaciones-pagina {
+  width: 100%;
+}
+
+.asignaciones-encabezado {
+  margin-bottom: 25px;
+}
+
+.asignaciones-encabezado h1 {
+  margin: 0;
+
+  font-size: 30px;
+}
+
+.asignaciones-encabezado p {
+  margin: 5px 0 0;
+
+  color: #85766b;
+}
+
+/* MENSAJE */
+
+.mensaje-asignacion {
+  background: #e2eee4;
+  color: #426549;
+
+  padding: 12px 15px;
+
+  border-radius: 9px;
+
+  margin-bottom: 18px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mensaje-asignacion button {
+  border: none;
+  background: transparent;
+
+  cursor: pointer;
+
+  font-size: 18px;
+  color: #426549;
+}
+
+/* SELECCIÓN DE EVENTO */
+
+.seleccion-evento {
+  background: #fffaf1;
+
+  border-radius: 14px;
+
+  padding: 20px;
+
+  margin-bottom: 18px;
+
+  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.06);
+}
+
+.seleccion-evento label {
+  display: block;
+
+  margin: 0 0 8px;
+
+  font-weight: bold;
+}
+
+.seleccion-evento select {
+  width: min(450px, 100%);
+
+  height: 43px;
+
+  border: 1px solid #d8c9b8;
+
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  padding: 0 12px;
+}
+
+/* EVENTO */
+
+.resumen-evento-asignacion {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 12px;
+
+  margin-bottom: 18px;
+}
+
+.resumen-evento-asignacion > div {
+  background: #fffaf1;
+
+  border-radius: 11px;
+
+  padding: 15px;
+
+  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.05);
+}
+
+.resumen-evento-asignacion span {
+  display: block;
+
+  color: #817166;
+
+  font-size: 11px;
+
+  margin-bottom: 5px;
+}
+
+.resumen-evento-asignacion strong {
+  font-size: 14px;
+}
+
+.cantidad-pendiente {
+  color: #aa7925;
+}
+
+.cantidad-completa {
+  color: #397047;
+}
+
+/* PERSONAL */
+
+.personal-disponible {
+  background: #fffaf1;
+
+  border-radius: 14px;
+
+  padding: 22px;
+
+  margin-bottom: 18px;
+
+  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.06);
+}
+
+.personal-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-bottom: 18px;
+}
+
+.personal-titulo h2 {
+  margin: 0;
+
+  font-size: 19px;
+}
+
+.personal-titulo p {
+  margin: 5px 0 0;
+
+  color: #85766b;
+
+  font-size: 13px;
+}
+
+.personal-titulo > span {
+  background: #d8ead8;
+  color: #397047;
+
+  padding: 7px 11px;
+
+  border-radius: 15px;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.tabla-asignaciones {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  font-size: 13px;
+}
+
+.tabla-asignaciones th {
+  text-align: left;
+
+  color: #75675d;
+
+  padding: 12px 10px;
+
+  border-bottom: 1px solid #e4d5c4;
+}
+
+.tabla-asignaciones td {
+  padding: 14px 10px;
+
+  border-bottom: 1px solid #eee2d5;
+}
+
+.check-mesero {
+  width: 18px;
+  height: 18px;
+
+  cursor: pointer;
+
+  accent-color: #b51f2e;
+}
+
+.estado-activo,
+.estado-disponible {
+  display: inline-block;
+
+  background: #d8ead8;
+  color: #397047;
+
+  border-radius: 14px;
+
+  padding: 5px 9px;
+
+  font-size: 10px;
+  font-weight: bold;
+}
+
+/* CAPITÁN */
+
+.capitan-seccion {
+  background: #fffaf1;
+
+  border-radius: 14px;
+
+  padding: 22px;
+
+  margin-bottom: 18px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 20px;
+
+  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.06);
+}
+
+.capitan-seccion h2 {
+  margin: 0;
+
+  font-size: 19px;
+}
+
+.capitan-seccion p {
+  margin: 5px 0 0;
+
+  color: #85766b;
+
+  font-size: 13px;
+}
+
+.capitan-seccion select {
+  width: 260px;
+  height: 42px;
+
+  border: 1px solid #d8c9b8;
+
+  border-radius: 8px;
+
+  background: white;
+
+  padding: 0 10px;
+}
+
+/* RESUMEN */
+
+.resumen-asignacion {
+  background: #f3e6d4;
+
+  border-radius: 14px;
+
+  padding: 20px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resumen-asignacion h3 {
+  margin: 0 0 8px;
+
+  font-size: 17px;
+}
+
+.resumen-asignacion p {
+  margin: 4px 0;
+
+  color: #68584d;
+
+  font-size: 13px;
+}
+
+.guardar-asignacion {
+  border: none;
+
+  background: #b51f2e;
+  color: #ffffff;
+
+  padding: 12px 20px;
+
+  border-radius: 8px;
+
+  font-weight: bold;
+
+  cursor: pointer;
+}
+
+.guardar-asignacion:hover {
+  background: #981824;
+}
+
+@media (max-width: 800px) {
+  .resumen-evento-asignacion {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .capitan-seccion,
+  .resumen-asignacion {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .capitan-seccion select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 550px) {
+  .resumen-evento-asignacion {
+    grid-template-columns: 1fr;
+  }
+}

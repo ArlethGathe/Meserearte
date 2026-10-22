@@ -1,66 +1,54 @@
 import { useState } from 'react'
 import './AdminEventos.css'
 
+import {
+  useMesereArte
+} from '../context/MesereArteContexto.jsx'
+
+const formularioVacio = {
+  salaId: '',
+  nombre: '',
+  tipo: '',
+  fecha: '',
+  horario: '',
+  ubicacion: '',
+  invitados: '',
+  meserosRequeridos: '',
+  uniforme: '',
+  observaciones: ''
+}
+
 function AdminEventos() {
+  const {
+    salas,
+    eventos,
+    setEventos,
+    asignaciones
+  } = useMesereArte()
+
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
+  const [eventoDetalle, setEventoDetalle] = useState(null)
+  const [idEdicion, setIdEdicion] = useState(null)
 
-  const [eventos, setEventos] = useState([
-    {
-      id: 1,
-      nombre: 'Boda Hernández & Ruiz',
-      tipo: 'Boda',
-      fecha: '2026-06-14',
-      horario: '18:00',
-      ubicacion: 'Jardín Los Encinos',
-      invitados: 180,
-      meserosRequeridos: 12,
-      meseros: 12,
-      uniforme: 'Camisa blanca, pantalón negro',
-      observaciones: 'Llegar una hora antes.',
-      estado: 'Programado'
-    },
-    {
-      id: 2,
-      nombre: 'XV años Valentina',
-      tipo: 'XV años',
-      fecha: '2026-06-21',
-      horario: '17:00',
-      ubicacion: 'Salón Imperial',
-      invitados: 150,
-      meserosRequeridos: 10,
-      meseros: 8,
-      uniforme: 'Camisa negra y corbata vino',
-      observaciones: '',
-      estado: 'Pendiente'
-    },
-    {
-      id: 3,
-      nombre: 'Graduación ESCOM',
-      tipo: 'Graduación',
-      fecha: '2026-06-28',
-      horario: '19:00',
-      ubicacion: 'Centro de Convenciones',
-      invitados: 300,
-      meserosRequeridos: 15,
-      meseros: 15,
-      uniforme: 'Camisa blanca y corbata negra',
-      observaciones: '',
-      estado: 'Confirmado'
-    }
-  ])
+  const [formulario, setFormulario] = useState(formularioVacio)
 
-  const [formulario, setFormulario] = useState({
-    nombre: '',
-    tipo: '',
-    fecha: '',
-    horario: '',
-    ubicacion: '',
-    invitados: '',
-    meserosRequeridos: '',
-    uniforme: '',
-    observaciones: ''
-  })
+  const obtenerNombreSala = (salaId) => {
+    const sala = salas.find(
+      (sala) => sala.id === Number(salaId)
+    )
+
+    return sala
+      ? sala.nombre
+      : 'Sin sala'
+  }
+
+  const obtenerMeserosAsignados = (eventoId) => {
+    return asignaciones.filter(
+      (asignacion) =>
+        asignacion.eventoId === eventoId
+    ).length
+  }
 
   const manejarCambio = (e) => {
     const { name, value } = e.target
@@ -71,37 +59,117 @@ function AdminEventos() {
     })
   }
 
-  const guardarEvento = (e) => {
-    e.preventDefault()
-
-    const nuevoEvento = {
-      id: Date.now(),
-      ...formulario,
-      invitados: Number(formulario.invitados),
-      meserosRequeridos: Number(formulario.meserosRequeridos),
-      meseros: 0,
-      estado: 'Pendiente'
-    }
-
-    setEventos([...eventos, nuevoEvento])
+  const abrirNuevoEvento = () => {
+    setIdEdicion(null)
 
     setFormulario({
-      nombre: '',
-      tipo: '',
-      fecha: '',
-      horario: '',
-      ubicacion: '',
-      invitados: '',
-      meserosRequeridos: '',
-      uniforme: '',
-      observaciones: ''
+      ...formularioVacio,
+      salaId: salas.length > 0
+        ? salas[0].id
+        : ''
     })
 
-    setMostrarFormulario(false)
+    setMostrarFormulario(true)
+  }
+
+  const abrirEdicion = (evento) => {
+    setIdEdicion(evento.id)
+
+    setFormulario({
+      salaId: evento.salaId,
+      nombre: evento.nombre,
+      tipo: evento.tipo,
+      fecha: evento.fecha,
+      horario: evento.horario,
+      ubicacion: evento.ubicacion,
+      invitados: evento.invitados,
+      meserosRequeridos: evento.meserosRequeridos,
+      uniforme: evento.uniforme,
+      observaciones: evento.observaciones
+    })
+
+    setMostrarFormulario(true)
   }
 
   const cerrarFormulario = () => {
     setMostrarFormulario(false)
+    setIdEdicion(null)
+    setFormulario(formularioVacio)
+  }
+
+  const guardarEvento = (e) => {
+    e.preventDefault()
+
+    if (idEdicion) {
+      setEventos(
+        eventos.map((evento) =>
+          evento.id === idEdicion
+            ? {
+                ...evento,
+                ...formulario,
+                salaId: Number(formulario.salaId),
+                invitados: Number(formulario.invitados),
+                meserosRequeridos: Number(
+                  formulario.meserosRequeridos
+                )
+              }
+            : evento
+        )
+      )
+    } else {
+      const nuevoEvento = {
+        id: Date.now(),
+
+        ...formulario,
+
+        salaId: Number(formulario.salaId),
+
+        invitados: Number(
+          formulario.invitados
+        ),
+
+        meserosRequeridos: Number(
+          formulario.meserosRequeridos
+        ),
+
+        estado: 'Pendiente'
+      }
+
+      setEventos([
+        ...eventos,
+        nuevoEvento
+      ])
+    }
+
+    cerrarFormulario()
+  }
+
+  const eliminarEvento = (evento) => {
+    const tieneAsignaciones = asignaciones.some(
+      (asignacion) =>
+        asignacion.eventoId === evento.id
+    )
+
+    if (tieneAsignaciones) {
+      window.alert(
+        'Este evento tiene meseros asignados. Retira primero sus asignaciones.'
+      )
+      return
+    }
+
+    const confirmar = window.confirm(
+      `¿Deseas eliminar el evento "${evento.nombre}"?`
+    )
+
+    if (!confirmar) {
+      return
+    }
+
+    setEventos(
+      eventos.filter(
+        (item) => item.id !== evento.id
+      )
+    )
   }
 
   const formatearFecha = (fecha) => {
@@ -116,10 +184,22 @@ function AdminEventos() {
     return `${partes[2]}/${partes[1]}/${partes[0]}`
   }
 
-  const eventosFiltrados = eventos.filter((evento) =>
-    evento.nombre
-      .toLowerCase()
-      .includes(busqueda.toLowerCase())
+  const eventosFiltrados = eventos.filter(
+    (evento) => {
+      const texto = busqueda.toLowerCase()
+
+      return (
+        evento.nombre
+          .toLowerCase()
+          .includes(texto) ||
+        evento.ubicacion
+          .toLowerCase()
+          .includes(texto) ||
+        obtenerNombreSala(evento.salaId)
+          .toLowerCase()
+          .includes(texto)
+      )
+    }
   )
 
   return (
@@ -137,7 +217,7 @@ function AdminEventos() {
 
         <button
           className="nuevo-evento"
-          onClick={() => setMostrarFormulario(true)}
+          onClick={abrirNuevoEvento}
         >
           + Nuevo evento
         </button>
@@ -152,7 +232,9 @@ function AdminEventos() {
             type="text"
             placeholder="Buscar evento..."
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(e) =>
+              setBusqueda(e.target.value)
+            }
           />
 
         </div>
@@ -164,6 +246,7 @@ function AdminEventos() {
             <thead>
               <tr>
                 <th>Evento</th>
+                <th>Sala</th>
                 <th>Fecha</th>
                 <th>Ubicación</th>
                 <th>Meseros</th>
@@ -183,7 +266,15 @@ function AdminEventos() {
                   </td>
 
                   <td>
-                    {formatearFecha(evento.fecha)}
+                    {obtenerNombreSala(
+                      evento.salaId
+                    )}
+                  </td>
+
+                  <td>
+                    {formatearFecha(
+                      evento.fecha
+                    )}
                   </td>
 
                   <td>
@@ -191,30 +282,50 @@ function AdminEventos() {
                   </td>
 
                   <td>
-                    {evento.meseros} asignados
+                    {obtenerMeserosAsignados(
+                      evento.id
+                    )}{' '}
+                    asignados
                   </td>
 
                   <td>
+
                     <span
                       className={`etiqueta-estado ${evento.estado.toLowerCase()}`}
                     >
                       {evento.estado}
                     </span>
+
                   </td>
 
                   <td>
 
                     <div className="acciones-evento">
 
-                      <button className="accion-ver">
+                      <button
+                        className="accion-ver"
+                        onClick={() =>
+                          setEventoDetalle(evento)
+                        }
+                      >
                         Ver
                       </button>
 
-                      <button className="accion-editar">
+                      <button
+                        className="accion-editar"
+                        onClick={() =>
+                          abrirEdicion(evento)
+                        }
+                      >
                         Editar
                       </button>
 
-                      <button className="accion-eliminar">
+                      <button
+                        className="accion-eliminar"
+                        onClick={() =>
+                          eliminarEvento(evento)
+                        }
+                      >
                         Eliminar
                       </button>
 
@@ -243,11 +354,19 @@ function AdminEventos() {
             <div className="modal-encabezado">
 
               <div>
-                <h2>Nuevo evento</h2>
+
+                <h2>
+                  {idEdicion
+                    ? 'Editar evento'
+                    : 'Nuevo evento'}
+                </h2>
 
                 <p>
-                  Ingresa la información del evento.
+                  {idEdicion
+                    ? 'Modifica la información del evento.'
+                    : 'Ingresa la información del evento.'}
                 </p>
+
               </div>
 
               <button
@@ -267,6 +386,34 @@ function AdminEventos() {
 
               <div className="form-grid">
 
+                <div className="campo-completo">
+
+                  <label>
+                    Sala
+                  </label>
+
+                  <select
+                    name="salaId"
+                    value={formulario.salaId}
+                    onChange={manejarCambio}
+                    required
+                  >
+
+                    {salas.map((sala) => (
+
+                      <option
+                        key={sala.id}
+                        value={sala.id}
+                      >
+                        {sala.nombre}
+                      </option>
+
+                    ))}
+
+                  </select>
+
+                </div>
+
                 <div>
 
                   <label>
@@ -278,7 +425,6 @@ function AdminEventos() {
                     name="nombre"
                     value={formulario.nombre}
                     onChange={manejarCambio}
-                    placeholder="Ej. Boda Hernández & Ruiz"
                     required
                   />
 
@@ -335,9 +481,7 @@ function AdminEventos() {
 
                 <div>
 
-                  <label>
-                    Fecha
-                  </label>
+                  <label>Fecha</label>
 
                   <input
                     type="date"
@@ -351,9 +495,7 @@ function AdminEventos() {
 
                 <div>
 
-                  <label>
-                    Horario
-                  </label>
+                  <label>Horario</label>
 
                   <input
                     type="time"
@@ -367,16 +509,13 @@ function AdminEventos() {
 
                 <div className="campo-completo">
 
-                  <label>
-                    Ubicación
-                  </label>
+                  <label>Ubicación</label>
 
                   <input
                     type="text"
                     name="ubicacion"
                     value={formulario.ubicacion}
                     onChange={manejarCambio}
-                    placeholder="Salón, jardín o dirección"
                     required
                   />
 
@@ -394,7 +533,6 @@ function AdminEventos() {
                     min="1"
                     value={formulario.invitados}
                     onChange={manejarCambio}
-                    placeholder="150"
                     required
                   />
 
@@ -410,9 +548,10 @@ function AdminEventos() {
                     type="number"
                     name="meserosRequeridos"
                     min="1"
-                    value={formulario.meserosRequeridos}
+                    value={
+                      formulario.meserosRequeridos
+                    }
                     onChange={manejarCambio}
-                    placeholder="10"
                     required
                   />
 
@@ -429,7 +568,6 @@ function AdminEventos() {
                     name="uniforme"
                     value={formulario.uniforme}
                     onChange={manejarCambio}
-                    placeholder="Ej. camisa blanca, pantalón negro y corbata vino"
                   />
 
                 </div>
@@ -444,7 +582,6 @@ function AdminEventos() {
                     name="observaciones"
                     value={formulario.observaciones}
                     onChange={manejarCambio}
-                    placeholder="Indicaciones adicionales..."
                     rows="4"
                   />
 
@@ -466,12 +603,149 @@ function AdminEventos() {
                   type="submit"
                   className="boton-guardar-evento"
                 >
-                  Guardar evento
+                  {idEdicion
+                    ? 'Guardar cambios'
+                    : 'Guardar evento'}
                 </button>
 
               </div>
 
             </form>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {eventoDetalle && (
+
+        <div className="modal-fondo">
+
+          <div className="modal-evento">
+
+            <div className="modal-encabezado">
+
+              <div>
+                <h2>
+                  Detalles del evento
+                </h2>
+
+                <p>
+                  Información completa del evento.
+                </p>
+              </div>
+
+              <button
+                className="cerrar-modal"
+                onClick={() =>
+                  setEventoDetalle(null)
+                }
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="detalle-grid">
+
+              <div>
+                <span>Evento</span>
+                <strong>
+                  {eventoDetalle.nombre}
+                </strong>
+              </div>
+
+              <div>
+                <span>Sala</span>
+                <strong>
+                  {obtenerNombreSala(
+                    eventoDetalle.salaId
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>Tipo</span>
+                <strong>
+                  {eventoDetalle.tipo}
+                </strong>
+              </div>
+
+              <div>
+                <span>Fecha</span>
+                <strong>
+                  {formatearFecha(
+                    eventoDetalle.fecha
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>Horario</span>
+                <strong>
+                  {eventoDetalle.horario}
+                </strong>
+              </div>
+
+              <div>
+                <span>Meseros asignados</span>
+                <strong>
+                  {obtenerMeserosAsignados(
+                    eventoDetalle.id
+                  )}
+                </strong>
+              </div>
+
+              <div className="detalle-completo">
+                <span>Ubicación</span>
+                <strong>
+                  {eventoDetalle.ubicacion}
+                </strong>
+              </div>
+
+              <div>
+                <span>Invitados</span>
+                <strong>
+                  {eventoDetalle.invitados}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Meseros requeridos
+                </span>
+
+                <strong>
+                  {
+                    eventoDetalle.meserosRequeridos
+                  }
+                </strong>
+              </div>
+
+              <div className="detalle-completo">
+
+                <span>Uniforme</span>
+
+                <strong>
+                  {eventoDetalle.uniforme ||
+                    'Sin especificar'}
+                </strong>
+
+              </div>
+
+              <div className="detalle-completo">
+
+                <span>Observaciones</span>
+
+                <strong>
+                  {eventoDetalle.observaciones ||
+                    'Sin observaciones'}
+                </strong>
+
+              </div>
+
+            </div>
 
           </div>
 
