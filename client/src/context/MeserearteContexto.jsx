@@ -1,144 +1,446 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useState
 } from 'react'
 
 const MesereArteContext = createContext(null)
 
+const API_URL = 'http://localhost:3001/api'
+
 export function MesereArteProvider({ children }) {
+  const [salas, setSalas] = useState([])
+  const [meseros, setMeseros] = useState([])
+  const [eventos, setEventos] = useState([])
+  const [asignaciones, setAsignaciones] = useState([])
 
-  const [salas, setSalas] = useState([
-    {
-      id: 1,
-      nombre: 'Equipo MesereArte',
-      descripcion: 'Equipo principal de meseros',
-      codigo: 'MESA2026',
-      administrador: 'Arleth Gathe',
-      estado: 'Activa'
-    },
-    {
-      id: 2,
-      nombre: 'Salón El Triunfo',
-      descripcion: 'Equipo de servicio del salón',
-      codigo: 'MESA4X8P',
-      administrador: 'Arleth Gathe',
-      estado: 'Activa'
-    }
-  ])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
 
-  const [meseros, setMeseros] = useState([
-    {
-      id: 1,
-      nombre: 'María',
-      apellidos: 'López',
-      correo: 'maria@meserearte.com',
-      telefono: '5512345678',
-      salaId: 1,
-      eventosParticipados: 15,
-      estado: 'Activo',
-      disponibilidad: 'Disponible'
-    },
-    {
-      id: 2,
-      nombre: 'Juan',
-      apellidos: 'Pérez',
-      correo: 'juan@meserearte.com',
-      telefono: '5587654321',
-      salaId: 1,
-      eventosParticipados: 8,
-      estado: 'Activo',
-      disponibilidad: 'Disponible'
-    },
-    {
-      id: 3,
-      nombre: 'Ana',
-      apellidos: 'Torres',
-      correo: 'ana@meserearte.com',
-      telefono: '5566778899',
-      salaId: 1,
-      eventosParticipados: 11,
-      estado: 'Activo',
-      disponibilidad: 'Disponible'
-    },
-    {
-      id: 4,
-      nombre: 'Luis',
-      apellidos: 'Gómez',
-      correo: 'luis@meserearte.com',
-      telefono: '5511223344',
-      salaId: 2,
-      eventosParticipados: 9,
-      estado: 'Inactivo',
-      disponibilidad: 'No disponible'
-    }
-  ])
+  const cargarDatos = async () => {
+    try {
+      setCargando(true)
+      setError('')
 
-  const [eventos, setEventos] = useState([
-    {
-      id: 1,
-      salaId: 1,
-      nombre: 'Boda Hernández & Ruiz',
-      tipo: 'Boda',
-      fecha: '2026-06-14',
-      horario: '18:00',
-      ubicacion: 'Jardín Los Encinos',
-      invitados: 180,
-      meserosRequeridos: 12,
-      uniforme: 'Camisa blanca, pantalón negro',
-      observaciones: 'Llegar una hora antes.',
-      estado: 'Programado'
-    },
-    {
-      id: 2,
-      salaId: 1,
-      nombre: 'XV años Valentina',
-      tipo: 'XV años',
-      fecha: '2026-06-21',
-      horario: '17:00',
-      ubicacion: 'Salón Imperial',
-      invitados: 150,
-      meserosRequeridos: 10,
-      uniforme: 'Camisa negra y corbata vino',
-      observaciones: '',
-      estado: 'Pendiente'
-    },
-    {
-      id: 3,
-      salaId: 1,
-      nombre: 'Graduación ESCOM',
-      tipo: 'Graduación',
-      fecha: '2026-06-28',
-      horario: '19:00',
-      ubicacion: 'Centro de Convenciones',
-      invitados: 300,
-      meserosRequeridos: 15,
-      uniforme: 'Camisa blanca y corbata negra',
-      observaciones: '',
-      estado: 'Confirmado'
-    }
-  ])
+      const [
+        respuestaSalas,
+        respuestaMeseros,
+        respuestaEventos,
+        respuestaAsignaciones
+      ] = await Promise.all([
+        fetch(`${API_URL}/salas`),
+        fetch(`${API_URL}/meseros`),
+        fetch(`${API_URL}/eventos`),
+        fetch(`${API_URL}/asignaciones`)
+      ])
 
-  const [asignaciones, setAsignaciones] = useState([
-    {
-      id: 1,
-      eventoId: 1,
-      meseroId: 1,
-      rol: 'Mesero'
-    },
-    {
-      id: 2,
-      eventoId: 1,
-      meseroId: 2,
-      rol: 'Capitán'
-    },
-    {
-      id: 3,
-      eventoId: 1,
-      meseroId: 3,
-      rol: 'Mesero'
+      if (
+        !respuestaSalas.ok ||
+        !respuestaMeseros.ok ||
+        !respuestaEventos.ok ||
+        !respuestaAsignaciones.ok
+      ) {
+        throw new Error(
+          'No fue posible obtener los datos del servidor.'
+        )
+      }
+
+      const [
+        datosSalas,
+        datosMeseros,
+        datosEventos,
+        datosAsignaciones
+      ] = await Promise.all([
+        respuestaSalas.json(),
+        respuestaMeseros.json(),
+        respuestaEventos.json(),
+        respuestaAsignaciones.json()
+      ])
+
+      setSalas(datosSalas)
+      setMeseros(datosMeseros)
+      setEventos(datosEventos)
+      setAsignaciones(datosAsignaciones)
+    } catch (error) {
+      console.error(error)
+
+      setError(
+        'No se pudo conectar con la API de MesereArte.'
+      )
+    } finally {
+      setCargando(false)
     }
-  ])
+  }
+
+  useEffect(() => {
+    cargarDatos()
+  }, [])
+
+  /*
+    ============================
+    SALAS
+    ============================
+  */
+
+  const crearSalaAPI = async (datos) => {
+    const respuesta = await fetch(
+      `${API_URL}/salas`,
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(datos)
+      }
+    )
+
+    const resultado = await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo crear la sala.'
+      )
+    }
+
+    setSalas((anteriores) => [
+      ...anteriores,
+      resultado
+    ])
+
+    return resultado
+  }
+
+  const actualizarSalaAPI = async (
+    id,
+    datos
+  ) => {
+    const respuesta = await fetch(
+      `${API_URL}/salas/${id}`,
+      {
+        method: 'PUT',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(datos)
+      }
+    )
+
+    const resultado = await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo actualizar la sala.'
+      )
+    }
+
+    setSalas((anteriores) =>
+      anteriores.map((sala) =>
+        sala.id === id
+          ? resultado
+          : sala
+      )
+    )
+
+    return resultado
+  }
+
+  const eliminarSalaAPI = async (id) => {
+    const respuesta = await fetch(
+      `${API_URL}/salas/${id}`,
+      {
+        method: 'DELETE'
+      }
+    )
+
+    const resultado =
+      await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo eliminar la sala.'
+      )
+    }
+
+    setSalas((anteriores) =>
+      anteriores.filter(
+        (sala) => sala.id !== id
+      )
+    )
+  }
+
+  /*
+    ============================
+    MESEROS
+    ============================
+  */
+
+  const crearMeseroAPI = async (datos) => {
+    const respuesta = await fetch(
+      `${API_URL}/meseros`,
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(datos)
+      }
+    )
+
+    const resultado = await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo registrar al mesero.'
+      )
+    }
+
+    setMeseros((anteriores) => [
+      ...anteriores,
+      resultado
+    ])
+
+    return resultado
+  }
+
+  const actualizarMeseroAPI = async (
+    id,
+    datos
+  ) => {
+    const respuesta = await fetch(
+      `${API_URL}/meseros/${id}`,
+      {
+        method: 'PUT',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(datos)
+      }
+    )
+
+    const resultado = await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo actualizar al mesero.'
+      )
+    }
+
+    setMeseros((anteriores) =>
+      anteriores.map((mesero) =>
+        mesero.id === id
+          ? resultado
+          : mesero
+      )
+    )
+
+    return resultado
+  }
+
+  const eliminarMeseroAPI = async (id) => {
+    const respuesta = await fetch(
+      `${API_URL}/meseros/${id}`,
+      {
+        method: 'DELETE'
+      }
+    )
+
+    const resultado =
+      await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo eliminar al mesero.'
+      )
+    }
+
+    setMeseros((anteriores) =>
+      anteriores.filter(
+        (mesero) => mesero.id !== id
+      )
+    )
+
+    setAsignaciones((anteriores) =>
+      anteriores.filter(
+        (asignacion) =>
+          asignacion.meseroId !== id
+      )
+    )
+  }
+
+  /*
+    ============================
+    EVENTOS
+    ============================
+  */
+
+  const crearEventoAPI = async (datos) => {
+    const respuesta = await fetch(
+      `${API_URL}/eventos`,
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(datos)
+      }
+    )
+
+    const resultado = await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo crear el evento.'
+      )
+    }
+
+    setEventos((anteriores) => [
+      ...anteriores,
+      resultado
+    ])
+
+    return resultado
+  }
+
+  const actualizarEventoAPI = async (
+    id,
+    datos
+  ) => {
+    const respuesta = await fetch(
+      `${API_URL}/eventos/${id}`,
+      {
+        method: 'PUT',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(datos)
+      }
+    )
+
+    const resultado = await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo actualizar el evento.'
+      )
+    }
+
+    setEventos((anteriores) =>
+      anteriores.map((evento) =>
+        evento.id === id
+          ? resultado
+          : evento
+      )
+    )
+
+    return resultado
+  }
+
+  const eliminarEventoAPI = async (id) => {
+    const respuesta = await fetch(
+      `${API_URL}/eventos/${id}`,
+      {
+        method: 'DELETE'
+      }
+    )
+
+    const resultado =
+      await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudo eliminar el evento.'
+      )
+    }
+
+    setEventos((anteriores) =>
+      anteriores.filter(
+        (evento) => evento.id !== id
+      )
+    )
+
+    setAsignaciones((anteriores) =>
+      anteriores.filter(
+        (asignacion) =>
+          asignacion.eventoId !== id
+      )
+    )
+  }
+
+  /*
+    ============================
+    ASIGNACIONES
+    ============================
+  */
+
+  const guardarAsignacionesAPI = async (
+    eventoId,
+    meseroIds,
+    capitanId
+  ) => {
+    const respuesta = await fetch(
+      `${API_URL}/asignaciones/evento/${eventoId}`,
+      {
+        method: 'PUT',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({
+          meseroIds,
+          capitanId:
+            capitanId
+              ? Number(capitanId)
+              : null
+        })
+      }
+    )
+
+    const resultado = await respuesta.json()
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje ||
+        'No se pudieron guardar las asignaciones.'
+      )
+    }
+
+    setAsignaciones(
+      (anteriores) => [
+        ...anteriores.filter(
+          (asignacion) =>
+            asignacion.eventoId !==
+            Number(eventoId)
+        ),
+
+        ...resultado
+      ]
+    )
+
+    return resultado
+  }
 
   return (
     <MesereArteContext.Provider
@@ -153,7 +455,26 @@ export function MesereArteProvider({ children }) {
         setEventos,
 
         asignaciones,
-        setAsignaciones
+        setAsignaciones,
+
+        cargando,
+        error,
+
+        cargarDatos,
+
+        crearSalaAPI,
+        actualizarSalaAPI,
+        eliminarSalaAPI,
+
+        crearMeseroAPI,
+        actualizarMeseroAPI,
+        eliminarMeseroAPI,
+
+        crearEventoAPI,
+        actualizarEventoAPI,
+        eliminarEventoAPI,
+
+        guardarAsignacionesAPI
       }}
     >
       {children}
@@ -162,7 +483,8 @@ export function MesereArteProvider({ children }) {
 }
 
 export function useMesereArte() {
-  const contexto = useContext(MesereArteContext)
+  const contexto =
+    useContext(MesereArteContext)
 
   if (!contexto) {
     throw new Error(

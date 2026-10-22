@@ -1,124 +1,167 @@
 import { useState } from 'react'
 import './AdminSalas.css'
-import { useMesereArte } from '../context/MesereArteContexto.jsx'
+
+import {
+  useMesereArte
+} from '../context/MesereArteContexto.jsx'
 
 function AdminSalas() {
   const {
-  salas,
-  setSalas,
-  meseros
-} = useMesereArte()
+    salas,
+    meseros,
+    crearSalaAPI,
+    actualizarSalaAPI,
+    eliminarSalaAPI
+  } = useMesereArte()
 
-  const [salaSeleccionada, setSalaSeleccionada] = useState(1)
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [editando, setEditando] = useState(false)
-  const [mensaje, setMensaje] = useState('')
+  const [mostrarFormulario, setMostrarFormulario] =
+    useState(false)
 
-  const [nuevaSala, setNuevaSala] = useState({
-    nombre: '',
-    descripcion: ''
-  })
+  const [idEdicion, setIdEdicion] =
+    useState(null)
 
-  const salaActual = salas.find(
-    (sala) => sala.id === salaSeleccionada
-  )
+  const [salaDetalle, setSalaDetalle] =
+    useState(null)
 
-  const generarCodigoUnico = () => {
-    const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-
-    let codigo
-    let existe
-
-    do {
-      codigo = 'MESA'
-
-      for (let i = 0; i < 4; i++) {
-        codigo += caracteres.charAt(
-          Math.floor(Math.random() * caracteres.length)
-        )
-      }
-
-      existe = salas.some(
-        (sala) => sala.codigo === codigo
-      )
-    } while (existe)
-
-    return codigo
-  }
-
-  const manejarCambioNuevaSala = (e) => {
-    const { name, value } = e.target
-
-    setNuevaSala({
-      ...nuevaSala,
-      [name]: value
-    })
-  }
-
-  const crearSala = (e) => {
-    e.preventDefault()
-
-    const sala = {
-      id: Date.now(),
-      nombre: nuevaSala.nombre.trim(),
-      descripcion: nuevaSala.descripcion.trim(),
-      codigo: generarCodigoUnico(),
-      administrador: 'Arleth Gathe',
-      meseros: 0,
-      estado: 'Activa'
-    }
-
-    setSalas([...salas, sala])
-    setSalaSeleccionada(sala.id)
-
-    setNuevaSala({
+  const [formulario, setFormulario] =
+    useState({
       nombre: '',
       descripcion: ''
     })
 
-    setMostrarFormulario(false)
+  const [guardando, setGuardando] =
+    useState(false)
 
-    setMensaje(
-      `Sala creada correctamente. Código generado: ${sala.codigo}`
-    )
+  const cantidadMeseros = (salaId) => {
+    return meseros.filter(
+      (mesero) =>
+        mesero.salaId === salaId
+    ).length
   }
 
-  const copiarCodigo = async () => {
+  const abrirNuevaSala = () => {
+    setIdEdicion(null)
+
+    setFormulario({
+      nombre: '',
+      descripcion: ''
+    })
+
+    setMostrarFormulario(true)
+  }
+
+  const abrirEdicion = (sala) => {
+    setIdEdicion(sala.id)
+
+    setFormulario({
+      nombre: sala.nombre,
+      descripcion:
+        sala.descripcion || ''
+    })
+
+    setMostrarFormulario(true)
+  }
+
+  const cerrarFormulario = () => {
+    setMostrarFormulario(false)
+    setIdEdicion(null)
+
+    setFormulario({
+      nombre: '',
+      descripcion: ''
+    })
+  }
+
+  const manejarCambio = (e) => {
+    const {
+      name,
+      value
+    } = e.target
+
+    setFormulario({
+      ...formulario,
+      [name]: value
+    })
+  }
+
+  const guardarSala = async (e) => {
+    e.preventDefault()
+
     try {
-      await navigator.clipboard.writeText(
-        salaActual.codigo
+      setGuardando(true)
+
+      if (idEdicion) {
+        await actualizarSalaAPI(
+          idEdicion,
+          formulario
+        )
+      } else {
+        await crearSalaAPI({
+          nombre:
+            formulario.nombre,
+
+          descripcion:
+            formulario.descripcion,
+
+          administrador:
+            'Administrador'
+        })
+      }
+
+      cerrarFormulario()
+    } catch (error) {
+      window.alert(
+        error.message
+      )
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const eliminarSala = async (sala) => {
+    const confirmar =
+      window.confirm(
+        `¿Deseas eliminar la sala "${sala.nombre}"?`
       )
 
-      setMensaje('Código copiado al portapapeles.')
-    } catch {
-      setMensaje(
-        `Código de sala: ${salaActual.codigo}`
+    if (!confirmar) {
+      return
+    }
+
+    try {
+      await eliminarSalaAPI(
+        sala.id
+      )
+
+      if (
+        salaDetalle?.id ===
+        sala.id
+      ) {
+        setSalaDetalle(null)
+      }
+    } catch (error) {
+      window.alert(
+        error.message
       )
     }
   }
 
-  const guardarCambios = (e) => {
-    e.preventDefault()
-
-    const formulario = new FormData(e.target)
-
-    const nombre = formulario.get('nombre')
-    const descripcion = formulario.get('descripcion')
-
-    setSalas(
-      salas.map((sala) =>
-        sala.id === salaActual.id
-          ? {
-              ...sala,
-              nombre: nombre.trim(),
-              descripcion: descripcion.trim()
-            }
-          : sala
+  const copiarCodigo = async (
+    codigo
+  ) => {
+    try {
+      await navigator.clipboard.writeText(
+        codigo
       )
-    )
 
-    setEditando(false)
-    setMensaje('Información de la sala actualizada.')
+      window.alert(
+        `Código ${codigo} copiado.`
+      )
+    } catch {
+      window.alert(
+        `Código de sala: ${codigo}`
+      )
+    }
   }
 
   return (
@@ -127,224 +170,133 @@ function AdminSalas() {
       <div className="salas-encabezado">
 
         <div>
-          <h1>Gestión de salas</h1>
+          <h1>
+            Gestión de salas
+          </h1>
 
           <p>
-            Crea salas y consulta sus códigos de acceso.
+            Administra tus equipos
+            de meseros y sus códigos
+            de acceso.
           </p>
         </div>
 
         <button
           className="nueva-sala"
-          onClick={() => setMostrarFormulario(true)}
+          onClick={abrirNuevaSala}
         >
           + Nueva sala
         </button>
 
       </div>
 
-      {mensaje && (
+      <div className="salas-contenedor">
 
-        <div className="mensaje-sala">
+        {salas.map(
+          (sala) => (
 
-          <span>{mensaje}</span>
-
-          <button
-            onClick={() => setMensaje('')}
-          >
-            ×
-          </button>
-
-        </div>
-
-      )}
-
-      <div className="salas-layout">
-
-        <section className="lista-salas">
-
-          <h2>Mis salas</h2>
-
-          {salas.map((sala) => (
-
-            <button
+            <div
+              className="sala-card"
               key={sala.id}
-              className={
-                salaSeleccionada === sala.id
-                  ? 'tarjeta-sala seleccionada'
-                  : 'tarjeta-sala'
-              }
-              onClick={() =>
-                setSalaSeleccionada(sala.id)
-              }
             >
 
               <div>
-                <strong>{sala.nombre}</strong>
 
-                <span>
-                  {sala.meseros} meseros
-                </span>
-              </div>
-
-              <span className="mini-estado">
-                {sala.estado}
-              </span>
-
-            </button>
-
-          ))}
-
-        </section>
-
-        {salaActual && (
-
-          <section className="sala-principal">
-
-            <div className="sala-titulo">
-
-              <div>
-
-                <span className="etiqueta-sala">
-                  Sala activa
+                <span className="sala-estado">
+                  {sala.estado}
                 </span>
 
                 <h2>
-                  {salaActual.nombre}
+                  {sala.nombre}
                 </h2>
 
                 <p>
-                  {salaActual.descripcion ||
+                  {sala.descripcion ||
                     'Sin descripción'}
                 </p>
 
               </div>
 
-              <div className="acciones-sala">
+              <div className="sala-datos">
 
-                <span className="estado-sala">
-                  {salaActual.estado}
-                </span>
+                <div>
+
+                  <span>
+                    Código de acceso
+                  </span>
+
+                  <strong>
+                    {sala.codigo}
+                  </strong>
+
+                </div>
+
+                <div>
+
+                  <span>
+                    Meseros registrados
+                  </span>
+
+                  <strong>
+                    {cantidadMeseros(
+                      sala.id
+                    )}
+                  </strong>
+
+                </div>
+
+              </div>
+
+              <div className="sala-acciones">
 
                 <button
-                  className="editar-sala"
-                  onClick={() => setEditando(true)}
+                  onClick={() =>
+                    setSalaDetalle(
+                      sala
+                    )
+                  }
                 >
-                  Editar
+                  Ver
                 </button>
 
-              </div>
-
-            </div>
-
-            <div className="sala-datos">
-
-              <div className="dato-sala">
-
-                <span>Administrador</span>
-
-                <strong>
-                  {salaActual.administrador}
-                </strong>
-
-              </div>
-
-              <div className="dato-sala">
-
-                <span>Meseros registrados</span>
-
-                <strong>
-                  {meseros.filter(
-                     (mesero) => mesero.salaId === salaActual.id
-                   ).length}
-                </strong>
-
-              </div>
-
-            </div>
-
-            <div className="codigo-contenedor">
-
-              <div>
-
-                <span className="codigo-titulo">
-                  Código de acceso
-                </span>
-
-                <p>
-                  Este código fue generado al crear la sala
-                  y permanece asociado a ella.
-                </p>
-
-              </div>
-
-              <div className="codigo-sala">
-                {salaActual.codigo}
-              </div>
-
-              <div className="codigo-botones">
-
                 <button
-                  className="copiar-codigo"
-                  onClick={copiarCodigo}
+                  onClick={() =>
+                    copiarCodigo(
+                      sala.codigo
+                    )
+                  }
                 >
                   Copiar código
                 </button>
 
+                <button
+                  onClick={() =>
+                    abrirEdicion(
+                      sala
+                    )
+                  }
+                >
+                  Editar
+                </button>
+
+                <button
+                  onClick={() =>
+                    eliminarSala(
+                      sala
+                    )
+                  }
+                >
+                  Eliminar
+                </button>
+
               </div>
 
             </div>
 
-          </section>
-
+          )
         )}
 
       </div>
-
-      <section className="sala-informacion">
-
-        <h2>¿Cómo funciona?</h2>
-
-        <div className="pasos-sala">
-
-          <div>
-
-            <strong>1</strong>
-
-            <p>
-              El administrador crea una sala y el sistema
-              genera automáticamente un código único.
-            </p>
-
-          </div>
-
-          <div>
-
-            <strong>2</strong>
-
-            <p>
-              El administrador comparte el código con los
-              meseros que desea incorporar.
-            </p>
-
-          </div>
-
-          <div>
-
-            <strong>3</strong>
-
-            <p>
-              El mesero ingresa el código durante su
-              registro y queda vinculado a la sala.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* NUEVA SALA */}
 
       {mostrarFormulario && (
 
@@ -355,17 +307,25 @@ function AdminSalas() {
             <div className="modal-sala-header">
 
               <div>
-                <h2>Nueva sala</h2>
+
+                <h2>
+                  {idEdicion
+                    ? 'Editar sala'
+                    : 'Nueva sala'}
+                </h2>
 
                 <p>
-                  Registra los datos de la nueva sala.
+                  {idEdicion
+                    ? 'Modifica la información de la sala.'
+                    : 'El código de acceso será generado automáticamente.'}
                 </p>
+
               </div>
 
               <button
                 className="cerrar-modal-sala"
-                onClick={() =>
-                  setMostrarFormulario(false)
+                onClick={
+                  cerrarFormulario
                 }
               >
                 ×
@@ -373,47 +333,69 @@ function AdminSalas() {
 
             </div>
 
-            <form onSubmit={crearSala}>
+            <form
+              onSubmit={
+                guardarSala
+              }
+            >
 
-              <label>
-                Nombre de la sala
-              </label>
+              <div>
 
-              <input
-                type="text"
-                name="nombre"
-                value={nuevaSala.nombre}
-                onChange={manejarCambioNuevaSala}
-                placeholder="Ej. Salón El Triunfo"
-                required
-              />
+                <label>
+                  Nombre de la sala
+                </label>
 
-              <label>
-                Descripción
-              </label>
-
-              <textarea
-                name="descripcion"
-                value={nuevaSala.descripcion}
-                onChange={manejarCambioNuevaSala}
-                placeholder="Descripción de la sala o equipo"
-                rows="4"
-              />
-
-              <div className="aviso-codigo">
-
-                El código de acceso se generará
-                automáticamente al crear la sala.
+                <input
+                  type="text"
+                  name="nombre"
+                  value={
+                    formulario.nombre
+                  }
+                  onChange={
+                    manejarCambio
+                  }
+                  required
+                />
 
               </div>
+
+              <div>
+
+                <label>
+                  Descripción
+                </label>
+
+                <textarea
+                  name="descripcion"
+                  value={
+                    formulario.descripcion
+                  }
+                  onChange={
+                    manejarCambio
+                  }
+                  rows="4"
+                />
+
+              </div>
+
+              {idEdicion && (
+
+                <div className="aviso-codigo">
+
+                  El código de acceso
+                  de la sala no puede
+                  modificarse.
+
+                </div>
+
+              )}
 
               <div className="modal-sala-botones">
 
                 <button
                   type="button"
-                  className="cancelar-sala"
-                  onClick={() =>
-                    setMostrarFormulario(false)
+                  onClick={
+                    cerrarFormulario
                   }
                 >
                   Cancelar
@@ -421,9 +403,15 @@ function AdminSalas() {
 
                 <button
                   type="submit"
-                  className="crear-sala"
+                  disabled={
+                    guardando
+                  }
                 >
-                  Crear sala
+                  {guardando
+                    ? 'Guardando...'
+                    : idEdicion
+                      ? 'Guardar cambios'
+                      : 'Crear sala'}
                 </button>
 
               </div>
@@ -436,9 +424,7 @@ function AdminSalas() {
 
       )}
 
-      {/* EDITAR SALA */}
-
-      {editando && salaActual && (
+      {salaDetalle && (
 
         <div className="modal-fondo-sala">
 
@@ -447,82 +433,68 @@ function AdminSalas() {
             <div className="modal-sala-header">
 
               <div>
-                <h2>Editar sala</h2>
+
+                <h2>
+                  {salaDetalle.nombre}
+                </h2>
 
                 <p>
-                  Modifica los datos generales de la sala.
+                  Información de la sala
                 </p>
+
               </div>
 
               <button
                 className="cerrar-modal-sala"
-                onClick={() => setEditando(false)}
+                onClick={() =>
+                  setSalaDetalle(
+                    null
+                  )
+                }
               >
                 ×
               </button>
 
             </div>
 
-            <form onSubmit={guardarCambios}>
+            <div>
 
-              <label>
-                Nombre de la sala
-              </label>
-
-              <input
-                type="text"
-                name="nombre"
-                defaultValue={salaActual.nombre}
-                required
-              />
-
-              <label>
-                Descripción
-              </label>
-
-              <textarea
-                name="descripcion"
-                defaultValue={salaActual.descripcion}
-                rows="4"
-              />
-
-              <div className="codigo-no-editable">
-
-                <span>
-                  Código de acceso
-                </span>
-
+              <p>
                 <strong>
-                  {salaActual.codigo}
-                </strong>
+                  Descripción:
+                </strong>{' '}
 
-                <p>
-                  El código no puede modificarse porque
-                  pertenece a esta sala.
-                </p>
+                {salaDetalle.descripcion ||
+                  'Sin descripción'}
+              </p>
 
-              </div>
+              <p>
+                <strong>
+                  Código:
+                </strong>{' '}
 
-              <div className="modal-sala-botones">
+                {salaDetalle.codigo}
+              </p>
 
-                <button
-                  type="button"
-                  className="cancelar-sala"
-                  onClick={() => setEditando(false)}
-                >
-                  Cancelar
-                </button>
+              <p>
+                <strong>
+                  Meseros:
+                </strong>{' '}
 
-                <button
-                  type="submit"
-                  className="crear-sala"
-                >
-                  Guardar cambios
-                </button>
+                {cantidadMeseros(
+                  salaDetalle.id
+                )}
+              </p>
 
-              </div>
+              <p>
+                <strong>
+                  Estado:
+                </strong>{' '}
 
-            </form>
+                {salaDetalle.estado}
+              </p>
+
+            </div>
 
           </div>
 
