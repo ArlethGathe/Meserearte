@@ -22,16 +22,20 @@ function AdminEventos() {
   const {
     salas,
     eventos,
-    setEventos,
-    asignaciones
+    asignaciones,
+    crearEventoAPI,
+    actualizarEventoAPI,
+    eliminarEventoAPI
   } = useMesereArte()
 
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [eventoDetalle, setEventoDetalle] = useState(null)
   const [idEdicion, setIdEdicion] = useState(null)
+  const [guardando, setGuardando] = useState(false)
 
-  const [formulario, setFormulario] = useState(formularioVacio)
+  const [formulario, setFormulario] =
+    useState(formularioVacio)
 
   const obtenerNombreSala = (salaId) => {
     const sala = salas.find(
@@ -64,9 +68,10 @@ function AdminEventos() {
 
     setFormulario({
       ...formularioVacio,
-      salaId: salas.length > 0
-        ? salas[0].id
-        : ''
+      salaId:
+        salas.length > 0
+          ? salas[0].id
+          : ''
     })
 
     setMostrarFormulario(true)
@@ -83,9 +88,12 @@ function AdminEventos() {
       horario: evento.horario,
       ubicacion: evento.ubicacion,
       invitados: evento.invitados,
-      meserosRequeridos: evento.meserosRequeridos,
-      uniforme: evento.uniforme,
-      observaciones: evento.observaciones
+      meserosRequeridos:
+        evento.meserosRequeridos,
+      uniforme:
+        evento.uniforme || '',
+      observaciones:
+        evento.observaciones || ''
     })
 
     setMostrarFormulario(true)
@@ -97,85 +105,75 @@ function AdminEventos() {
     setFormulario(formularioVacio)
   }
 
-  const guardarEvento = (e) => {
+  const guardarEvento = async (e) => {
     e.preventDefault()
 
-    if (idEdicion) {
-      setEventos(
-        eventos.map((evento) =>
-          evento.id === idEdicion
-            ? {
-                ...evento,
-                ...formulario,
-                salaId: Number(formulario.salaId),
-                invitados: Number(formulario.invitados),
-                meserosRequeridos: Number(
-                  formulario.meserosRequeridos
-                )
-              }
-            : evento
-        )
-      )
-    } else {
-      const nuevoEvento = {
-        id: Date.now(),
+    try {
+      setGuardando(true)
 
+      const datos = {
         ...formulario,
 
-        salaId: Number(formulario.salaId),
+        salaId:
+          Number(formulario.salaId),
 
-        invitados: Number(
-          formulario.invitados
-        ),
+        invitados:
+          Number(formulario.invitados),
 
-        meserosRequeridos: Number(
-          formulario.meserosRequeridos
-        ),
-
-        estado: 'Pendiente'
+        meserosRequeridos:
+          Number(
+            formulario.meserosRequeridos
+          )
       }
 
-      setEventos([
-        ...eventos,
-        nuevoEvento
-      ])
-    }
+      if (idEdicion) {
+        await actualizarEventoAPI(
+          idEdicion,
+          datos
+        )
+      } else {
+        await crearEventoAPI(datos)
+      }
 
-    cerrarFormulario()
+      cerrarFormulario()
+    } catch (error) {
+      window.alert(error.message)
+    } finally {
+      setGuardando(false)
+    }
   }
 
-  const eliminarEvento = (evento) => {
-    const tieneAsignaciones = asignaciones.some(
-      (asignacion) =>
-        asignacion.eventoId === evento.id
-    )
-
-    if (tieneAsignaciones) {
-      window.alert(
-        'Este evento tiene meseros asignados. Retira primero sus asignaciones.'
+  const eliminarEvento = async (evento) => {
+    const confirmar =
+      window.confirm(
+        `¿Deseas eliminar el evento "${evento.nombre}"?`
       )
-      return
-    }
-
-    const confirmar = window.confirm(
-      `¿Deseas eliminar el evento "${evento.nombre}"?`
-    )
 
     if (!confirmar) {
       return
     }
 
-    setEventos(
-      eventos.filter(
-        (item) => item.id !== evento.id
+    try {
+      await eliminarEventoAPI(
+        evento.id
       )
-    )
+
+      if (
+        eventoDetalle?.id ===
+        evento.id
+      ) {
+        setEventoDetalle(null)
+      }
+    } catch (error) {
+      window.alert(error.message)
+    }
   }
 
   const formatearFecha = (fecha) => {
     if (!fecha) return ''
 
-    const partes = fecha.split('-')
+    const partes =
+      fecha.split('-')
 
     if (partes.length !== 3) {
       return fecha
@@ -184,23 +182,29 @@ function AdminEventos() {
     return `${partes[2]}/${partes[1]}/${partes[0]}`
   }
 
-  const eventosFiltrados = eventos.filter(
-    (evento) => {
-      const texto = busqueda.toLowerCase()
+  const eventosFiltrados =
+    eventos.filter(
+      (evento) => {
+        const texto =
+          busqueda.toLowerCase()
 
-      return (
-        evento.nombre
-          .toLowerCase()
-          .includes(texto) ||
-        evento.ubicacion
-          .toLowerCase()
-          .includes(texto) ||
-        obtenerNombreSala(evento.salaId)
-          .toLowerCase()
-          .includes(texto)
-      )
-    }
-  )
+        return (
+          evento.nombre
+            .toLowerCase()
+            .includes(texto) ||
+
+          evento.ubicacion
+            .toLowerCase()
+            .includes(texto) ||
+
+          obtenerNombreSala(
+            evento.salaId
+          )
+            .toLowerCase()
+            .includes(texto)
+        )
+      }
+    )
 
   return (
     <div className="eventos-pagina">
@@ -208,10 +212,13 @@ function AdminEventos() {
       <div className="eventos-encabezado">
 
         <div>
-          <h1>Gestión de eventos</h1>
+          <h1>
+            Gestión de eventos
+          </h1>
 
           <p>
-            Registra, consulta, edita y elimina eventos.
+            Registra, consulta, edita
+            y elimina eventos.
           </p>
         </div>
 
@@ -233,7 +240,9 @@ function AdminEventos() {
             placeholder="Buscar evento..."
             value={busqueda}
             onChange={(e) =>
-              setBusqueda(e.target.value)
+              setBusqueda(
+                e.target.value
+              )
             }
           />
 
@@ -257,85 +266,93 @@ function AdminEventos() {
 
             <tbody>
 
-              {eventosFiltrados.map((evento) => (
+              {eventosFiltrados.map(
+                (evento) => (
 
-                <tr key={evento.id}>
+                  <tr key={evento.id}>
 
-                  <td className="evento-nombre">
-                    {evento.nombre}
-                  </td>
+                    <td className="evento-nombre">
+                      {evento.nombre}
+                    </td>
 
-                  <td>
-                    {obtenerNombreSala(
-                      evento.salaId
-                    )}
-                  </td>
+                    <td>
+                      {obtenerNombreSala(
+                        evento.salaId
+                      )}
+                    </td>
 
-                  <td>
-                    {formatearFecha(
-                      evento.fecha
-                    )}
-                  </td>
+                    <td>
+                      {formatearFecha(
+                        evento.fecha
+                      )}
+                    </td>
 
-                  <td>
-                    {evento.ubicacion}
-                  </td>
+                    <td>
+                      {evento.ubicacion}
+                    </td>
 
-                  <td>
-                    {obtenerMeserosAsignados(
-                      evento.id
-                    )}{' '}
-                    asignados
-                  </td>
+                    <td>
+                      {obtenerMeserosAsignados(
+                        evento.id
+                      )}{' '}
+                      asignados
+                    </td>
 
-                  <td>
+                    <td>
 
-                    <span
-                      className={`etiqueta-estado ${evento.estado.toLowerCase()}`}
-                    >
-                      {evento.estado}
-                    </span>
-
-                  </td>
-
-                  <td>
-
-                    <div className="acciones-evento">
-
-                      <button
-                        className="accion-ver"
-                        onClick={() =>
-                          setEventoDetalle(evento)
-                        }
+                      <span
+                        className={`etiqueta-estado ${evento.estado.toLowerCase()}`}
                       >
-                        Ver
-                      </button>
+                        {evento.estado}
+                      </span>
 
-                      <button
-                        className="accion-editar"
-                        onClick={() =>
-                          abrirEdicion(evento)
-                        }
-                      >
-                        Editar
-                      </button>
+                    </td>
 
-                      <button
-                        className="accion-eliminar"
-                        onClick={() =>
-                          eliminarEvento(evento)
-                        }
-                      >
-                        Eliminar
-                      </button>
+                    <td>
 
-                    </div>
+                      <div className="acciones-evento">
 
-                  </td>
+                        <button
+                          className="accion-ver"
+                          onClick={() =>
+                            setEventoDetalle(
+                              evento
+                            )
+                          }
+                        >
+                          Ver
+                        </button>
 
-                </tr>
+                        <button
+                          className="accion-editar"
+                          onClick={() =>
+                            abrirEdicion(
+                              evento
+                            )
+                          }
+                        >
+                          Editar
+                        </button>
 
-              ))}
+                        <button
+                          className="accion-eliminar"
+                          onClick={() =>
+                            eliminarEvento(
+                              evento
+                            )
+                          }
+                        >
+                          Eliminar
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                )
+              )}
 
             </tbody>
 
@@ -362,17 +379,16 @@ function AdminEventos() {
                 </h2>
 
                 <p>
-                  {idEdicion
-                    ? 'Modifica la información del evento.'
-                    : 'Ingresa la información del evento.'}
+                  Ingresa la información
+                  del evento.
                 </p>
 
               </div>
 
               <button
-                type="button"
                 className="cerrar-modal"
                 onClick={cerrarFormulario}
+                type="button"
               >
                 ×
               </button>
@@ -399,16 +415,18 @@ function AdminEventos() {
                     required
                   >
 
-                    {salas.map((sala) => (
+                    {salas.map(
+                      (sala) => (
 
-                      <option
-                        key={sala.id}
-                        value={sala.id}
-                      >
-                        {sala.nombre}
-                      </option>
+                        <option
+                          key={sala.id}
+                          value={sala.id}
+                        >
+                          {sala.nombre}
+                        </option>
 
-                    ))}
+                      )
+                    )}
 
                   </select>
 
@@ -481,7 +499,9 @@ function AdminEventos() {
 
                 <div>
 
-                  <label>Fecha</label>
+                  <label>
+                    Fecha
+                  </label>
 
                   <input
                     type="date"
@@ -495,7 +515,9 @@ function AdminEventos() {
 
                 <div>
 
-                  <label>Horario</label>
+                  <label>
+                    Horario
+                  </label>
 
                   <input
                     type="time"
@@ -509,12 +531,16 @@ function AdminEventos() {
 
                 <div className="campo-completo">
 
-                  <label>Ubicación</label>
+                  <label>
+                    Ubicación
+                  </label>
 
                   <input
                     type="text"
                     name="ubicacion"
-                    value={formulario.ubicacion}
+                    value={
+                      formulario.ubicacion
+                    }
                     onChange={manejarCambio}
                     required
                   />
@@ -531,7 +557,9 @@ function AdminEventos() {
                     type="number"
                     name="invitados"
                     min="1"
-                    value={formulario.invitados}
+                    value={
+                      formulario.invitados
+                    }
                     onChange={manejarCambio}
                     required
                   />
@@ -549,7 +577,8 @@ function AdminEventos() {
                     name="meserosRequeridos"
                     min="1"
                     value={
-                      formulario.meserosRequeridos
+                      formulario
+                        .meserosRequeridos
                     }
                     onChange={manejarCambio}
                     required
@@ -566,7 +595,9 @@ function AdminEventos() {
                   <input
                     type="text"
                     name="uniforme"
-                    value={formulario.uniforme}
+                    value={
+                      formulario.uniforme
+                    }
                     onChange={manejarCambio}
                   />
 
@@ -580,7 +611,9 @@ function AdminEventos() {
 
                   <textarea
                     name="observaciones"
-                    value={formulario.observaciones}
+                    value={
+                      formulario.observaciones
+                    }
                     onChange={manejarCambio}
                     rows="4"
                   />
@@ -602,10 +635,13 @@ function AdminEventos() {
                 <button
                   type="submit"
                   className="boton-guardar-evento"
+                  disabled={guardando}
                 >
-                  {idEdicion
-                    ? 'Guardar cambios'
-                    : 'Guardar evento'}
+                  {guardando
+                    ? 'Guardando...'
+                    : idEdicion
+                      ? 'Guardar cambios'
+                      : 'Guardar evento'}
                 </button>
 
               </div>
@@ -630,10 +666,6 @@ function AdminEventos() {
                 <h2>
                   Detalles del evento
                 </h2>
-
-                <p>
-                  Información completa del evento.
-                </p>
               </div>
 
               <button
@@ -689,7 +721,10 @@ function AdminEventos() {
               </div>
 
               <div>
-                <span>Meseros asignados</span>
+                <span>
+                  Meseros asignados
+                </span>
+
                 <strong>
                   {obtenerMeserosAsignados(
                     eventoDetalle.id
@@ -698,14 +733,20 @@ function AdminEventos() {
               </div>
 
               <div className="detalle-completo">
-                <span>Ubicación</span>
+                <span>
+                  Ubicación
+                </span>
+
                 <strong>
                   {eventoDetalle.ubicacion}
                 </strong>
               </div>
 
               <div>
-                <span>Invitados</span>
+                <span>
+                  Invitados
+                </span>
+
                 <strong>
                   {eventoDetalle.invitados}
                 </strong>
@@ -718,31 +759,32 @@ function AdminEventos() {
 
                 <strong>
                   {
-                    eventoDetalle.meserosRequeridos
+                    eventoDetalle
+                      .meserosRequeridos
                   }
                 </strong>
               </div>
 
               <div className="detalle-completo">
-
-                <span>Uniforme</span>
+                <span>
+                  Uniforme
+                </span>
 
                 <strong>
                   {eventoDetalle.uniforme ||
                     'Sin especificar'}
                 </strong>
-
               </div>
 
               <div className="detalle-completo">
-
-                <span>Observaciones</span>
+                <span>
+                  Observaciones
+                </span>
 
                 <strong>
                   {eventoDetalle.observaciones ||
                     'Sin observaciones'}
                 </strong>
-
               </div>
 
             </div>

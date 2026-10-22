@@ -11,22 +11,35 @@ function AdminAsignaciones() {
     eventos,
     meseros,
     asignaciones,
-    setAsignaciones
+    guardarAsignacionesAPI
   } = useMesereArte()
 
-  const [eventoSeleccionado, setEventoSeleccionado] = useState('')
-  const [meserosSeleccionados, setMeserosSeleccionados] = useState([])
-  const [capitan, setCapitan] = useState('')
-  const [mensaje, setMensaje] = useState('')
+  const [eventoSeleccionado, setEventoSeleccionado] =
+    useState('')
 
-  const eventoActual = eventos.find(
-    (evento) =>
-      evento.id === Number(eventoSeleccionado)
-  )
+  const [meserosSeleccionados, setMeserosSeleccionados] =
+    useState([])
+
+  const [capitan, setCapitan] =
+    useState('')
+
+  const [mensaje, setMensaje] =
+    useState('')
+
+  const [guardando, setGuardando] =
+    useState(false)
+
+  const eventoActual =
+    eventos.find(
+      (evento) =>
+        evento.id ===
+        Number(eventoSeleccionado)
+    )
 
   const obtenerNombreSala = (salaId) => {
     const sala = salas.find(
-      (sala) => sala.id === Number(salaId)
+      (sala) =>
+        sala.id === Number(salaId)
     )
 
     return sala
@@ -34,19 +47,27 @@ function AdminAsignaciones() {
       : 'Sin sala'
   }
 
-  const meserosDisponibles = eventoActual
-    ? meseros.filter(
-        (mesero) =>
-          mesero.salaId === eventoActual.salaId &&
-          mesero.estado === 'Activo' &&
-          mesero.disponibilidad === 'Disponible'
-      )
-    : []
+  const meserosDisponibles =
+    eventoActual
+      ? meseros.filter(
+          (mesero) =>
+            mesero.salaId ===
+              eventoActual.salaId &&
+            mesero.estado ===
+              'Activo' &&
+            mesero.disponibilidad ===
+              'Disponible'
+        )
+      : []
 
   const cambiarEvento = (e) => {
-    const eventoId = Number(e.target.value)
+    const eventoId =
+      Number(e.target.value)
 
-    setEventoSeleccionado(e.target.value)
+    setEventoSeleccionado(
+      e.target.value
+    )
+
     setMensaje('')
 
     if (!eventoId) {
@@ -55,72 +76,80 @@ function AdminAsignaciones() {
       return
     }
 
-    const asignacionesExistentes =
+    const actuales =
       asignaciones.filter(
         (asignacion) =>
-          asignacion.eventoId === eventoId
+          asignacion.eventoId ===
+          eventoId
       )
 
     setMeserosSeleccionados(
-      asignacionesExistentes.map(
+      actuales.map(
         (asignacion) =>
           asignacion.meseroId
       )
     )
 
-    const capitanExistente =
-      asignacionesExistentes.find(
+    const capitanActual =
+      actuales.find(
         (asignacion) =>
-          asignacion.rol === 'Capitán'
+          asignacion.rol ===
+          'Capitán'
       )
 
     setCapitan(
-      capitanExistente
-        ? String(capitanExistente.meseroId)
+      capitanActual
+        ? String(
+            capitanActual.meseroId
+          )
         : ''
     )
   }
 
-  const seleccionarMesero = (id) => {
+  const seleccionarMesero = (
+    meseroId
+  ) => {
     if (
-      meserosSeleccionados.includes(id)
+      meserosSeleccionados.includes(
+        meseroId
+      )
     ) {
       setMeserosSeleccionados(
         meserosSeleccionados.filter(
-          (meseroId) =>
-            meseroId !== id
+          (id) =>
+            id !== meseroId
         )
       )
 
       if (
-        Number(capitan) === id
+        Number(capitan) ===
+        meseroId
       ) {
         setCapitan('')
       }
     } else {
       setMeserosSeleccionados([
         ...meserosSeleccionados,
-        id
+        meseroId
       ])
     }
   }
 
-  const guardarAsignacion = () => {
+  const guardarAsignacion = async () => {
     if (!eventoActual) {
       setMensaje(
         'Selecciona un evento.'
       )
-
       return
     }
 
     if (
-      meserosSeleccionados.length === 0
+      meserosSeleccionados.length ===
+      0
     ) {
       setMensaje(
         'Selecciona al menos un mesero.'
       )
-
       return
     }
 
@@ -131,54 +160,40 @@ function AdminAsignaciones() {
       )
     ) {
       setMensaje(
-        'El capitán debe ser uno de los meseros asignados.'
+        'El capitán debe pertenecer a los meseros seleccionados.'
       )
-
       return
     }
 
-    const asignacionesOtrosEventos =
-      asignaciones.filter(
-        (asignacion) =>
-          asignacion.eventoId !==
-          eventoActual.id
+    try {
+      setGuardando(true)
+
+      await guardarAsignacionesAPI(
+        eventoActual.id,
+        meserosSeleccionados,
+        capitan
       )
 
-    const nuevasAsignaciones =
-      meserosSeleccionados.map(
-        (meseroId, index) => ({
-          id:
-            Date.now() + index,
-
-          eventoId:
-            eventoActual.id,
-
-          meseroId,
-
-          rol:
-            Number(capitan) ===
-            meseroId
-              ? 'Capitán'
-              : 'Mesero'
-        })
+      setMensaje(
+        'Asignación guardada correctamente.'
       )
-
-    setAsignaciones([
-      ...asignacionesOtrosEventos,
-      ...nuevasAsignaciones
-    ])
-
-    setMensaje(
-      `Asignación guardada correctamente: ${meserosSeleccionados.length} mesero(s) asignado(s) a ${eventoActual.nombre}.`
-    )
+    } catch (error) {
+      setMensaje(
+        error.message
+      )
+    } finally {
+      setGuardando(false)
+    }
   }
 
-  const nombreCapitan = capitan
-    ? meseros.find(
-        (mesero) =>
-          mesero.id === Number(capitan)
-      )
-    : null
+  const nombreCapitan =
+    capitan
+      ? meseros.find(
+          (mesero) =>
+            mesero.id ===
+            Number(capitan)
+        )
+      : null
 
   return (
     <div className="asignaciones-pagina">
@@ -190,8 +205,8 @@ function AdminAsignaciones() {
         </h1>
 
         <p>
-          Consulta la disponibilidad y asigna
-          personal a los eventos.
+          Consulta la disponibilidad
+          y asigna personal a los eventos.
         </p>
 
       </div>
@@ -254,7 +269,6 @@ function AdminAsignaciones() {
           <section className="resumen-evento-asignacion">
 
             <div>
-
               <span>
                 Evento
               </span>
@@ -262,11 +276,9 @@ function AdminAsignaciones() {
               <strong>
                 {eventoActual.nombre}
               </strong>
-
             </div>
 
             <div>
-
               <span>
                 Sala
               </span>
@@ -276,11 +288,9 @@ function AdminAsignaciones() {
                   eventoActual.salaId
                 )}
               </strong>
-
             </div>
 
             <div>
-
               <span>
                 Fecha
               </span>
@@ -288,11 +298,9 @@ function AdminAsignaciones() {
               <strong>
                 {eventoActual.fecha}
               </strong>
-
             </div>
 
             <div>
-
               <span>
                 Horario
               </span>
@@ -300,42 +308,31 @@ function AdminAsignaciones() {
               <strong>
                 {eventoActual.horario}
               </strong>
-
             </div>
 
             <div>
-
               <span>
                 Meseros requeridos
               </span>
 
               <strong>
                 {
-                  eventoActual.meserosRequeridos
+                  eventoActual
+                    .meserosRequeridos
                 }
               </strong>
-
             </div>
 
             <div>
-
               <span>
                 Seleccionados
               </span>
 
-              <strong
-                className={
-                  meserosSeleccionados.length >=
-                  eventoActual.meserosRequeridos
-                    ? 'cantidad-completa'
-                    : 'cantidad-pendiente'
-                }
-              >
+              <strong>
                 {
                   meserosSeleccionados.length
                 }
               </strong>
-
             </div>
 
           </section>
@@ -352,8 +349,8 @@ function AdminAsignaciones() {
 
                 <p>
                   Solo se muestran meseros
-                  activos y disponibles de la
-                  sala del evento.
+                  activos y disponibles
+                  de la sala del evento.
                 </p>
 
               </div>
@@ -372,7 +369,6 @@ function AdminAsignaciones() {
               <table className="tabla-asignaciones">
 
                 <thead>
-
                   <tr>
                     <th>
                       Asignar
@@ -390,7 +386,6 @@ function AdminAsignaciones() {
                       Disponibilidad
                     </th>
                   </tr>
-
                 </thead>
 
                 <tbody>
@@ -434,23 +429,17 @@ function AdminAsignaciones() {
                           </td>
 
                           <td>
-
                             <span className="estado-activo">
-                              {
-                                mesero.estado
-                              }
+                              {mesero.estado}
                             </span>
-
                           </td>
 
                           <td>
-
                             <span className="estado-disponible">
                               {
                                 mesero.disponibilidad
                               }
                             </span>
-
                           </td>
 
                         </tr>
@@ -465,13 +454,15 @@ function AdminAsignaciones() {
                       <td
                         colSpan="4"
                         style={{
-                          textAlign: 'center',
-                          padding: '25px'
+                          textAlign:
+                            'center',
+                          padding:
+                            '25px'
                         }}
                       >
                         No hay meseros
-                        disponibles para este
-                        evento.
+                        disponibles para
+                        este evento.
                       </td>
 
                     </tr>
@@ -495,9 +486,8 @@ function AdminAsignaciones() {
               </h2>
 
               <p>
-                El capitán debe ser uno de
-                los meseros seleccionados
-                para este evento.
+                El capitán debe ser uno
+                de los meseros asignados.
               </p>
 
             </div>
@@ -560,7 +550,8 @@ function AdminAsignaciones() {
                 {' / '}
 
                 {
-                  eventoActual.meserosRequeridos
+                  eventoActual
+                    .meserosRequeridos
                 }
               </p>
 
@@ -581,8 +572,11 @@ function AdminAsignaciones() {
               onClick={
                 guardarAsignacion
               }
+              disabled={guardando}
             >
-              Guardar asignación
+              {guardando
+                ? 'Guardando...'
+                : 'Guardar asignación'}
             </button>
 
           </div>

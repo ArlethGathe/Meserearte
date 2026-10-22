@@ -18,11 +18,16 @@ function AdminUsuarios() {
   const {
     salas,
     meseros,
-    setMeseros
+    crearMeseroAPI,
+    actualizarMeseroAPI,
+    eliminarMeseroAPI
   } = useMesereArte()
 
-  const [busqueda, setBusqueda] = useState('')
-  const [filtroSala, setFiltroSala] = useState('Todas')
+  const [busqueda, setBusqueda] =
+    useState('')
+
+  const [filtroSala, setFiltroSala] =
+    useState('Todas')
 
   const [mostrarFormulario, setMostrarFormulario] =
     useState(false)
@@ -33,12 +38,16 @@ function AdminUsuarios() {
   const [idEdicion, setIdEdicion] =
     useState(null)
 
+  const [guardando, setGuardando] =
+    useState(false)
+
   const [formulario, setFormulario] =
     useState(formularioVacio)
 
   const obtenerNombreSala = (salaId) => {
     const sala = salas.find(
-      (sala) => sala.id === Number(salaId)
+      (sala) =>
+        sala.id === Number(salaId)
     )
 
     return sala
@@ -47,7 +56,10 @@ function AdminUsuarios() {
   }
 
   const manejarCambio = (e) => {
-    const { name, value } = e.target
+    const {
+      name,
+      value
+    } = e.target
 
     setFormulario({
       ...formulario,
@@ -60,9 +72,11 @@ function AdminUsuarios() {
 
     setFormulario({
       ...formularioVacio,
-      salaId: salas.length > 0
-        ? salas[0].id
-        : ''
+
+      salaId:
+        salas.length > 0
+          ? salas[0].id
+          : ''
     })
 
     setMostrarFormulario(true)
@@ -75,7 +89,8 @@ function AdminUsuarios() {
       nombre: mesero.nombre,
       apellidos: mesero.apellidos,
       correo: mesero.correo,
-      telefono: mesero.telefono,
+      telefono:
+        mesero.telefono || '',
       salaId: mesero.salaId,
       estado: mesero.estado
     })
@@ -86,92 +101,106 @@ function AdminUsuarios() {
   const cerrarFormulario = () => {
     setMostrarFormulario(false)
     setIdEdicion(null)
-    setFormulario(formularioVacio)
+
+    setFormulario(
+      formularioVacio
+    )
   }
 
-  const guardarMesero = (e) => {
+  const guardarMesero = async (e) => {
     e.preventDefault()
 
-    if (idEdicion) {
-      setMeseros(
-        meseros.map((mesero) =>
-          mesero.id === idEdicion
-            ? {
-                ...mesero,
-                ...formulario,
-                salaId: Number(
-                  formulario.salaId
-                )
-              }
-            : mesero
-        )
-      )
-    } else {
-      const nuevoMesero = {
-        id: Date.now(),
+    try {
+      setGuardando(true)
 
+      const datos = {
         ...formulario,
 
-        salaId: Number(
-          formulario.salaId
-        ),
-
-        eventosParticipados: 0,
-
-        disponibilidad: 'Disponible'
+        salaId:
+          Number(
+            formulario.salaId
+          )
       }
 
-      setMeseros([
-        ...meseros,
-        nuevoMesero
-      ])
-    }
+      if (idEdicion) {
+        await actualizarMeseroAPI(
+          idEdicion,
+          datos
+        )
+      } else {
+        await crearMeseroAPI(
+          datos
+        )
+      }
 
-    cerrarFormulario()
+      cerrarFormulario()
+    } catch (error) {
+      window.alert(
+        error.message
+      )
+    } finally {
+      setGuardando(false)
+    }
   }
 
-  const eliminarMesero = (mesero) => {
-    const confirmar = window.confirm(
-      `¿Deseas eliminar a ${mesero.nombre} ${mesero.apellidos}?`
-    )
+  const eliminarMesero = async (
+    mesero
+  ) => {
+    const confirmar =
+      window.confirm(
+        `¿Deseas eliminar a ${mesero.nombre} ${mesero.apellidos}?`
+      )
 
     if (!confirmar) {
       return
     }
 
-    setMeseros(
-      meseros.filter(
-        (item) => item.id !== mesero.id
+    try {
+      await eliminarMeseroAPI(
+        mesero.id
       )
-    )
-  }
 
-  const meserosFiltrados = meseros.filter(
-    (mesero) => {
-      const texto = busqueda.toLowerCase()
-
-      const coincideBusqueda =
-        mesero.nombre
-          .toLowerCase()
-          .includes(texto) ||
-        mesero.apellidos
-          .toLowerCase()
-          .includes(texto) ||
-        mesero.correo
-          .toLowerCase()
-          .includes(texto)
-
-      const coincideSala =
-        filtroSala === 'Todas' ||
-        mesero.salaId ===
-          Number(filtroSala)
-
-      return (
-        coincideBusqueda &&
-        coincideSala
+      if (
+        meseroDetalle?.id ===
+        mesero.id
+      ) {
+        setMeseroDetalle(null)
+      }
+    } catch (error) {
+      window.alert(
+        error.message
       )
     }
-  )
+  }
+
+  const meserosFiltrados =
+    meseros.filter(
+      (mesero) => {
+        const texto =
+          busqueda.toLowerCase()
+
+        const coincideBusqueda =
+          mesero.nombre
+            .toLowerCase()
+            .includes(texto) ||
+          mesero.apellidos
+            .toLowerCase()
+            .includes(texto) ||
+          mesero.correo
+            .toLowerCase()
+            .includes(texto)
+
+        const coincideSala =
+          filtroSala === 'Todas' ||
+          mesero.salaId ===
+            Number(filtroSala)
+
+        return (
+          coincideBusqueda &&
+          coincideSala
+        )
+      }
+    )
 
   return (
     <div className="usuarios-pagina">
@@ -207,7 +236,9 @@ function AdminUsuarios() {
             placeholder="Buscar mesero..."
             value={busqueda}
             onChange={(e) =>
-              setBusqueda(e.target.value)
+              setBusqueda(
+                e.target.value
+              )
             }
           />
 
@@ -224,16 +255,18 @@ function AdminUsuarios() {
               Todas las salas
             </option>
 
-            {salas.map((sala) => (
+            {salas.map(
+              (sala) => (
 
-              <option
-                key={sala.id}
-                value={sala.id}
-              >
-                {sala.nombre}
-              </option>
+                <option
+                  key={sala.id}
+                  value={sala.id}
+                >
+                  {sala.nombre}
+                </option>
 
-            ))}
+              )
+            )}
 
           </select>
 
@@ -247,7 +280,9 @@ function AdminUsuarios() {
               <tr>
                 <th>Mesero</th>
                 <th>Sala</th>
-                <th>Eventos participados</th>
+                <th>
+                  Eventos participados
+                </th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -281,7 +316,8 @@ function AdminUsuarios() {
 
                     <td>
                       {
-                        mesero.eventosParticipados
+                        mesero.eventosParticipados ??
+                        0
                       }
                     </td>
 
@@ -374,7 +410,9 @@ function AdminUsuarios() {
 
               <button
                 className="cerrar-modal-usuario"
-                onClick={cerrarFormulario}
+                onClick={
+                  cerrarFormulario
+                }
               >
                 ×
               </button>
@@ -382,7 +420,9 @@ function AdminUsuarios() {
             </div>
 
             <form
-              onSubmit={guardarMesero}
+              onSubmit={
+                guardarMesero
+              }
             >
 
               <div className="usuario-form-grid">
@@ -535,7 +575,7 @@ function AdminUsuarios() {
                 <div className="aviso-eventos">
 
                   Los eventos participados
-                  no pueden editarse
+                  no pueden modificarse
                   manualmente.
 
                 </div>
@@ -557,10 +597,15 @@ function AdminUsuarios() {
                 <button
                   type="submit"
                   className="guardar-usuario"
+                  disabled={
+                    guardando
+                  }
                 >
-                  {idEdicion
-                    ? 'Guardar cambios'
-                    : 'Registrar mesero'}
+                  {guardando
+                    ? 'Guardando...'
+                    : idEdicion
+                      ? 'Guardar cambios'
+                      : 'Registrar mesero'}
                 </button>
 
               </div>
@@ -596,7 +641,9 @@ function AdminUsuarios() {
               <button
                 className="cerrar-modal-usuario"
                 onClick={() =>
-                  setMeseroDetalle(null)
+                  setMeseroDetalle(
+                    null
+                  )
                 }
               >
                 ×
@@ -614,7 +661,9 @@ function AdminUsuarios() {
 
                 <strong>
                   {meseroDetalle.nombre}{' '}
-                  {meseroDetalle.apellidos}
+                  {
+                    meseroDetalle.apellidos
+                  }
                 </strong>
 
               </div>
@@ -626,7 +675,9 @@ function AdminUsuarios() {
                 </span>
 
                 <strong>
-                  {meseroDetalle.estado}
+                  {
+                    meseroDetalle.estado
+                  }
                 </strong>
 
               </div>
@@ -638,7 +689,9 @@ function AdminUsuarios() {
                 </span>
 
                 <strong>
-                  {meseroDetalle.correo}
+                  {
+                    meseroDetalle.correo
+                  }
                 </strong>
 
               </div>
@@ -650,10 +703,8 @@ function AdminUsuarios() {
                 </span>
 
                 <strong>
-                  {
-                    meseroDetalle.telefono ||
-                    'Sin registrar'
-                  }
+                  {meseroDetalle.telefono ||
+                    'Sin registrar'}
                 </strong>
 
               </div>
@@ -680,7 +731,8 @@ function AdminUsuarios() {
 
                 <strong>
                   {
-                    meseroDetalle.eventosParticipados
+                    meseroDetalle.eventosParticipados ??
+                    0
                   }
                 </strong>
 
