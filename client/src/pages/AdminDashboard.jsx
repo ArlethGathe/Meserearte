@@ -1,217 +1,573 @@
 import { useState } from 'react'
 import './AdminDashboard.css'
-import AdminEventos from './AdminEventos'
-import AdminSalas from './AdminSalas'
-import AdminUsuarios from './AdminUsuarios'
-import AdminAsignaciones from './AdminAsignaciones'
-import AdminNotificaciones from './AdminNotificaciones'
-import AdminReportes from './AdminReportes'
 
+import AdminSalas from './AdminSalas.jsx'
+import AdminUsuarios from './AdminUsuarios.jsx'
+import AdminEventos from './AdminEventos.jsx'
+import AdminAsignaciones from './AdminAsignaciones.jsx'
+import AdminNotificaciones from './AdminNotificaciones.jsx'
+import AdminReportes from './AdminReportes.jsx'
+
+import {
+  useMesereArte
+} from '../context/MesereArteContexto.jsx'
 
 function AdminDashboard({ onLogout }) {
-  const [seccion, setSeccion] = useState('inicio')
+  const [seccion, setSeccion] =
+    useState('inicio')
+
+  const {
+    salas,
+    meseros,
+    eventos,
+    asignaciones
+  } = useMesereArte()
+
+  /* =========================
+     DATOS DEL DASHBOARD
+  ========================= */
+
+  const totalSalas =
+    salas.length
+
+  const totalMeseros =
+    meseros.length
+
+  const totalEventos =
+    eventos.length
+
+  const eventosConPersonal =
+    eventos.filter((evento) =>
+      asignaciones.some(
+        (asignacion) =>
+          asignacion.eventoId ===
+          evento.id
+      )
+    ).length
+
+  const obtenerCantidadAsignados = (
+    eventoId
+  ) => {
+    return asignaciones.filter(
+      (asignacion) =>
+        asignacion.eventoId ===
+        eventoId
+    ).length
+  }
+
+  const formatearFecha = (fecha) => {
+    if (!fecha) {
+      return ''
+    }
+
+    const partes =
+      fecha.split('-')
+
+    if (partes.length !== 3) {
+      return fecha
+    }
+
+    return `${partes[2]}/${partes[1]}/${partes[0]}`
+  }
+
+  const proximosEventos = [
+    ...eventos
+  ]
+    .sort(
+      (a, b) =>
+        new Date(
+          `${a.fecha}T${a.horario || '00:00'}`
+        ) -
+        new Date(
+          `${b.fecha}T${b.horario || '00:00'}`
+        )
+    )
+    .slice(0, 3)
+
+  /* =========================
+     CAMBIO DE SECCIÓN
+  ========================= */
+
+  const cambiarSeccion = (
+    nuevaSeccion
+  ) => {
+    setSeccion(
+      nuevaSeccion
+    )
+  }
 
   return (
     <div className="admin-layout">
 
-      <aside className="sidebar">
+      {/* ======================
+          MENÚ LATERAL
+      ====================== */}
 
-        <div>
-          <h2 className="sidebar-logo">MesereArte</h2>
-          <p className="sidebar-subtitulo">Gestión de eventos</p>
+      <aside className="admin-sidebar">
+
+        <div className="admin-logo">
+
+          <h2>
+            MesereArte
+          </h2>
+
+          <span>
+            Gestión de eventos
+          </span>
+
         </div>
 
-        <nav className="sidebar-menu">
+        <nav className="admin-menu">
 
           <button
-            className={seccion === 'inicio' ? 'menu-activo' : ''}
-            onClick={() => setSeccion('inicio')}
+            className={
+              seccion === 'inicio'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              cambiarSeccion(
+                'inicio'
+              )
+            }
           >
             Inicio
           </button>
 
           <button
-            className={seccion === 'salas' ? 'menu-activo' : ''}
-            onClick={() => setSeccion('salas')}
+            className={
+              seccion === 'salas'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              cambiarSeccion(
+                'salas'
+              )
+            }
           >
             Salas
           </button>
 
           <button
-            className={seccion === 'usuarios' ? 'menu-activo' : ''}
-            onClick={() => setSeccion('usuarios')}
+            className={
+              seccion === 'usuarios'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              cambiarSeccion(
+                'usuarios'
+              )
+            }
           >
             Usuarios
           </button>
 
           <button
-            className={seccion === 'eventos' ? 'menu-activo' : ''}
-            onClick={() => setSeccion('eventos')}
+            className={
+              seccion === 'eventos'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              cambiarSeccion(
+                'eventos'
+              )
+            }
           >
             Eventos
           </button>
 
           <button
-            className={seccion === 'asignaciones' ? 'menu-activo' : ''}
-            onClick={() => setSeccion('asignaciones')}
+            className={
+              seccion === 'asignaciones'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              cambiarSeccion(
+                'asignaciones'
+              )
+            }
           >
             Asignaciones
           </button>
 
           <button
-            className={seccion === 'notificaciones' ? 'menu-activo' : ''}
-            onClick={() => setSeccion('notificaciones')}
+            className={
+              seccion === 'notificaciones'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              cambiarSeccion(
+                'notificaciones'
+              )
+            }
           >
             Notificaciones
           </button>
 
           <button
-            className={seccion === 'reportes' ? 'menu-activo' : ''}
-            onClick={() => setSeccion('reportes')}
+            className={
+              seccion === 'reportes'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              cambiarSeccion(
+                'reportes'
+              )
+            }
           >
             Reportes e historiales
           </button>
 
         </nav>
 
-        <button
-          className="cerrar-sesion"
-          onClick={onLogout}
-        >
-          Cerrar sesión
-        </button>
+        <div className="admin-logout">
+
+          <button
+            onClick={onLogout}
+          >
+            Cerrar sesión
+          </button>
+
+        </div>
 
       </aside>
 
-      <main className="admin-contenido">
+      {/* ======================
+          CONTENIDO
+      ====================== */}
+
+      <main className="admin-main">
 
         {seccion === 'salas' ? (
-           <AdminSalas />
-         ) : seccion === 'usuarios' ? (
-           <AdminUsuarios />
-         ) : seccion === 'eventos' ? (
-           <AdminEventos />
-         ) : seccion === 'asignaciones' ? (
-           <AdminAsignaciones /> 
-         ) : seccion === 'notificaciones' ? (
-           <AdminNotificaciones />
-         ) : seccion === 'reportes' ? (
-           <AdminReportes />
-         ) : (
-          <>
-            <header className="admin-header">
+
+          <AdminSalas />
+
+        ) : seccion ===
+          'usuarios' ? (
+
+          <AdminUsuarios />
+
+        ) : seccion ===
+          'eventos' ? (
+
+          <AdminEventos />
+
+        ) : seccion ===
+          'asignaciones' ? (
+
+          <AdminAsignaciones />
+
+        ) : seccion ===
+          'notificaciones' ? (
+
+          <AdminNotificaciones />
+
+        ) : seccion ===
+          'reportes' ? (
+
+          <AdminReportes />
+
+        ) : (
+
+          <div className="dashboard-pagina">
+
+            {/* ==================
+                ENCABEZADO
+            ================== */}
+
+            <div className="dashboard-encabezado">
 
               <div>
-                <h1>Panel principal</h1>
-                <p>Resumen general de la organización.</p>
+
+                <h1>
+                  Panel de administración
+                </h1>
+
+                <p>
+                  Bienvenido a MesereArte.
+                  Consulta el estado general
+                  de tus equipos y eventos.
+                </p>
+
               </div>
 
-              <div className="usuario-admin">
-                Administrador: Arleth Gathe
+            </div>
+
+            {/* ==================
+                TARJETAS
+            ================== */}
+
+            <div className="dashboard-cards">
+
+              <div className="dashboard-card">
+
+                <span>
+                  Salas
+                </span>
+
+                <strong>
+                  {totalSalas}
+                </strong>
+
+                <p>
+                  Equipos registrados
+                </p>
+
               </div>
 
-            </header>
+              <div className="dashboard-card">
 
-            <section className="tarjetas-resumen">
+                <span>
+                  Meseros
+                </span>
 
-              <div className="tarjeta">
-                <span>Eventos próximos</span>
-                <strong>12</strong>
+                <strong>
+                  {totalMeseros}
+                </strong>
+
+                <p>
+                  Usuarios registrados
+                </p>
+
               </div>
 
-              <div className="tarjeta">
-                <span>Meseros activos</span>
-                <strong>24</strong>
+              <div className="dashboard-card">
+
+                <span>
+                  Eventos
+                </span>
+
+                <strong>
+                  {totalEventos}
+                </strong>
+
+                <p>
+                  Eventos registrados
+                </p>
+
               </div>
 
-              <div className="tarjeta">
-                <span>Asignaciones pendientes</span>
-                <strong>6</strong>
+              <div className="dashboard-card">
+
+                <span>
+                  Con personal
+                </span>
+
+                <strong>
+                  {eventosConPersonal}
+                </strong>
+
+                <p>
+                  Eventos con asignaciones
+                </p>
+
               </div>
 
-              <div className="tarjeta">
-                <span>Notificaciones</span>
-                <strong>9</strong>
+            </div>
+
+            {/* ==================
+                PRÓXIMOS EVENTOS
+            ================== */}
+
+            <div className="dashboard-seccion">
+
+              <div className="dashboard-seccion-header">
+
+                <div>
+
+                  <h2>
+                    Próximos eventos
+                  </h2>
+
+                  <p>
+                    Consulta los eventos
+                    registrados recientemente.
+                  </p>
+
+                </div>
+
+                <button
+                  onClick={() =>
+                    cambiarSeccion(
+                      'eventos'
+                    )
+                  }
+                >
+                  Ver todos
+                </button>
+
               </div>
 
-            </section>
+              <div className="dashboard-eventos">
 
-            <section className="admin-grid">
+                {proximosEventos.length >
+                0 ? (
 
-              <div className="panel-eventos">
+                  proximosEventos.map(
+                    (evento) => {
 
-                <h2>Próximos eventos</h2>
+                      const asignados =
+                        obtenerCantidadAsignados(
+                          evento.id
+                        )
 
-                <div className="evento-card">
+                      return (
 
-                  <div>
-                    <h3>Boda Hernández & Ruiz</h3>
+                        <div
+                          className="dashboard-evento"
+                          key={evento.id}
+                        >
+
+                          <div className="dashboard-evento-info">
+
+                            <h3>
+                              {evento.nombre}
+                            </h3>
+
+                            <p>
+                              {formatearFecha(
+                                evento.fecha
+                              )}
+                              {' · '}
+                              {evento.horario}
+                            </p>
+
+                            <span>
+                              {evento.ubicacion}
+                            </span>
+
+                          </div>
+
+                          <div className="dashboard-evento-personal">
+
+                            <span>
+                              Personal
+                            </span>
+
+                            <strong>
+                              {asignados}
+                              {' / '}
+                              {
+                                evento
+                                  .meserosRequeridos
+                              }
+                            </strong>
+
+                            <small>
+                              meseros
+                            </small>
+
+                          </div>
+
+                        </div>
+
+                      )
+                    }
+                  )
+
+                ) : (
+
+                  <div className="dashboard-sin-eventos">
+
                     <p>
-                      14/06/2026 · 18:00 · Jardín Los Encinos
+                      No hay eventos
+                      registrados.
                     </p>
+
+                    <button
+                      onClick={() =>
+                        cambiarSeccion(
+                          'eventos'
+                        )
+                      }
+                    >
+                      Crear evento
+                    </button>
+
                   </div>
 
-                  <span className="estado programado">
-                    Programado
+                )}
+
+              </div>
+
+            </div>
+
+            {/* ==================
+                RESUMEN
+            ================== */}
+
+            <div className="dashboard-resumen">
+
+              <div>
+
+                <h2>
+                  Resumen general
+                </h2>
+
+                <p>
+                  Información actual del
+                  sistema MesereArte.
+                </p>
+
+              </div>
+
+              <div className="dashboard-resumen-grid">
+
+                <div>
+
+                  <span>
+                    Meseros por sala
                   </span>
+
+                  <strong>
+                    {totalSalas > 0
+                      ? (
+                          totalMeseros /
+                          totalSalas
+                        ).toFixed(1)
+                      : '0'}
+                  </strong>
 
                 </div>
 
-                <div className="evento-card">
+                <div>
 
-                  <div>
-                    <h3>Evento Corporativo ABC</h3>
-                    <p>
-                      21/06/2026 · 15:00 · Salón Imperial
-                    </p>
-                  </div>
-
-                  <span className="estado pendiente">
-                    Pendiente
+                  <span>
+                    Eventos con personal
                   </span>
+
+                  <strong>
+                    {eventosConPersonal}
+                    {' / '}
+                    {totalEventos}
+                  </strong>
 
                 </div>
 
-                <div className="evento-card">
+                <div>
 
-                  <div>
-                    <h3>Graduación ESCOM</h3>
-                    <p>
-                      28/06/2026 · 17:00 · Centro de Convenciones
-                    </p>
-                  </div>
-
-                  <span className="estado confirmado">
-                    Confirmado
+                  <span>
+                    Asignaciones
                   </span>
+
+                  <strong>
+                    {asignaciones.length}
+                  </strong>
 
                 </div>
 
               </div>
 
-              <div className="panel-resumen">
+            </div>
 
-                <h2>Resumen</h2>
+          </div>
 
-                <div className="resumen-item">
-                  <span className="circulo confirmado"></span>
-                  Confirmados
-                </div>
-
-                <div className="resumen-item">
-                  <span className="circulo pendiente"></span>
-                  Pendientes
-                </div>
-
-                <div className="resumen-item">
-                  <span className="circulo cancelado"></span>
-                  Cancelados
-                </div>
-
-              </div>
-
-            </section>
-          </>
         )}
 
       </main>

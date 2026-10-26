@@ -627,6 +627,370 @@ app.put(
 /* =========================
    SERVER
 ========================= */
+/* =========================
+   AUTENTICACIÓN
+========================= */
+
+app.post(
+  '/api/auth/login',
+  (req, res) => {
+
+    const {
+      correo,
+      password,
+      rol
+    } = req.body
+
+    const usuario =
+      db.usuarios.find(
+        (usuario) =>
+          usuario.correo
+            .toLowerCase() ===
+            correo
+              .trim()
+              .toLowerCase() &&
+          usuario.password ===
+            password &&
+          usuario.rol === rol
+      )
+
+    if (!usuario) {
+      return res.status(401).json({
+        mensaje:
+          'Correo, contraseña o tipo de usuario incorrectos.'
+      })
+    }
+
+    if (
+      usuario.estado !==
+      'Activo'
+    ) {
+      return res.status(403).json({
+        mensaje:
+          'El usuario se encuentra inactivo.'
+      })
+    }
+
+    const {
+      password: passwordOculto,
+      ...usuarioSeguro
+    } = usuario
+
+    res.json({
+      mensaje:
+        'Inicio de sesión correcto',
+
+      usuario:
+        usuarioSeguro
+    })
+  }
+)
+
+/* =========================
+   REGISTRO ADMINISTRADOR
+========================= */
+
+app.post(
+  '/api/auth/registro-admin',
+  (req, res) => {
+
+    const {
+      nombre,
+      apellidos,
+      correo,
+      password,
+      nombreSala
+    } = req.body
+
+    if (
+      !nombre ||
+      !apellidos ||
+      !correo ||
+      !password ||
+      !nombreSala
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'Completa todos los campos.'
+      })
+    }
+
+    const correoExiste =
+      db.usuarios.some(
+        (usuario) =>
+          usuario.correo
+            .toLowerCase() ===
+          correo
+            .trim()
+            .toLowerCase()
+      )
+
+    if (correoExiste) {
+      return res.status(400).json({
+        mensaje:
+          'El correo ya está registrado.'
+      })
+    }
+
+    let codigo =
+      generarCodigoSala()
+
+    while (
+      db.salas.some(
+        (sala) =>
+          sala.codigo === codigo
+      )
+    ) {
+      codigo =
+        generarCodigoSala()
+    }
+
+    const nuevaSala = {
+      id:
+        generarId(
+          db.salas
+        ),
+
+      nombre:
+        nombreSala,
+
+      descripcion:
+        'Sala creada durante el registro',
+
+      codigo,
+
+      administrador:
+        `${nombre} ${apellidos}`,
+
+      estado:
+        'Activa'
+    }
+
+    db.salas.push(
+      nuevaSala
+    )
+
+    const nuevoUsuario = {
+      id:
+        generarId(
+          db.usuarios
+        ),
+
+      nombre,
+      apellidos,
+
+      correo:
+        correo
+          .trim()
+          .toLowerCase(),
+
+      password,
+
+      rol:
+        'Administrador',
+
+      salaId:
+        nuevaSala.id,
+
+      estado:
+        'Activo'
+    }
+
+    db.usuarios.push(
+      nuevoUsuario
+    )
+
+    const {
+      password: passwordOculto,
+      ...usuarioSeguro
+    } = nuevoUsuario
+
+    res.status(201).json({
+      mensaje:
+        'Administrador registrado correctamente.',
+
+      usuario:
+        usuarioSeguro,
+
+      sala:
+        nuevaSala
+    })
+  }
+)
+
+/* =========================
+   REGISTRO MESERO
+========================= */
+
+app.post(
+  '/api/auth/registro-mesero',
+  (req, res) => {
+
+    const {
+      nombre,
+      apellidos,
+      correo,
+      password,
+      codigoSala
+    } = req.body
+
+    if (
+      !nombre ||
+      !apellidos ||
+      !correo ||
+      !password ||
+      !codigoSala
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'Completa todos los campos.'
+      })
+    }
+
+    const correoExiste =
+      db.usuarios.some(
+        (usuario) =>
+          usuario.correo
+            .toLowerCase() ===
+          correo
+            .trim()
+            .toLowerCase()
+      )
+
+    if (correoExiste) {
+      return res.status(400).json({
+        mensaje:
+          'El correo ya está registrado.'
+      })
+    }
+
+    const sala =
+      db.salas.find(
+        (sala) =>
+          sala.codigo
+            .toUpperCase() ===
+            codigoSala
+              .trim()
+              .toUpperCase() &&
+          sala.estado ===
+            'Activa'
+      )
+
+    if (!sala) {
+      return res.status(400).json({
+        mensaje:
+          'El código de sala no existe o la sala no está activa.'
+      })
+    }
+
+    const nuevoUsuario = {
+      id:
+        generarId(
+          db.usuarios
+        ),
+
+      nombre,
+      apellidos,
+
+      correo:
+        correo
+          .trim()
+          .toLowerCase(),
+
+      password,
+
+      rol:
+        'Mesero',
+
+      salaId:
+        sala.id,
+
+      estado:
+        'Activo'
+    }
+
+    db.usuarios.push(
+      nuevoUsuario
+    )
+
+    const nuevoMesero = {
+      id:
+        generarId(
+          db.meseros
+        ),
+
+      nombre,
+      apellidos,
+
+      correo:
+        correo
+          .trim()
+          .toLowerCase(),
+
+      telefono:
+        '',
+
+      salaId:
+        sala.id,
+
+      eventosParticipados:
+        0,
+
+      estado:
+        'Activo',
+
+      disponibilidad:
+        'Disponible'
+    }
+
+    db.meseros.push(
+      nuevoMesero
+    )
+
+    const {
+      password: passwordOculto,
+      ...usuarioSeguro
+    } = nuevoUsuario
+
+    res.status(201).json({
+      mensaje:
+        'Mesero registrado correctamente.',
+
+      usuario:
+        usuarioSeguro,
+
+      sala: {
+        id:
+          sala.id,
+
+        nombre:
+          sala.nombre
+      }
+    })
+  }
+)
+
+/* =========================
+   USUARIOS
+========================= */
+
+app.get(
+  '/api/usuarios',
+  (req, res) => {
+
+    const usuariosSeguros =
+      db.usuarios.map(
+        ({
+          password,
+          ...usuario
+        }) => usuario
+      )
+
+    res.json(
+      usuariosSeguros
+    )
+  }
+)
 
 app.listen(PORT, () => {
   console.log(

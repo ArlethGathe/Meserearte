@@ -1,4 +1,28 @@
 export const db = {
+usuarios: [
+  {
+    id: 1,
+    nombre: 'Administrador',
+    apellidos: 'MesereArte',
+    correo: 'admin@meserearte.com',
+    password: '123456',
+    rol: 'Administrador',
+    salaId: 1,
+    estado: 'Activo'
+  },
+
+  {
+    id: 2,
+    nombre: 'María',
+    apellidos: 'López',
+    correo: 'maria@meserearte.com',
+    password: '123456',
+    rol: 'Mesero',
+    salaId: 1,
+    estado: 'Activo'
+  }
+],
+
   salas: [
     {
       id: 1,
