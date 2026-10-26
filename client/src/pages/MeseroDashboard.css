@@ -1,0 +1,350 @@
+.mesero-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f8ecd5;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.mesero-sidebar {
+  width: 230px;
+  min-width: 230px;
+  min-height: 100vh;
+  padding: 28px 20px;
+  box-sizing: border-box;
+  background: #350909;
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.mesero-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 35px;
+}
+
+.mesero-logo-icono {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #c51d31;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.mesero-logo h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.mesero-logo span {
+  font-size: 11px;
+  color: #dcc5c5;
+}
+
+.mesero-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mesero-menu button,
+.mesero-logout button {
+  border: none;
+  background: transparent;
+  color: white;
+  padding: 12px 14px;
+  border-radius: 9px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.mesero-menu button:hover,
+.mesero-menu button.activo,
+.mesero-logout button:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+.mesero-logout {
+  margin-top: auto;
+}
+
+.mesero-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.mesero-pagina {
+  padding: 38px 42px;
+}
+
+.mesero-bienvenida {
+  display: flex;
+  justify-content: space-between;
+  gap: 25px;
+  margin-bottom: 28px;
+}
+
+.mesero-etiqueta {
+  color: #a11c27;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.mesero-bienvenida h1,
+.mesero-titulo h1 {
+  margin: 4px 0 6px;
+  color: #281711;
+  font-size: 32px;
+}
+
+.mesero-bienvenida p,
+.mesero-titulo p {
+  color: #806b5d;
+}
+
+.mesero-sala {
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 12px;
+  padding: 15px 20px;
+  min-width: 180px;
+}
+
+.mesero-sala span {
+  display: block;
+  color: #8a7465;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.mesero-sala strong {
+  color: #2c1a13;
+}
+
+.mesero-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.mesero-card {
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 14px;
+  padding: 21px;
+  box-shadow: 0 4px 14px rgba(55,35,20,.06);
+}
+
+.mesero-card span {
+  color: #8a7565;
+  font-size: 13px;
+}
+
+.mesero-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 29px;
+  color: #2b1912;
+}
+
+.mesero-card .texto-estado {
+  font-size: 19px;
+}
+
+.mesero-card p {
+  color: #948071;
+  font-size: 13px;
+  margin: 0;
+}
+
+.mesero-seccion {
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 15px;
+  padding: 23px;
+}
+
+.mesero-seccion-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.mesero-seccion-header h2 {
+  margin: 0;
+  color: #2b1912;
+}
+
+.mesero-seccion-header p {
+  margin: 5px 0 0;
+  color: #8a7565;
+}
+
+.mesero-seccion-header button {
+  border: none;
+  background: #b9883e;
+  color: white;
+  border-radius: 8px;
+  padding: 9px 15px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.mesero-eventos {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.mesero-evento {
+  padding: 17px;
+  background: #fcf6eb;
+  border: 1px solid #eddeca;
+  border-radius: 11px;
+}
+
+.mesero-evento h3 {
+  margin: 8px 0 5px;
+}
+
+.mesero-evento p {
+  margin: 0 0 5px;
+  color: #725f50;
+}
+
+.mesero-evento small {
+  color: #907b6b;
+}
+
+.rol-capitan,
+.rol-mesero {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.rol-capitan {
+  background: #f1dfb7;
+  color: #795314;
+}
+
+.rol-mesero {
+  background: #ebe3da;
+  color: #645247;
+}
+
+.mesero-eventos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+  margin-top: 25px;
+}
+
+.mesero-evento-card {
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 15px;
+  padding: 22px;
+}
+
+.mesero-evento-superior {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.mesero-evento-superior h2 {
+  margin: 9px 0 0;
+}
+
+.evento-estado-mesero {
+  height: fit-content;
+  padding: 6px 10px;
+  background: #e7f3e8;
+  color: #397548;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.mesero-evento-datos {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.mesero-evento-datos div {
+  padding: 13px;
+  background: #faf4e9;
+  border-radius: 9px;
+}
+
+.mesero-evento-datos span,
+.mesero-perfil span {
+  display: block;
+  color: #8b7666;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.mesero-observaciones {
+  margin-top: 17px;
+  padding: 14px;
+  background: #f7eddb;
+  border-radius: 9px;
+}
+
+.mesero-observaciones p {
+  margin-bottom: 0;
+}
+
+.mesero-panel-simple,
+.mesero-perfil,
+.mesero-vacio {
+  margin-top: 25px;
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 15px;
+  padding: 24px;
+}
+
+.mesero-panel-simple span {
+  color: #8b7666;
+}
+
+.mesero-panel-simple h2 {
+  color: #2d1b13;
+}
+
+.mesero-perfil {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.mesero-perfil div {
+  padding: 15px;
+  background: #faf4e9;
+  border-radius: 9px;
+}
+
+@media (max-width: 900px) {
+  .mesero-cards,
+  .mesero-evento-datos {
+    grid-template-columns: 1fr;
+  }
+
+  .mesero-perfil {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,13 +2,13 @@ import { useState } from 'react'
 import './App.css'
 
 import AdminDashboard from './pages/AdminDashboard.jsx'
+import MeseroDashboard from './pages/MeseroDashboard.jsx'
 
 import {
   useMesereArte
 } from './context/MesereArteContexto.jsx'
 
-const API_URL =
-  'http://localhost:3001/api'
+const API_URL = 'http://localhost:3001/api'
 
 function App() {
   const {
@@ -33,9 +33,9 @@ function App() {
   const [procesando, setProcesando] =
     useState(false)
 
-  /* =========================
+  /* ========================================
      LOGIN
-  ========================= */
+  ======================================== */
 
   const [login, setLogin] =
     useState({
@@ -82,8 +82,7 @@ function App() {
                 login.password,
 
               rol:
-                rol ===
-                'administrador'
+                rol === 'administrador'
                   ? 'Administrador'
                   : 'Mesero'
             })
@@ -100,14 +99,27 @@ function App() {
         )
       }
 
+      /*
+        Guardamos al usuario autenticado.
+      */
+
       setUsuarioActual(
         resultado.usuario
       )
+
+      /*
+        Limpiamos el formulario.
+      */
 
       setLogin({
         correo: '',
         password: ''
       })
+
+      /*
+        Mandamos al dashboard
+        correspondiente.
+      */
 
       if (
         resultado.usuario.rol ===
@@ -127,9 +139,9 @@ function App() {
     }
   }
 
-  /* =========================
+  /* ========================================
      REGISTRO
-  ========================= */
+  ======================================== */
 
   const [registro, setRegistro] =
     useState({
@@ -152,314 +164,238 @@ function App() {
     })
   }
 
-  const registrarUsuario =
-    async (e) => {
-      e.preventDefault()
+  const registrarUsuario = async (e) => {
+    e.preventDefault()
 
-      setError('')
-      setMensaje('')
-      setProcesando(true)
+    setError('')
+    setMensaje('')
+    setProcesando(true)
 
-      try {
-        let endpoint = ''
-        let datos = {}
+    try {
+      let endpoint = ''
+      let datos = {}
 
-        if (
-          rol === 'administrador'
-        ) {
-          endpoint =
-            `${API_URL}/auth/registro-admin`
+      /*
+        REGISTRO DE ADMINISTRADOR
+      */
 
-          datos = {
-            nombre:
-              registro.nombre,
+      if (
+        rol === 'administrador'
+      ) {
+        endpoint =
+          `${API_URL}/auth/registro-admin`
 
-            apellidos:
-              registro.apellidos,
+        datos = {
+          nombre:
+            registro.nombre,
 
-            correo:
-              registro.correo,
+          apellidos:
+            registro.apellidos,
 
-            password:
-              registro.password,
-
-            nombreSala:
-              registro.datoSala
-          }
-        } else {
-          endpoint =
-            `${API_URL}/auth/registro-mesero`
-
-          datos = {
-            nombre:
-              registro.nombre,
-
-            apellidos:
-              registro.apellidos,
-
-            correo:
-              registro.correo,
-
-            password:
-              registro.password,
-
-            codigoSala:
-              registro.datoSala
-          }
-        }
-
-        const respuesta =
-          await fetch(
-            endpoint,
-            {
-              method: 'POST',
-
-              headers: {
-                'Content-Type':
-                  'application/json'
-              },
-
-              body:
-                JSON.stringify(
-                  datos
-                )
-            }
-          )
-
-        const resultado =
-          await respuesta.json()
-
-        if (!respuesta.ok) {
-          throw new Error(
-            resultado.mensaje ||
-            'No fue posible completar el registro.'
-          )
-        }
-
-        /*
-          Actualizamos el Context porque
-          el registro puede crear una sala
-          o un nuevo mesero.
-        */
-
-        await cargarDatos()
-
-        if (
-          rol ===
-          'administrador'
-        ) {
-          setMensaje(
-            `Cuenta creada correctamente. Tu código de sala es ${resultado.sala.codigo}. Guárdalo para compartirlo con tus meseros.`
-          )
-        } else {
-          setMensaje(
-            `Registro correcto. Te uniste a la sala "${resultado.sala.nombre}".`
-          )
-        }
-
-        /*
-          Dejamos el correo preparado
-          para iniciar sesión.
-        */
-
-        setLogin({
           correo:
             registro.correo,
 
-          password: ''
-        })
+          password:
+            registro.password,
 
-        setRegistro({
-          nombre: '',
-          apellidos: '',
-          correo: '',
-          password: '',
-          datoSala: ''
-        })
-
-        setVista('login')
-
-      } catch (error) {
-        setError(
-          error.message
-        )
-      } finally {
-        setProcesando(false)
+          nombreSala:
+            registro.datoSala
+        }
       }
-    }
 
-  /* =========================
+      /*
+        REGISTRO DE MESERO
+      */
+
+      else {
+        endpoint =
+          `${API_URL}/auth/registro-mesero`
+
+        datos = {
+          nombre:
+            registro.nombre,
+
+          apellidos:
+            registro.apellidos,
+
+          correo:
+            registro.correo,
+
+          password:
+            registro.password,
+
+          codigoSala:
+            registro.datoSala
+        }
+      }
+
+      const respuesta =
+        await fetch(
+          endpoint,
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(
+                datos
+              )
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No fue posible completar el registro.'
+        )
+      }
+
+      /*
+        Recargamos los datos porque el
+        registro puede haber creado:
+        - una sala
+        - un usuario
+        - un mesero
+      */
+
+      await cargarDatos()
+
+      /*
+        Mensaje dependiendo del rol.
+      */
+
+      if (
+        rol === 'administrador'
+      ) {
+        setMensaje(
+          `Cuenta creada correctamente. Tu código de sala es ${resultado.sala.codigo}. Guárdalo para compartirlo con tus meseros.`
+        )
+      } else {
+        setMensaje(
+          `Registro correcto. Te uniste a la sala "${resultado.sala.nombre}".`
+        )
+      }
+
+      /*
+        Dejamos preparado el correo
+        para iniciar sesión.
+      */
+
+      setLogin({
+        correo:
+          registro.correo,
+
+        password: ''
+      })
+
+      /*
+        Limpiamos registro.
+      */
+
+      setRegistro({
+        nombre: '',
+        apellidos: '',
+        correo: '',
+        password: '',
+        datoSala: ''
+      })
+
+      /*
+        Regresamos al login.
+      */
+
+      setVista('login')
+
+    } catch (error) {
+      setError(
+        error.message
+      )
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  /* ========================================
      CERRAR SESIÓN
-  ========================= */
+  ======================================== */
 
   const cerrarSesion = () => {
     setUsuarioActual(null)
 
     setVista('login')
 
-    setRol(
-      'administrador'
-    )
+    setRol('administrador')
 
     setLogin({
       correo: '',
       password: ''
     })
 
+    setRegistro({
+      nombre: '',
+      apellidos: '',
+      correo: '',
+      password: '',
+      datoSala: ''
+    })
+
     setError('')
     setMensaje('')
   }
 
-  /* =========================
-     DASHBOARD ADMIN
-  ========================= */
+  /* ========================================
+     DASHBOARD ADMINISTRADOR
+  ======================================== */
 
   if (
     vista === 'admin' &&
-    usuarioActual
+    usuarioActual &&
+    usuarioActual.rol === 'Administrador'
   ) {
     return (
       <AdminDashboard
-        onLogout={
-          cerrarSesion
-        }
+        usuario={usuarioActual}
+        onLogout={cerrarSesion}
       />
     )
   }
 
-  /* =========================
-     VISTA MESERO TEMPORAL
-  ========================= */
+  /* ========================================
+     DASHBOARD MESERO
+  ======================================== */
 
   if (
     vista === 'mesero' &&
-    usuarioActual
+    usuarioActual &&
+    usuarioActual.rol === 'Mesero'
   ) {
     return (
-      <div className="pagina-login">
-
-        <div className="contenedor-login">
-
-          <section className="panel-marca">
-
-            <div>
-
-              <div className="logo">
-                M
-              </div>
-
-              <h1>
-                MesereArte
-              </h1>
-
-              <p>
-                Organización del equipo
-                de meseros para eventos
-                sociales.
-              </p>
-
-            </div>
-
-            <div className="mensaje-inferior">
-
-              <span>
-                Sesión de mesero
-              </span>
-
-              <p>
-                Has iniciado sesión
-                correctamente.
-              </p>
-
-            </div>
-
-          </section>
-
-          <section className="panel-formulario">
-
-            <p className="titulo-pequeno">
-              Acceso correcto
-            </p>
-
-            <h2>
-              Hola, {
-                usuarioActual.nombre
-              }
-            </h2>
-
-            <p className="subtitulo">
-              Tu cuenta de mesero fue
-              autenticada correctamente.
-            </p>
-
-            <div
-              style={{
-                marginTop: '30px'
-              }}
-            >
-
-              <p>
-                <strong>
-                  Nombre:
-                </strong>{' '}
-
-                {
-                  usuarioActual.nombre
-                }{' '}
-
-                {
-                  usuarioActual.apellidos
-                }
-              </p>
-
-              <p>
-                <strong>
-                  Correo:
-                </strong>{' '}
-
-                {
-                  usuarioActual.correo
-                }
-              </p>
-
-              <p>
-                <strong>
-                  Rol:
-                </strong>{' '}
-
-                {
-                  usuarioActual.rol
-                }
-              </p>
-
-            </div>
-
-            <button
-              type="button"
-              className="boton-registro mesero"
-              onClick={
-                cerrarSesion
-              }
-            >
-              Cerrar sesión
-            </button>
-
-          </section>
-
-        </div>
-
-      </div>
+      <MeseroDashboard
+        usuario={usuarioActual}
+        onLogout={cerrarSesion}
+      />
     )
   }
 
-  /* =========================
+  /* ========================================
      LOGIN / REGISTRO
-  ========================= */
+  ======================================== */
 
   return (
     <div className="pagina-login">
 
       <div className="contenedor-login">
+
+        {/* ===================================
+            PANEL IZQUIERDO
+        =================================== */}
 
         <section className="panel-marca">
 
@@ -473,8 +409,7 @@ function App() {
               MesereArte
             </h1>
 
-            {vista ===
-            'login' ? (
+            {vista === 'login' ? (
 
               <p>
                 Página web para la
@@ -489,8 +424,7 @@ function App() {
                 El administrador puede
                 crear una sala nueva.
                 El mesero puede ingresar
-                con el código
-                proporcionado.
+                con el código proporcionado.
               </p>
 
             )}
@@ -499,8 +433,7 @@ function App() {
 
           <div className="mensaje-inferior">
 
-            {vista ===
-            'login' ? (
+            {vista === 'login' ? (
 
               <>
 
@@ -509,10 +442,9 @@ function App() {
                 </span>
 
                 <p>
-                  Ingresa como
-                  administrador o mesero
-                  para acceder a la
-                  plataforma.
+                  Ingresa como administrador
+                  o mesero para acceder
+                  a la plataforma.
                 </p>
 
               </>
@@ -526,18 +458,15 @@ function App() {
                 </span>
 
                 <button
+                  type="button"
                   className="volver-login"
                   onClick={() => {
-                    setVista(
-                      'login'
-                    )
-
+                    setVista('login')
                     setError('')
                     setMensaje('')
                   }}
                 >
-                  Volver a inicio
-                  de sesión
+                  Volver a inicio de sesión
                 </button>
 
               </>
@@ -548,26 +477,23 @@ function App() {
 
         </section>
 
+        {/* ===================================
+            PANEL DERECHO
+        =================================== */}
+
         <section className="panel-formulario">
 
-          {/* ======================
-              MENSAJES
-          ====================== */}
+          {/* MENSAJE CORRECTO */}
 
           {mensaje && (
 
             <div
               style={{
-                marginBottom:
-                  '18px',
-                padding:
-                  '12px 14px',
-                borderRadius:
-                  '8px',
-                background:
-                  '#e8f5e9',
-                color:
-                  '#2e6b36'
+                marginBottom: '18px',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                background: '#e8f5e9',
+                color: '#2e6b36'
               }}
             >
               {mensaje}
@@ -575,20 +501,17 @@ function App() {
 
           )}
 
+          {/* MENSAJE ERROR */}
+
           {error && (
 
             <div
               style={{
-                marginBottom:
-                  '18px',
-                padding:
-                  '12px 14px',
-                borderRadius:
-                  '8px',
-                background:
-                  '#fdeaea',
-                color:
-                  '#9f312d'
+                marginBottom: '18px',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                background: '#fdeaea',
+                color: '#9f312d'
               }}
             >
               {error}
@@ -596,8 +519,11 @@ function App() {
 
           )}
 
-          {vista ===
-          'login' ? (
+          {/* =================================
+              LOGIN
+          ================================= */}
+
+          {vista === 'login' ? (
 
             <>
 
@@ -620,8 +546,7 @@ function App() {
                 <button
                   type="button"
                   className={
-                    rol ===
-                    'administrador'
+                    rol === 'administrador'
                       ? 'rol activo'
                       : 'rol'
                   }
@@ -639,16 +564,12 @@ function App() {
                 <button
                   type="button"
                   className={
-                    rol ===
-                    'mesero'
+                    rol === 'mesero'
                       ? 'rol activo'
                       : 'rol'
                   }
                   onClick={() => {
-                    setRol(
-                      'mesero'
-                    )
-
+                    setRol('mesero')
                     setError('')
                   }}
                 >
@@ -677,8 +598,7 @@ function App() {
                     manejarLogin
                   }
                   placeholder={
-                    rol ===
-                    'administrador'
+                    rol === 'administrador'
                       ? 'admin@meserearte.com'
                       : 'maria@meserearte.com'
                   }
@@ -704,8 +624,7 @@ function App() {
 
                 <div className="botones-login">
 
-                  {rol ===
-                  'administrador' ? (
+                  {rol === 'administrador' ? (
 
                     <button
                       type="submit"
@@ -744,12 +663,10 @@ function App() {
                 ¿No tienes cuenta?{' '}
 
                 <button
+                  type="button"
                   className="enlace-registro"
                   onClick={() => {
-                    setVista(
-                      'registro'
-                    )
-
+                    setVista('registro')
                     setError('')
                     setMensaje('')
                   }}
@@ -762,6 +679,10 @@ function App() {
             </>
 
           ) : (
+
+            /* ===============================
+               REGISTRO
+            =============================== */
 
             <>
 
@@ -783,8 +704,7 @@ function App() {
                 <button
                   type="button"
                   className={
-                    rol ===
-                    'administrador'
+                    rol === 'administrador'
                       ? 'rol activo'
                       : 'rol'
                   }
@@ -808,15 +728,12 @@ function App() {
                 <button
                   type="button"
                   className={
-                    rol ===
-                    'mesero'
+                    rol === 'mesero'
                       ? 'rol activo'
                       : 'rol'
                   }
                   onClick={() => {
-                    setRol(
-                      'mesero'
-                    )
+                    setRol('mesero')
 
                     setRegistro({
                       ...registro,
@@ -930,8 +847,7 @@ function App() {
                     <input
                       type="text"
                       value={
-                        rol ===
-                        'administrador'
+                        rol === 'administrador'
                           ? 'Administrador'
                           : 'Mesero'
                       }
@@ -944,8 +860,7 @@ function App() {
 
                     <label>
 
-                      {rol ===
-                      'administrador'
+                      {rol === 'administrador'
                         ? 'Nombre de nueva sala'
                         : 'Código de sala'}
 
@@ -961,8 +876,7 @@ function App() {
                         manejarRegistro
                       }
                       placeholder={
-                        rol ===
-                        'administrador'
+                        rol === 'administrador'
                           ? 'Equipo MesereArte'
                           : 'MESA2026'
                       }
@@ -979,16 +893,14 @@ function App() {
                     procesando
                   }
                   className={
-                    rol ===
-                    'administrador'
+                    rol === 'administrador'
                       ? 'boton-registro admin'
                       : 'boton-registro mesero'
                   }
                 >
                   {procesando
                     ? 'Procesando...'
-                    : rol ===
-                      'administrador'
+                    : rol === 'administrador'
                       ? 'Crear sala como administrador'
                       : 'Unirme como mesero'}
                 </button>
