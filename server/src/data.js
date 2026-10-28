@@ -1,27 +1,27 @@
 export const db = {
-usuarios: [
-  {
-    id: 1,
-    nombre: 'Administrador',
-    apellidos: 'MesereArte',
-    correo: 'admin@meserearte.com',
-    password: '123456',
-    rol: 'Administrador',
-    salaId: 1,
-    estado: 'Activo'
-  },
 
-  {
-    id: 2,
-    nombre: 'María',
-    apellidos: 'López',
-    correo: 'maria@meserearte.com',
-    password: '123456',
-    rol: 'Mesero',
-    salaId: 1,
-    estado: 'Activo'
-  }
-],
+  usuarios: [
+    {
+      id: 1,
+      nombre: 'Administrador',
+      apellidos: 'MesereArte',
+      correo: 'admin@meserearte.com',
+      password: '123456',
+      rol: 'Administrador',
+      salaId: 1,
+      estado: 'Activo'
+    },
+    {
+      id: 2,
+      nombre: 'María',
+      apellidos: 'López',
+      correo: 'maria@meserearte.com',
+      password: '123456',
+      rol: 'Mesero',
+      salaId: 1,
+      estado: 'Activo'
+    }
+  ],
 
   salas: [
     {
@@ -29,7 +29,7 @@ usuarios: [
       nombre: 'Equipo MesereArte',
       descripcion: 'Equipo principal de meseros',
       codigo: 'MESA2026',
-      administrador: 'Arleth Gathe',
+      administrador: 'Administrador MesereArte',
       estado: 'Activa'
     },
     {
@@ -37,7 +37,7 @@ usuarios: [
       nombre: 'Salón El Triunfo',
       descripcion: 'Equipo de servicio del salón',
       codigo: 'MESA4X8P',
-      administrador: 'Arleth Gathe',
+      administrador: 'Administrador MesereArte',
       estado: 'Activa'
     }
   ],
@@ -152,6 +152,30 @@ usuarios: [
       eventoId: 1,
       meseroId: 3,
       rol: 'Mesero'
+    }
+  ],
+
+  disponibilidades: [
+    {
+      id: 1,
+      eventoId: 1,
+      meseroId: 1,
+      estado: 'Confirmado',
+      fechaRespuesta: '2026-10-26'
+    },
+    {
+      id: 2,
+      eventoId: 1,
+      meseroId: 2,
+      estado: 'Pendiente',
+      fechaRespuesta: null
+    },
+    {
+      id: 3,
+      eventoId: 1,
+      meseroId: 3,
+      estado: 'Pendiente',
+      fechaRespuesta: null
     }
   ]
 }

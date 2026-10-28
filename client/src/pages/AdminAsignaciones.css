@@ -1,337 +1,420 @@
 .asignaciones-pagina {
   width: 100%;
+  min-height: 100%;
+  padding: 36px 40px 50px;
+  box-sizing: border-box;
+  background: #f8ecd5;
 }
 
 .asignaciones-encabezado {
-  margin-bottom: 25px;
+  margin-bottom: 28px;
 }
 
 .asignaciones-encabezado h1 {
   margin: 0;
-
-  font-size: 30px;
+  color: #281a12;
+  font-size: 32px;
 }
 
 .asignaciones-encabezado p {
-  margin: 5px 0 0;
-
-  color: #85766b;
+  margin: 7px 0 0;
+  color: #806d5d;
+  font-size: 15px;
 }
 
-/* MENSAJE */
+/* MENSAJES */
 
-.mensaje-asignacion {
-  background: #e2eee4;
-  color: #426549;
+.asignacion-mensaje {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 
   padding: 12px 15px;
+  margin-bottom: 20px;
 
   border-radius: 9px;
-
-  margin-bottom: 18px;
-
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  font-size: 14px;
 }
 
-.mensaje-asignacion button {
+.asignacion-mensaje.correcto {
+  background: #e5f4e8;
+  color: #2f7040;
+}
+
+.asignacion-mensaje.error {
+  background: #fae5e3;
+  color: #9d3932;
+}
+
+.asignacion-mensaje button {
   border: none;
   background: transparent;
-
+  color: inherit;
+  font-size: 20px;
   cursor: pointer;
-
-  font-size: 18px;
-  color: #426549;
-}
-
-/* SELECCIÓN DE EVENTO */
-
-.seleccion-evento {
-  background: #fffaf1;
-
-  border-radius: 14px;
-
-  padding: 20px;
-
-  margin-bottom: 18px;
-
-  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.06);
-}
-
-.seleccion-evento label {
-  display: block;
-
-  margin: 0 0 8px;
-
-  font-weight: bold;
-}
-
-.seleccion-evento select {
-  width: min(450px, 100%);
-
-  height: 43px;
-
-  border: 1px solid #d8c9b8;
-
-  border-radius: 8px;
-
-  background: #ffffff;
-
-  padding: 0 12px;
 }
 
 /* EVENTO */
 
+.seleccion-evento {
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.seleccion-evento label {
+  display: block;
+  color: #4b372a;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.seleccion-evento select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #d9c6ad;
+  border-radius: 8px;
+  background: white;
+  font-size: 15px;
+}
+
+/* RESUMEN EVENTO */
+
 .resumen-evento-asignacion {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-
+  grid-template-columns:
+    repeat(6, minmax(0, 1fr));
   gap: 12px;
 
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 14px;
+
+  padding: 18px;
   margin-bottom: 18px;
 }
 
-.resumen-evento-asignacion > div {
-  background: #fffaf1;
-
-  border-radius: 11px;
-
-  padding: 15px;
-
-  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.05);
+.resumen-evento-asignacion div {
+  background: #faf4e9;
+  border-radius: 9px;
+  padding: 12px;
 }
 
 .resumen-evento-asignacion span {
   display: block;
-
-  color: #817166;
-
-  font-size: 11px;
-
+  color: #8b7666;
+  font-size: 12px;
   margin-bottom: 5px;
 }
 
 .resumen-evento-asignacion strong {
+  color: #2c1b13;
   font-size: 14px;
 }
 
-.cantidad-pendiente {
-  color: #aa7925;
+/* CONFIRMACIONES */
+
+.resumen-confirmaciones {
+  display: grid;
+  grid-template-columns:
+    repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
-.cantidad-completa {
-  color: #397047;
+.confirmacion-card {
+  background: white;
+  border-radius: 12px;
+  padding: 17px 19px;
+  border: 1px solid #ead9bf;
+}
+
+.confirmacion-card span {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.confirmacion-card strong {
+  font-size: 25px;
+}
+
+.confirmacion-card.confirmados {
+  border-left: 5px solid #3b7d4e;
+}
+
+.confirmacion-card.confirmados strong {
+  color: #3b7d4e;
+}
+
+.confirmacion-card.pendientes {
+  border-left: 5px solid #c18a2e;
+}
+
+.confirmacion-card.pendientes strong {
+  color: #a8721c;
+}
+
+.confirmacion-card.no-disponibles {
+  border-left: 5px solid #b44c42;
+}
+
+.confirmacion-card.no-disponibles strong {
+  color: #a23f37;
 }
 
 /* PERSONAL */
 
 .personal-disponible {
-  background: #fffaf1;
-
-  border-radius: 14px;
-
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 15px;
   padding: 22px;
-
-  margin-bottom: 18px;
-
-  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.06);
+  margin-bottom: 20px;
 }
 
 .personal-titulo {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-
+  gap: 20px;
+  align-items: flex-start;
   margin-bottom: 18px;
 }
 
 .personal-titulo h2 {
   margin: 0;
-
-  font-size: 19px;
+  color: #2b1a12;
 }
 
 .personal-titulo p {
   margin: 5px 0 0;
-
-  color: #85766b;
-
-  font-size: 13px;
+  color: #8a7565;
 }
 
 .personal-titulo > span {
-  background: #d8ead8;
-  color: #397047;
-
+  background: #f6ecdc;
+  color: #715642;
   padding: 7px 11px;
-
-  border-radius: 15px;
-
-  font-size: 11px;
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: bold;
+}
+
+/* TABLA */
+
+.tabla-responsive {
+  overflow-x: auto;
 }
 
 .tabla-asignaciones {
   width: 100%;
-
   border-collapse: collapse;
-
-  font-size: 13px;
 }
 
 .tabla-asignaciones th {
+  padding: 12px;
   text-align: left;
-
-  color: #75675d;
-
-  padding: 12px 10px;
-
-  border-bottom: 1px solid #e4d5c4;
+  color: #765f4f;
+  font-size: 13px;
+  border-bottom: 1px solid #eadbc6;
 }
 
 .tabla-asignaciones td {
-  padding: 14px 10px;
-
-  border-bottom: 1px solid #eee2d5;
+  padding: 14px 12px;
+  border-bottom: 1px solid #f0e5d4;
+  color: #433126;
 }
 
 .check-mesero {
-  width: 18px;
-  height: 18px;
-
+  width: 17px;
+  height: 17px;
   cursor: pointer;
-
-  accent-color: #b51f2e;
 }
 
-.estado-activo,
-.estado-disponible {
+.datos-mesero-asignacion {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.datos-mesero-asignacion span {
+  color: #907b6c;
+  font-size: 12px;
+}
+
+/* ROLES */
+
+.rol-tabla {
   display: inline-block;
-
-  background: #d8ead8;
-  color: #397047;
-
-  border-radius: 14px;
-
   padding: 5px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+}
 
-  font-size: 10px;
+.rol-tabla.capitan {
+  background: #f2dfb5;
+  color: #795314;
+}
+
+.rol-tabla.mesero {
+  background: #eee6dd;
+  color: #655247;
+}
+
+.rol-tabla.sin-rol {
+  background: #f3f1ee;
+  color: #999;
+}
+
+/* RESPUESTAS */
+
+.estado-respuesta {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.estado-respuesta.confirmado {
+  background: #e2f2e6;
+  color: #347247;
+}
+
+.estado-respuesta.pendiente {
+  background: #fff0d3;
+  color: #96651c;
+}
+
+.estado-respuesta.no-disponible {
+  background: #f9e1df;
+  color: #a03b34;
+}
+
+.estado-respuesta.sin-asignar {
+  background: #eeeae5;
+  color: #7d7168;
+}
+
+.estado-activo {
+  display: inline-block;
+  background: #e6f4e8;
+  color: #367447;
+  border-radius: 20px;
+  padding: 5px 9px;
+  font-size: 11px;
   font-weight: bold;
 }
 
 /* CAPITÁN */
 
 .capitan-seccion {
-  background: #fffaf1;
-
-  border-radius: 14px;
-
-  padding: 22px;
-
-  margin-bottom: 18px;
+  background: white;
+  border: 1px solid #ead9bf;
+  border-radius: 15px;
+  padding: 21px;
 
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 25px;
 
-  gap: 20px;
-
-  box-shadow: 0 5px 18px rgba(60, 40, 25, 0.06);
+  margin-bottom: 20px;
 }
 
 .capitan-seccion h2 {
   margin: 0;
-
-  font-size: 19px;
+  color: #2c1b13;
 }
 
 .capitan-seccion p {
   margin: 5px 0 0;
-
-  color: #85766b;
-
-  font-size: 13px;
+  color: #887465;
 }
 
 .capitan-seccion select {
-  width: 260px;
-  height: 42px;
-
-  border: 1px solid #d8c9b8;
-
+  min-width: 280px;
+  padding: 11px 12px;
+  border: 1px solid #d9c6ad;
   border-radius: 8px;
-
   background: white;
-
-  padding: 0 10px;
 }
 
-/* RESUMEN */
+/* GUARDAR */
 
 .resumen-asignacion {
-  background: #f3e6d4;
-
+  background: #302016;
+  color: white;
   border-radius: 14px;
-
-  padding: 20px;
+  padding: 20px 22px;
 
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 25px;
 }
 
 .resumen-asignacion h3 {
   margin: 0 0 8px;
-
-  font-size: 17px;
 }
 
 .resumen-asignacion p {
   margin: 4px 0;
-
-  color: #68584d;
-
-  font-size: 13px;
+  color: #e4d7cc;
 }
 
 .guardar-asignacion {
   border: none;
-
-  background: #b51f2e;
-  color: #ffffff;
-
+  background: #bd8b3f;
+  color: white;
   padding: 12px 20px;
-
-  border-radius: 8px;
-
+  border-radius: 9px;
   font-weight: bold;
-
   cursor: pointer;
 }
 
 .guardar-asignacion:hover {
-  background: #981824;
+  background: #a87632;
+}
+
+.guardar-asignacion:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1100px) {
+  .resumen-evento-asignacion {
+    grid-template-columns:
+      repeat(3, 1fr);
+  }
 }
 
 @media (max-width: 800px) {
-  .resumen-evento-asignacion {
-    grid-template-columns: repeat(2, 1fr);
+  .asignaciones-pagina {
+    padding: 25px 20px;
+  }
+
+  .resumen-evento-asignacion,
+  .resumen-confirmaciones {
+    grid-template-columns: 1fr;
   }
 
   .capitan-seccion,
   .resumen-asignacion {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .capitan-seccion select {
+    min-width: 0;
     width: 100%;
   }
-}
 
-@media (max-width: 550px) {
-  .resumen-evento-asignacion {
-    grid-template-columns: 1fr;
+  .guardar-asignacion {
+    width: 100%;
   }
 }

@@ -5,18 +5,44 @@ import {
   useState
 } from 'react'
 
-const MesereArteContext = createContext(null)
+const MesereArteContext =
+  createContext(null)
 
-const API_URL = 'http://localhost:3001/api'
+const API_URL =
+  'http://localhost:3001/api'
 
-export function MesereArteProvider({ children }) {
-  const [salas, setSalas] = useState([])
-  const [meseros, setMeseros] = useState([])
-  const [eventos, setEventos] = useState([])
-  const [asignaciones, setAsignaciones] = useState([])
+export function MesereArteProvider({
+  children
+}) {
 
-  const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState('')
+  const [salas, setSalas] =
+    useState([])
+
+  const [meseros, setMeseros] =
+    useState([])
+
+  const [eventos, setEventos] =
+    useState([])
+
+  const [
+    asignaciones,
+    setAsignaciones
+  ] = useState([])
+
+  const [
+    disponibilidades,
+    setDisponibilidades
+  ] = useState([])
+
+  const [cargando, setCargando] =
+    useState(true)
+
+  const [error, setError] =
+    useState('')
+
+  /* ========================================
+     CARGAR DATOS
+  ======================================== */
 
   const cargarDatos = async () => {
     try {
@@ -27,19 +53,36 @@ export function MesereArteProvider({ children }) {
         respuestaSalas,
         respuestaMeseros,
         respuestaEventos,
-        respuestaAsignaciones
+        respuestaAsignaciones,
+        respuestaDisponibilidades
       ] = await Promise.all([
-        fetch(`${API_URL}/salas`),
-        fetch(`${API_URL}/meseros`),
-        fetch(`${API_URL}/eventos`),
-        fetch(`${API_URL}/asignaciones`)
+        fetch(
+          `${API_URL}/salas`
+        ),
+
+        fetch(
+          `${API_URL}/meseros`
+        ),
+
+        fetch(
+          `${API_URL}/eventos`
+        ),
+
+        fetch(
+          `${API_URL}/asignaciones`
+        ),
+
+        fetch(
+          `${API_URL}/disponibilidades`
+        )
       ])
 
       if (
         !respuestaSalas.ok ||
         !respuestaMeseros.ok ||
         !respuestaEventos.ok ||
-        !respuestaAsignaciones.ok
+        !respuestaAsignaciones.ok ||
+        !respuestaDisponibilidades.ok
       ) {
         throw new Error(
           'No fue posible obtener los datos del servidor.'
@@ -50,18 +93,36 @@ export function MesereArteProvider({ children }) {
         datosSalas,
         datosMeseros,
         datosEventos,
-        datosAsignaciones
+        datosAsignaciones,
+        datosDisponibilidades
       ] = await Promise.all([
         respuestaSalas.json(),
         respuestaMeseros.json(),
         respuestaEventos.json(),
-        respuestaAsignaciones.json()
+        respuestaAsignaciones.json(),
+        respuestaDisponibilidades.json()
       ])
 
-      setSalas(datosSalas)
-      setMeseros(datosMeseros)
-      setEventos(datosEventos)
-      setAsignaciones(datosAsignaciones)
+      setSalas(
+        datosSalas
+      )
+
+      setMeseros(
+        datosMeseros
+      )
+
+      setEventos(
+        datosEventos
+      )
+
+      setAsignaciones(
+        datosAsignaciones
+      )
+
+      setDisponibilidades(
+        datosDisponibilidades
+      )
+
     } catch (error) {
       console.error(error)
 
@@ -77,370 +138,554 @@ export function MesereArteProvider({ children }) {
     cargarDatos()
   }, [])
 
-  /*
-    ============================
-    SALAS
-    ============================
-  */
+  /* ========================================
+     SALAS
+  ======================================== */
 
-  const crearSalaAPI = async (datos) => {
-    const respuesta = await fetch(
-      `${API_URL}/salas`,
-      {
-        method: 'POST',
+  const crearSalaAPI =
+    async (datos) => {
 
-        headers: {
-          'Content-Type': 'application/json'
-        },
+      const respuesta =
+        await fetch(
+          `${API_URL}/salas`,
+          {
+            method: 'POST',
 
-        body: JSON.stringify(datos)
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(
+                datos
+              )
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo crear la sala.'
+        )
       }
-    )
 
-    const resultado = await respuesta.json()
+      setSalas(
+        (anteriores) => [
+          ...anteriores,
+          resultado
+        ]
+      )
 
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo crear la sala.'
+      return resultado
+    }
+
+  const actualizarSalaAPI =
+    async (
+      id,
+      datos
+    ) => {
+
+      const respuesta =
+        await fetch(
+          `${API_URL}/salas/${id}`,
+          {
+            method: 'PUT',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(
+                datos
+              )
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo actualizar la sala.'
+        )
+      }
+
+      setSalas(
+        (anteriores) =>
+          anteriores.map(
+            (sala) =>
+              sala.id === id
+                ? resultado
+                : sala
+          )
+      )
+
+      return resultado
+    }
+
+  const eliminarSalaAPI =
+    async (id) => {
+
+      const respuesta =
+        await fetch(
+          `${API_URL}/salas/${id}`,
+          {
+            method: 'DELETE'
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo eliminar la sala.'
+        )
+      }
+
+      setSalas(
+        (anteriores) =>
+          anteriores.filter(
+            (sala) =>
+              sala.id !== id
+          )
       )
     }
 
-    setSalas((anteriores) => [
-      ...anteriores,
-      resultado
-    ])
+  /* ========================================
+     MESEROS
+  ======================================== */
 
-    return resultado
-  }
+  const crearMeseroAPI =
+    async (datos) => {
 
-  const actualizarSalaAPI = async (
-    id,
-    datos
-  ) => {
-    const respuesta = await fetch(
-      `${API_URL}/salas/${id}`,
-      {
-        method: 'PUT',
+      const respuesta =
+        await fetch(
+          `${API_URL}/meseros`,
+          {
+            method: 'POST',
 
-        headers: {
-          'Content-Type': 'application/json'
-        },
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
 
-        body: JSON.stringify(datos)
+            body:
+              JSON.stringify(
+                datos
+              )
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo registrar al mesero.'
+        )
       }
-    )
 
-    const resultado = await respuesta.json()
+      setMeseros(
+        (anteriores) => [
+          ...anteriores,
+          resultado
+        ]
+      )
 
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo actualizar la sala.'
+      return resultado
+    }
+
+  const actualizarMeseroAPI =
+    async (
+      id,
+      datos
+    ) => {
+
+      const respuesta =
+        await fetch(
+          `${API_URL}/meseros/${id}`,
+          {
+            method: 'PUT',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(
+                datos
+              )
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo actualizar al mesero.'
+        )
+      }
+
+      setMeseros(
+        (anteriores) =>
+          anteriores.map(
+            (mesero) =>
+              mesero.id === id
+                ? resultado
+                : mesero
+          )
+      )
+
+      return resultado
+    }
+
+  const eliminarMeseroAPI =
+    async (id) => {
+
+      const respuesta =
+        await fetch(
+          `${API_URL}/meseros/${id}`,
+          {
+            method: 'DELETE'
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo eliminar al mesero.'
+        )
+      }
+
+      setMeseros(
+        (anteriores) =>
+          anteriores.filter(
+            (mesero) =>
+              mesero.id !== id
+          )
+      )
+
+      setAsignaciones(
+        (anteriores) =>
+          anteriores.filter(
+            (asignacion) =>
+              asignacion.meseroId !==
+              id
+          )
+      )
+
+      setDisponibilidades(
+        (anteriores) =>
+          anteriores.filter(
+            (disponibilidad) =>
+              disponibilidad.meseroId !==
+              id
+          )
       )
     }
 
-    setSalas((anteriores) =>
-      anteriores.map((sala) =>
-        sala.id === id
-          ? resultado
-          : sala
-      )
-    )
+  /* ========================================
+     EVENTOS
+  ======================================== */
 
-    return resultado
-  }
+  const crearEventoAPI =
+    async (datos) => {
 
-  const eliminarSalaAPI = async (id) => {
-    const respuesta = await fetch(
-      `${API_URL}/salas/${id}`,
-      {
-        method: 'DELETE'
+      const respuesta =
+        await fetch(
+          `${API_URL}/eventos`,
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(
+                datos
+              )
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo crear el evento.'
+        )
       }
-    )
 
-    const resultado =
-      await respuesta.json()
+      setEventos(
+        (anteriores) => [
+          ...anteriores,
+          resultado
+        ]
+      )
 
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo eliminar la sala.'
+      return resultado
+    }
+
+  const actualizarEventoAPI =
+    async (
+      id,
+      datos
+    ) => {
+
+      const respuesta =
+        await fetch(
+          `${API_URL}/eventos/${id}`,
+          {
+            method: 'PUT',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(
+                datos
+              )
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo actualizar el evento.'
+        )
+      }
+
+      setEventos(
+        (anteriores) =>
+          anteriores.map(
+            (evento) =>
+              evento.id === id
+                ? resultado
+                : evento
+          )
+      )
+
+      return resultado
+    }
+
+  const eliminarEventoAPI =
+    async (id) => {
+
+      const respuesta =
+        await fetch(
+          `${API_URL}/eventos/${id}`,
+          {
+            method: 'DELETE'
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudo eliminar el evento.'
+        )
+      }
+
+      setEventos(
+        (anteriores) =>
+          anteriores.filter(
+            (evento) =>
+              evento.id !== id
+          )
+      )
+
+      setAsignaciones(
+        (anteriores) =>
+          anteriores.filter(
+            (asignacion) =>
+              asignacion.eventoId !==
+              id
+          )
+      )
+
+      setDisponibilidades(
+        (anteriores) =>
+          anteriores.filter(
+            (disponibilidad) =>
+              disponibilidad.eventoId !==
+              id
+          )
       )
     }
 
-    setSalas((anteriores) =>
-      anteriores.filter(
-        (sala) => sala.id !== id
-      )
-    )
-  }
+  /* ========================================
+     ASIGNACIONES
+  ======================================== */
 
-  /*
-    ============================
-    MESEROS
-    ============================
-  */
+  const guardarAsignacionesAPI =
+    async (
+      eventoId,
+      meseroIds,
+      capitanId
+    ) => {
 
-  const crearMeseroAPI = async (datos) => {
-    const respuesta = await fetch(
-      `${API_URL}/meseros`,
-      {
-        method: 'POST',
+      const respuesta =
+        await fetch(
+          `${API_URL}/asignaciones/evento/${eventoId}`,
+          {
+            method: 'PUT',
 
-        headers: {
-          'Content-Type': 'application/json'
-        },
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
 
-        body: JSON.stringify(datos)
+            body:
+              JSON.stringify({
+                meseroIds,
+
+                capitanId:
+                  capitanId
+                    ? Number(
+                        capitanId
+                      )
+                    : null
+              })
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No se pudieron guardar las asignaciones.'
+        )
       }
-    )
 
-    const resultado = await respuesta.json()
+      setAsignaciones(
+        (anteriores) => [
+          ...anteriores.filter(
+            (asignacion) =>
+              asignacion.eventoId !==
+              Number(eventoId)
+          ),
 
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo registrar al mesero.'
+          ...resultado
+        ]
       )
+
+      /*
+        Recargamos datos porque
+        el backend también crea
+        disponibilidades pendientes.
+      */
+
+      await cargarDatos()
+
+      return resultado
     }
 
-    setMeseros((anteriores) => [
-      ...anteriores,
-      resultado
-    ])
+  /* ========================================
+     DISPONIBILIDAD
+  ======================================== */
 
-    return resultado
-  }
+  const actualizarDisponibilidadAPI =
+    async (
+      eventoId,
+      meseroId,
+      estado
+    ) => {
 
-  const actualizarMeseroAPI = async (
-    id,
-    datos
-  ) => {
-    const respuesta = await fetch(
-      `${API_URL}/meseros/${id}`,
-      {
-        method: 'PUT',
+      const respuesta =
+        await fetch(
+          `${API_URL}/disponibilidades`,
+          {
+            method: 'PUT',
 
-        headers: {
-          'Content-Type': 'application/json'
-        },
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
 
-        body: JSON.stringify(datos)
+            body:
+              JSON.stringify({
+                eventoId,
+                meseroId,
+                estado
+              })
+          }
+        )
+
+      const resultado =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje ||
+          'No fue posible actualizar la disponibilidad.'
+        )
       }
-    )
 
-    const resultado = await respuesta.json()
+      setDisponibilidades(
+        (anteriores) => {
+          const existe =
+            anteriores.some(
+              (item) =>
+                item.eventoId ===
+                  resultado.eventoId &&
+                item.meseroId ===
+                  resultado.meseroId
+            )
 
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo actualizar al mesero.'
+          if (existe) {
+            return anteriores.map(
+              (item) =>
+                item.eventoId ===
+                  resultado.eventoId &&
+                item.meseroId ===
+                  resultado.meseroId
+                  ? resultado
+                  : item
+            )
+          }
+
+          return [
+            ...anteriores,
+            resultado
+          ]
+        }
       )
+
+      return resultado
     }
 
-    setMeseros((anteriores) =>
-      anteriores.map((mesero) =>
-        mesero.id === id
-          ? resultado
-          : mesero
-      )
-    )
-
-    return resultado
-  }
-
-  const eliminarMeseroAPI = async (id) => {
-    const respuesta = await fetch(
-      `${API_URL}/meseros/${id}`,
-      {
-        method: 'DELETE'
-      }
-    )
-
-    const resultado =
-      await respuesta.json()
-
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo eliminar al mesero.'
-      )
-    }
-
-    setMeseros((anteriores) =>
-      anteriores.filter(
-        (mesero) => mesero.id !== id
-      )
-    )
-
-    setAsignaciones((anteriores) =>
-      anteriores.filter(
-        (asignacion) =>
-          asignacion.meseroId !== id
-      )
-    )
-  }
-
-  /*
-    ============================
-    EVENTOS
-    ============================
-  */
-
-  const crearEventoAPI = async (datos) => {
-    const respuesta = await fetch(
-      `${API_URL}/eventos`,
-      {
-        method: 'POST',
-
-        headers: {
-          'Content-Type': 'application/json'
-        },
-
-        body: JSON.stringify(datos)
-      }
-    )
-
-    const resultado = await respuesta.json()
-
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo crear el evento.'
-      )
-    }
-
-    setEventos((anteriores) => [
-      ...anteriores,
-      resultado
-    ])
-
-    return resultado
-  }
-
-  const actualizarEventoAPI = async (
-    id,
-    datos
-  ) => {
-    const respuesta = await fetch(
-      `${API_URL}/eventos/${id}`,
-      {
-        method: 'PUT',
-
-        headers: {
-          'Content-Type': 'application/json'
-        },
-
-        body: JSON.stringify(datos)
-      }
-    )
-
-    const resultado = await respuesta.json()
-
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo actualizar el evento.'
-      )
-    }
-
-    setEventos((anteriores) =>
-      anteriores.map((evento) =>
-        evento.id === id
-          ? resultado
-          : evento
-      )
-    )
-
-    return resultado
-  }
-
-  const eliminarEventoAPI = async (id) => {
-    const respuesta = await fetch(
-      `${API_URL}/eventos/${id}`,
-      {
-        method: 'DELETE'
-      }
-    )
-
-    const resultado =
-      await respuesta.json()
-
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudo eliminar el evento.'
-      )
-    }
-
-    setEventos((anteriores) =>
-      anteriores.filter(
-        (evento) => evento.id !== id
-      )
-    )
-
-    setAsignaciones((anteriores) =>
-      anteriores.filter(
-        (asignacion) =>
-          asignacion.eventoId !== id
-      )
-    )
-  }
-
-  /*
-    ============================
-    ASIGNACIONES
-    ============================
-  */
-
-  const guardarAsignacionesAPI = async (
-    eventoId,
-    meseroIds,
-    capitanId
-  ) => {
-    const respuesta = await fetch(
-      `${API_URL}/asignaciones/evento/${eventoId}`,
-      {
-        method: 'PUT',
-
-        headers: {
-          'Content-Type': 'application/json'
-        },
-
-        body: JSON.stringify({
-          meseroIds,
-          capitanId:
-            capitanId
-              ? Number(capitanId)
-              : null
-        })
-      }
-    )
-
-    const resultado = await respuesta.json()
-
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.mensaje ||
-        'No se pudieron guardar las asignaciones.'
-      )
-    }
-
-    setAsignaciones(
-      (anteriores) => [
-        ...anteriores.filter(
-          (asignacion) =>
-            asignacion.eventoId !==
-            Number(eventoId)
-        ),
-
-        ...resultado
-      ]
-    )
-
-    return resultado
-  }
+  /* ========================================
+     PROVIDER
+  ======================================== */
 
   return (
     <MesereArteContext.Provider
@@ -456,6 +701,9 @@ export function MesereArteProvider({ children }) {
 
         asignaciones,
         setAsignaciones,
+
+        disponibilidades,
+        setDisponibilidades,
 
         cargando,
         error,
@@ -474,7 +722,9 @@ export function MesereArteProvider({ children }) {
         actualizarEventoAPI,
         eliminarEventoAPI,
 
-        guardarAsignacionesAPI
+        guardarAsignacionesAPI,
+
+        actualizarDisponibilidadAPI
       }}
     >
       {children}
@@ -484,7 +734,9 @@ export function MesereArteProvider({ children }) {
 
 export function useMesereArte() {
   const contexto =
-    useContext(MesereArteContext)
+    useContext(
+      MesereArteContext
+    )
 
   if (!contexto) {
     throw new Error(
