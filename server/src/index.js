@@ -13,15 +13,18 @@ app.use(
 
 app.use(express.json())
 
+/*
+  Por compatibilidad con data.js actual.
+*/
+if (!db.notificaciones) {
+  db.notificaciones = []
+}
+
 function generarId(lista) {
-  if (lista.length === 0) {
-    return 1
-  }
+  if (lista.length === 0) return 1
 
   return Math.max(
-    ...lista.map(
-      (item) => item.id
-    )
+    ...lista.map((item) => item.id)
   ) + 1
 }
 
@@ -62,7 +65,6 @@ app.get('/api/health', (req, res) => {
 app.post(
   '/api/auth/login',
   (req, res) => {
-
     const {
       correo,
       password,
@@ -85,10 +87,7 @@ app.post(
       })
     }
 
-    if (
-      usuario.estado !==
-      'Activo'
-    ) {
+    if (usuario.estado !== 'Activo') {
       return res.status(403).json({
         mensaje:
           'El usuario se encuentra inactivo.'
@@ -103,7 +102,6 @@ app.post(
     res.json({
       mensaje:
         'Inicio de sesión correcto',
-
       usuario:
         usuarioSeguro
     })
@@ -111,13 +109,12 @@ app.post(
 )
 
 /* ========================================
-   REGISTRO ADMINISTRADOR
+   REGISTRO ADMIN
 ======================================== */
 
 app.post(
   '/api/auth/registro-admin',
   (req, res) => {
-
     const {
       nombre,
       apellidos,
@@ -168,9 +165,7 @@ app.post(
 
     const nuevaSala = {
       id:
-        generarId(
-          db.salas
-        ),
+        generarId(db.salas),
 
       nombre:
         nombreSala,
@@ -187,23 +182,17 @@ app.post(
         'Activa'
     }
 
-    db.salas.push(
-      nuevaSala
-    )
+    db.salas.push(nuevaSala)
 
     const nuevoUsuario = {
       id:
-        generarId(
-          db.usuarios
-        ),
+        generarId(db.usuarios),
 
       nombre,
       apellidos,
 
       correo:
-        correo
-          .trim()
-          .toLowerCase(),
+        correo.trim().toLowerCase(),
 
       password,
 
@@ -217,9 +206,7 @@ app.post(
         'Activo'
     }
 
-    db.usuarios.push(
-      nuevoUsuario
-    )
+    db.usuarios.push(nuevoUsuario)
 
     const {
       password: passwordOculto,
@@ -246,7 +233,6 @@ app.post(
 app.post(
   '/api/auth/registro-mesero',
   (req, res) => {
-
     const {
       nombre,
       apellidos,
@@ -301,17 +287,13 @@ app.post(
 
     const nuevoUsuario = {
       id:
-        generarId(
-          db.usuarios
-        ),
+        generarId(db.usuarios),
 
       nombre,
       apellidos,
 
       correo:
-        correo
-          .trim()
-          .toLowerCase(),
+        correo.trim().toLowerCase(),
 
       password,
 
@@ -325,31 +307,24 @@ app.post(
         'Activo'
     }
 
-    db.usuarios.push(
-      nuevoUsuario
-    )
+    db.usuarios.push(nuevoUsuario)
 
     const nuevoMesero = {
       id:
-        generarId(
-          db.meseros
-        ),
+        generarId(db.meseros),
 
       nombre,
       apellidos,
 
       correo:
-        correo
-          .trim()
-          .toLowerCase(),
+        correo.trim().toLowerCase(),
 
       telefono: '',
 
       salaId:
         sala.id,
 
-      eventosParticipados:
-        0,
+      eventosParticipados: 0,
 
       estado:
         'Activo',
@@ -358,9 +333,7 @@ app.post(
         'Disponible'
     }
 
-    db.meseros.push(
-      nuevoMesero
-    )
+    db.meseros.push(nuevoMesero)
 
     const {
       password: passwordOculto,
@@ -377,7 +350,6 @@ app.post(
       sala: {
         id:
           sala.id,
-
         nombre:
           sala.nombre
       }
@@ -392,7 +364,6 @@ app.post(
 app.get(
   '/api/usuarios',
   (req, res) => {
-
     const usuariosSeguros =
       db.usuarios.map(
         ({
@@ -414,16 +385,13 @@ app.get(
 app.get(
   '/api/salas',
   (req, res) => {
-    res.json(
-      db.salas
-    )
+    res.json(db.salas)
   }
 )
 
 app.post(
   '/api/salas',
   (req, res) => {
-
     let codigo =
       generarCodigoSala()
 
@@ -439,9 +407,7 @@ app.post(
 
     const nuevaSala = {
       id:
-        generarId(
-          db.salas
-        ),
+        generarId(db.salas),
 
       nombre:
         req.body.nombre,
@@ -459,9 +425,7 @@ app.post(
         'Activa'
     }
 
-    db.salas.push(
-      nuevaSala
-    )
+    db.salas.push(nuevaSala)
 
     res.status(201).json(
       nuevaSala
@@ -472,11 +436,8 @@ app.post(
 app.put(
   '/api/salas/:id',
   (req, res) => {
-
     const id =
-      Number(
-        req.params.id
-      )
+      Number(req.params.id)
 
     const indice =
       db.salas.findIndex(
@@ -513,24 +474,8 @@ app.put(
 app.delete(
   '/api/salas/:id',
   (req, res) => {
-
     const id =
-      Number(
-        req.params.id
-      )
-
-    const sala =
-      db.salas.find(
-        (item) =>
-          item.id === id
-      )
-
-    if (!sala) {
-      return res.status(404).json({
-        mensaje:
-          'Sala no encontrada'
-      })
-    }
+      Number(req.params.id)
 
     const tieneMeseros =
       db.meseros.some(
@@ -556,8 +501,8 @@ app.delete(
 
     db.salas =
       db.salas.filter(
-        (item) =>
-          item.id !== id
+        (sala) =>
+          sala.id !== id
       )
 
     res.json({
@@ -574,39 +519,16 @@ app.delete(
 app.get(
   '/api/meseros',
   (req, res) => {
-    res.json(
-      db.meseros
-    )
+    res.json(db.meseros)
   }
 )
 
 app.post(
   '/api/meseros',
   (req, res) => {
-
-    const salaId =
-      Number(
-        req.body.salaId
-      )
-
-    const salaExiste =
-      db.salas.some(
-        (sala) =>
-          sala.id === salaId
-      )
-
-    if (!salaExiste) {
-      return res.status(400).json({
-        mensaje:
-          'La sala seleccionada no existe'
-      })
-    }
-
     const nuevoMesero = {
       id:
-        generarId(
-          db.meseros
-        ),
+        generarId(db.meseros),
 
       nombre:
         req.body.nombre,
@@ -620,10 +542,10 @@ app.post(
       telefono:
         req.body.telefono || '',
 
-      salaId,
+      salaId:
+        Number(req.body.salaId),
 
-      eventosParticipados:
-        0,
+      eventosParticipados: 0,
 
       estado:
         req.body.estado ||
@@ -647,11 +569,8 @@ app.post(
 app.put(
   '/api/meseros/:id',
   (req, res) => {
-
     const id =
-      Number(
-        req.params.id
-      )
+      Number(req.params.id)
 
     const indice =
       db.meseros.findIndex(
@@ -671,8 +590,7 @@ app.put(
       ...req.body,
 
       salaId:
-        req.body.salaId !==
-        undefined
+        req.body.salaId !== undefined
           ? Number(
               req.body.salaId
             )
@@ -693,24 +611,8 @@ app.put(
 app.delete(
   '/api/meseros/:id',
   (req, res) => {
-
     const id =
-      Number(
-        req.params.id
-      )
-
-    const existe =
-      db.meseros.some(
-        (mesero) =>
-          mesero.id === id
-      )
-
-    if (!existe) {
-      return res.status(404).json({
-        mensaje:
-          'Mesero no encontrado'
-      })
-    }
+      Number(req.params.id)
 
     db.meseros =
       db.meseros.filter(
@@ -744,41 +646,19 @@ app.delete(
 app.get(
   '/api/eventos',
   (req, res) => {
-    res.json(
-      db.eventos
-    )
+    res.json(db.eventos)
   }
 )
 
 app.post(
   '/api/eventos',
   (req, res) => {
-
-    const salaId =
-      Number(
-        req.body.salaId
-      )
-
-    const salaExiste =
-      db.salas.some(
-        (sala) =>
-          sala.id === salaId
-      )
-
-    if (!salaExiste) {
-      return res.status(400).json({
-        mensaje:
-          'La sala seleccionada no existe'
-      })
-    }
-
     const nuevoEvento = {
       id:
-        generarId(
-          db.eventos
-        ),
+        generarId(db.eventos),
 
-      salaId,
+      salaId:
+        Number(req.body.salaId),
 
       nombre:
         req.body.nombre,
@@ -830,11 +710,8 @@ app.post(
 app.put(
   '/api/eventos/:id',
   (req, res) => {
-
     const id =
-      Number(
-        req.params.id
-      )
+      Number(req.params.id)
 
     const indice =
       db.eventos.findIndex(
@@ -854,8 +731,7 @@ app.put(
       ...req.body,
 
       salaId:
-        req.body.salaId !==
-        undefined
+        req.body.salaId !== undefined
           ? Number(
               req.body.salaId
             )
@@ -863,24 +739,19 @@ app.put(
               .salaId,
 
       invitados:
-        req.body.invitados !==
-        undefined
-          ? Number(
-              req.body.invitados
-            )
-          : db.eventos[indice]
-              .invitados,
+        Number(
+          req.body.invitados ??
+          db.eventos[indice]
+            .invitados
+        ),
 
       meserosRequeridos:
-        req.body
-          .meserosRequeridos !==
-        undefined
-          ? Number(
-              req.body
-                .meserosRequeridos
-            )
-          : db.eventos[indice]
-              .meserosRequeridos
+        Number(
+          req.body
+            .meserosRequeridos ??
+          db.eventos[indice]
+            .meserosRequeridos
+        )
     }
 
     res.json(
@@ -892,24 +763,8 @@ app.put(
 app.delete(
   '/api/eventos/:id',
   (req, res) => {
-
     const id =
-      Number(
-        req.params.id
-      )
-
-    const existe =
-      db.eventos.some(
-        (evento) =>
-          evento.id === id
-      )
-
-    if (!existe) {
-      return res.status(404).json({
-        mensaje:
-          'Evento no encontrado'
-      })
-    }
+      Number(req.params.id)
 
     db.eventos =
       db.eventos.filter(
@@ -949,49 +804,13 @@ app.get(
   }
 )
 
-app.get(
-  '/api/asignaciones/evento/:eventoId',
-  (req, res) => {
-
-    const eventoId =
-      Number(
-        req.params.eventoId
-      )
-
-    const resultado =
-      db.asignaciones.filter(
-        (asignacion) =>
-          asignacion.eventoId ===
-          eventoId
-      )
-
-    res.json(
-      resultado
-    )
-  }
-)
-
 app.put(
   '/api/asignaciones/evento/:eventoId',
   (req, res) => {
-
     const eventoId =
       Number(
         req.params.eventoId
       )
-
-    const evento =
-      db.eventos.find(
-        (item) =>
-          item.id === eventoId
-      )
-
-    if (!evento) {
-      return res.status(404).json({
-        mensaje:
-          'Evento no encontrado'
-      })
-    }
 
     const meseroIds =
       (
@@ -1005,57 +824,6 @@ app.put(
             req.body.capitanId
           )
         : null
-
-    if (
-      capitanId &&
-      !meseroIds.includes(
-        capitanId
-      )
-    ) {
-      return res.status(400).json({
-        mensaje:
-          'El capitán debe ser uno de los meseros asignados.'
-      })
-    }
-
-    for (
-      const meseroId
-      of meseroIds
-    ) {
-      const mesero =
-        db.meseros.find(
-          (item) =>
-            item.id ===
-            meseroId
-        )
-
-      if (!mesero) {
-        return res.status(400).json({
-          mensaje:
-            'Uno de los meseros no existe.'
-        })
-      }
-
-      if (
-        mesero.salaId !==
-        evento.salaId
-      ) {
-        return res.status(400).json({
-          mensaje:
-            'Todos los meseros deben pertenecer a la sala del evento.'
-        })
-      }
-
-      if (
-        mesero.estado !==
-        'Activo'
-      ) {
-        return res.status(400).json({
-          mensaje:
-            'Solo se pueden asignar meseros activos.'
-        })
-      }
-    }
 
     db.asignaciones =
       db.asignaciones.filter(
@@ -1092,36 +860,32 @@ app.put(
     )
 
     /*
-      Quitamos disponibilidades
-      de quienes ya no estén
-      asignados.
+      Quitamos disponibilidad
+      de quienes fueron retirados.
     */
 
     db.disponibilidades =
       db.disponibilidades.filter(
-        (disponibilidad) =>
-          disponibilidad.eventoId !==
+        (item) =>
+          item.eventoId !==
             eventoId ||
           meseroIds.includes(
-            disponibilidad.meseroId
+            item.meseroId
           )
       )
 
     /*
-      Creamos disponibilidad
-      pendiente para nuevas
-      asignaciones.
+      Nueva asignación = Pendiente.
     */
 
     meseroIds.forEach(
       (meseroId) => {
-
         const existe =
           db.disponibilidades.some(
-            (disponibilidad) =>
-              disponibilidad.eventoId ===
+            (item) =>
+              item.eventoId ===
                 eventoId &&
-              disponibilidad.meseroId ===
+              item.meseroId ===
                 meseroId
           )
 
@@ -1159,31 +923,8 @@ app.put(
 app.get(
   '/api/disponibilidades',
   (req, res) => {
-
     res.json(
       db.disponibilidades
-    )
-  }
-)
-
-app.get(
-  '/api/disponibilidades/mesero/:meseroId',
-  (req, res) => {
-
-    const meseroId =
-      Number(
-        req.params.meseroId
-      )
-
-    const resultado =
-      db.disponibilidades.filter(
-        (disponibilidad) =>
-          disponibilidad.meseroId ===
-          meseroId
-      )
-
-    res.json(
-      resultado
     )
   }
 )
@@ -1191,26 +932,26 @@ app.get(
 app.put(
   '/api/disponibilidades',
   (req, res) => {
+    const eventoId =
+      Number(
+        req.body.eventoId
+      )
 
-    const {
-      eventoId,
-      meseroId,
-      estado
-    } = req.body
+    const meseroId =
+      Number(
+        req.body.meseroId
+      )
 
-    const eventoIdNumero =
-      Number(eventoId)
-
-    const meseroIdNumero =
-      Number(meseroId)
+    const estado =
+      req.body.estado
 
     const asignacionExiste =
       db.asignaciones.some(
         (asignacion) =>
           asignacion.eventoId ===
-            eventoIdNumero &&
+            eventoId &&
           asignacion.meseroId ===
-            meseroIdNumero
+            meseroId
       )
 
     if (!asignacionExiste) {
@@ -1220,96 +961,222 @@ app.put(
       })
     }
 
-    const estadosPermitidos = [
-      'Pendiente',
-      'Confirmado',
-      'No disponible'
-    ]
-
-    if (
-      !estadosPermitidos.includes(
-        estado
-      )
-    ) {
-      return res.status(400).json({
-        mensaje:
-          'Estado de disponibilidad no válido.'
-      })
-    }
-
-    const existente =
+    let registro =
       db.disponibilidades.find(
-        (disponibilidad) =>
-          disponibilidad.eventoId ===
-            eventoIdNumero &&
-          disponibilidad.meseroId ===
-            meseroIdNumero
+        (item) =>
+          item.eventoId ===
+            eventoId &&
+          item.meseroId ===
+            meseroId
       )
 
     /*
-      IMPORTANTE:
-      Si ya confirmó, el mesero
-      no puede cancelar desde
-      su cuenta.
+      Confirmación definitiva.
     */
 
-    if (existente) {
+    if (
+      registro?.estado ===
+        'Confirmado' &&
+      estado !== 'Confirmado'
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'La asistencia ya fue confirmada. El administrador debe modificar la asignación.'
+      })
+    }
 
-      if (
-        existente.estado ===
-          'Confirmado' &&
-        estado !==
-          'Confirmado'
-      ) {
-        return res.status(400).json({
-          mensaje:
-            'La asistencia ya fue confirmada. Si ya no puedes asistir, el administrador debe modificar la asignación del evento.'
-        })
+    if (!registro) {
+      registro = {
+        id:
+          generarId(
+            db.disponibilidades
+          ),
+
+        eventoId,
+        meseroId,
+
+        estado:
+          'Pendiente',
+
+        fechaRespuesta:
+          null
       }
 
-      existente.estado =
-        estado
-
-      existente.fechaRespuesta =
-        estado === 'Pendiente'
-          ? null
-          : new Date()
-              .toISOString()
-              .split('T')[0]
-
-      return res.json(
-        existente
+      db.disponibilidades.push(
+        registro
       )
     }
 
-    const nuevaDisponibilidad = {
-      id:
-        generarId(
-          db.disponibilidades
-        ),
+    registro.estado =
+      estado
 
-      eventoId:
-        eventoIdNumero,
+    registro.fechaRespuesta =
+      new Date()
+        .toISOString()
+        .split('T')[0]
 
-      meseroId:
-        meseroIdNumero,
+    /*
+      ==========================
+      NOTIFICACIÓN AUTOMÁTICA
+      ==========================
+    */
 
-      estado,
+    if (
+      estado ===
+      'No disponible'
+    ) {
+      const evento =
+        db.eventos.find(
+          (evento) =>
+            evento.id ===
+            eventoId
+        )
 
-      fechaRespuesta:
-        estado === 'Pendiente'
-          ? null
-          : new Date()
-              .toISOString()
-              .split('T')[0]
+      const mesero =
+        db.meseros.find(
+          (mesero) =>
+            mesero.id ===
+            meseroId
+        )
+
+      const yaExiste =
+        db.notificaciones.some(
+          (notificacion) =>
+            notificacion
+              .automatica === true &&
+            notificacion.tipo ===
+              'Disponibilidad' &&
+            notificacion.eventoId ===
+              eventoId &&
+            notificacion.meseroId ===
+              meseroId
+        )
+
+      if (
+        evento &&
+        mesero &&
+        !yaExiste
+      ) {
+        db.notificaciones.push({
+          id:
+            generarId(
+              db.notificaciones
+            ),
+
+          tipo:
+            'Disponibilidad',
+
+          titulo:
+            'Mesero no disponible',
+
+          mensaje:
+            `${mesero.nombre} ${mesero.apellidos} indicó que no está disponible para el evento "${evento.nombre}".`,
+
+          eventoId:
+            evento.id,
+
+          meseroId:
+            mesero.id,
+
+          salaId:
+            evento.salaId,
+
+          destinatario:
+            'Administrador',
+
+          emisor:
+            'Sistema',
+
+          automatica:
+            true,
+
+          fecha:
+            new Date()
+              .toISOString(),
+
+          leida:
+            false
+        })
+      }
     }
 
-    db.disponibilidades.push(
-      nuevaDisponibilidad
+    res.json(registro)
+  }
+)
+
+/* ========================================
+   NOTIFICACIONES
+======================================== */
+
+app.get(
+  '/api/notificaciones',
+  (req, res) => {
+    const salaId =
+      req.query.salaId
+        ? Number(
+            req.query.salaId
+          )
+        : null
+
+    const destinatario =
+      req.query.destinatario
+
+    let resultado = [
+      ...db.notificaciones
+    ]
+
+    if (salaId) {
+      resultado =
+        resultado.filter(
+          (notificacion) =>
+            notificacion.salaId ===
+            salaId
+        )
+    }
+
+    if (destinatario) {
+      resultado =
+        resultado.filter(
+          (notificacion) =>
+            notificacion.destinatario ===
+            destinatario
+        )
+    }
+
+    resultado.sort(
+      (a, b) =>
+        new Date(b.fecha) -
+        new Date(a.fecha)
     )
 
-    res.status(201).json(
-      nuevaDisponibilidad
+    res.json(resultado)
+  }
+)
+
+app.put(
+  '/api/notificaciones/:id/leida',
+  (req, res) => {
+    const id =
+      Number(req.params.id)
+
+    const notificacion =
+      db.notificaciones.find(
+        (item) =>
+          item.id === id
+      )
+
+    if (!notificacion) {
+      return res.status(404).json({
+        mensaje:
+          'Notificación no encontrada.'
+      })
+    }
+
+    notificacion.leida =
+      true
+
+    res.json(
+      notificacion
     )
   }
 )

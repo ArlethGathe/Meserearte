@@ -12,9 +12,14 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-function AdminDashboard({ onLogout }) {
-  const [seccion, setSeccion] =
-    useState('inicio')
+function AdminDashboard({
+  usuario,
+  onLogout
+}) {
+  const [
+    seccion,
+    setSeccion
+  ] = useState('inicio')
 
   const {
     salas,
@@ -22,10 +27,6 @@ function AdminDashboard({ onLogout }) {
     eventos,
     asignaciones
   } = useMesereArte()
-
-  /* =========================
-     DATOS DEL DASHBOARD
-  ========================= */
 
   const totalSalas =
     salas.length
@@ -37,12 +38,13 @@ function AdminDashboard({ onLogout }) {
     eventos.length
 
   const eventosConPersonal =
-    eventos.filter((evento) =>
-      asignaciones.some(
-        (asignacion) =>
-          asignacion.eventoId ===
-          evento.id
-      )
+    eventos.filter(
+      (evento) =>
+        asignaciones.some(
+          (asignacion) =>
+            asignacion.eventoId ===
+            evento.id
+        )
     ).length
 
   const obtenerCantidadAsignados = (
@@ -55,19 +57,18 @@ function AdminDashboard({ onLogout }) {
     ).length
   }
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) {
-      return ''
-    }
+  const formatearFecha = (
+    fecha
+  ) => {
+    if (!fecha) return ''
 
-    const partes =
-      fecha.split('-')
+    const [
+      anio,
+      mes,
+      dia
+    ] = fecha.split('-')
 
-    if (partes.length !== 3) {
-      return fecha
-    }
-
-    return `${partes[2]}/${partes[1]}/${partes[0]}`
+    return `${dia}/${mes}/${anio}`
   }
 
   const proximosEventos = [
@@ -84,24 +85,8 @@ function AdminDashboard({ onLogout }) {
     )
     .slice(0, 3)
 
-  /* =========================
-     CAMBIO DE SECCIÓN
-  ========================= */
-
-  const cambiarSeccion = (
-    nuevaSeccion
-  ) => {
-    setSeccion(
-      nuevaSeccion
-    )
-  }
-
   return (
     <div className="admin-layout">
-
-      {/* ======================
-          MENÚ LATERAL
-      ====================== */}
 
       <aside className="admin-sidebar">
 
@@ -126,9 +111,7 @@ function AdminDashboard({ onLogout }) {
                 : ''
             }
             onClick={() =>
-              cambiarSeccion(
-                'inicio'
-              )
+              setSeccion('inicio')
             }
           >
             Inicio
@@ -141,9 +124,7 @@ function AdminDashboard({ onLogout }) {
                 : ''
             }
             onClick={() =>
-              cambiarSeccion(
-                'salas'
-              )
+              setSeccion('salas')
             }
           >
             Salas
@@ -156,9 +137,7 @@ function AdminDashboard({ onLogout }) {
                 : ''
             }
             onClick={() =>
-              cambiarSeccion(
-                'usuarios'
-              )
+              setSeccion('usuarios')
             }
           >
             Usuarios
@@ -171,9 +150,7 @@ function AdminDashboard({ onLogout }) {
                 : ''
             }
             onClick={() =>
-              cambiarSeccion(
-                'eventos'
-              )
+              setSeccion('eventos')
             }
           >
             Eventos
@@ -186,7 +163,7 @@ function AdminDashboard({ onLogout }) {
                 : ''
             }
             onClick={() =>
-              cambiarSeccion(
+              setSeccion(
                 'asignaciones'
               )
             }
@@ -201,7 +178,7 @@ function AdminDashboard({ onLogout }) {
                 : ''
             }
             onClick={() =>
-              cambiarSeccion(
+              setSeccion(
                 'notificaciones'
               )
             }
@@ -216,7 +193,7 @@ function AdminDashboard({ onLogout }) {
                 : ''
             }
             onClick={() =>
-              cambiarSeccion(
+              setSeccion(
                 'reportes'
               )
             }
@@ -238,48 +215,37 @@ function AdminDashboard({ onLogout }) {
 
       </aside>
 
-      {/* ======================
-          CONTENIDO
-      ====================== */}
-
       <main className="admin-main">
 
         {seccion === 'salas' ? (
 
           <AdminSalas />
 
-        ) : seccion ===
-          'usuarios' ? (
+        ) : seccion === 'usuarios' ? (
 
           <AdminUsuarios />
 
-        ) : seccion ===
-          'eventos' ? (
+        ) : seccion === 'eventos' ? (
 
           <AdminEventos />
 
-        ) : seccion ===
-          'asignaciones' ? (
+        ) : seccion === 'asignaciones' ? (
 
           <AdminAsignaciones />
 
-        ) : seccion ===
-          'notificaciones' ? (
+        ) : seccion === 'notificaciones' ? (
 
-          <AdminNotificaciones />
+          <AdminNotificaciones
+            usuario={usuario}
+          />
 
-        ) : seccion ===
-          'reportes' ? (
+        ) : seccion === 'reportes' ? (
 
           <AdminReportes />
 
         ) : (
 
           <div className="dashboard-pagina">
-
-            {/* ==================
-                ENCABEZADO
-            ================== */}
 
             <div className="dashboard-encabezado">
 
@@ -299,62 +265,27 @@ function AdminDashboard({ onLogout }) {
 
             </div>
 
-            {/* ==================
-                TARJETAS
-            ================== */}
-
             <div className="dashboard-cards">
 
               <div className="dashboard-card">
-
-                <span>
-                  Salas
-                </span>
-
-                <strong>
-                  {totalSalas}
-                </strong>
-
-                <p>
-                  Equipos registrados
-                </p>
-
+                <span>Salas</span>
+                <strong>{totalSalas}</strong>
+                <p>Equipos registrados</p>
               </div>
 
               <div className="dashboard-card">
-
-                <span>
-                  Meseros
-                </span>
-
-                <strong>
-                  {totalMeseros}
-                </strong>
-
-                <p>
-                  Usuarios registrados
-                </p>
-
+                <span>Meseros</span>
+                <strong>{totalMeseros}</strong>
+                <p>Usuarios registrados</p>
               </div>
 
               <div className="dashboard-card">
-
-                <span>
-                  Eventos
-                </span>
-
-                <strong>
-                  {totalEventos}
-                </strong>
-
-                <p>
-                  Eventos registrados
-                </p>
-
+                <span>Eventos</span>
+                <strong>{totalEventos}</strong>
+                <p>Eventos registrados</p>
               </div>
 
               <div className="dashboard-card">
-
                 <span>
                   Con personal
                 </span>
@@ -366,14 +297,9 @@ function AdminDashboard({ onLogout }) {
                 <p>
                   Eventos con asignaciones
                 </p>
-
               </div>
 
             </div>
-
-            {/* ==================
-                PRÓXIMOS EVENTOS
-            ================== */}
 
             <div className="dashboard-seccion">
 
@@ -387,14 +313,14 @@ function AdminDashboard({ onLogout }) {
 
                   <p>
                     Consulta los eventos
-                    registrados recientemente.
+                    registrados.
                   </p>
 
                 </div>
 
                 <button
                   onClick={() =>
-                    cambiarSeccion(
+                    setSeccion(
                       'eventos'
                     )
                   }
@@ -410,157 +336,71 @@ function AdminDashboard({ onLogout }) {
                 0 ? (
 
                   proximosEventos.map(
-                    (evento) => {
+                    (evento) => (
 
-                      const asignados =
-                        obtenerCantidadAsignados(
-                          evento.id
-                        )
+                      <div
+                        className="dashboard-evento"
+                        key={evento.id}
+                      >
 
-                      return (
+                        <div className="dashboard-evento-info">
 
-                        <div
-                          className="dashboard-evento"
-                          key={evento.id}
-                        >
+                          <h3>
+                            {evento.nombre}
+                          </h3>
 
-                          <div className="dashboard-evento-info">
+                          <p>
+                            {formatearFecha(
+                              evento.fecha
+                            )}
+                            {' · '}
+                            {evento.horario}
+                          </p>
 
-                            <h3>
-                              {evento.nombre}
-                            </h3>
-
-                            <p>
-                              {formatearFecha(
-                                evento.fecha
-                              )}
-                              {' · '}
-                              {evento.horario}
-                            </p>
-
-                            <span>
-                              {evento.ubicacion}
-                            </span>
-
-                          </div>
-
-                          <div className="dashboard-evento-personal">
-
-                            <span>
-                              Personal
-                            </span>
-
-                            <strong>
-                              {asignados}
-                              {' / '}
-                              {
-                                evento
-                                  .meserosRequeridos
-                              }
-                            </strong>
-
-                            <small>
-                              meseros
-                            </small>
-
-                          </div>
+                          <span>
+                            {evento.ubicacion}
+                          </span>
 
                         </div>
 
-                      )
-                    }
+                        <div className="dashboard-evento-personal">
+
+                          <span>
+                            Personal
+                          </span>
+
+                          <strong>
+                            {obtenerCantidadAsignados(
+                              evento.id
+                            )}
+                            {' / '}
+                            {
+                              evento
+                                .meserosRequeridos
+                            }
+                          </strong>
+
+                          <small>
+                            meseros
+                          </small>
+
+                        </div>
+
+                      </div>
+
+                    )
                   )
 
                 ) : (
 
                   <div className="dashboard-sin-eventos">
 
-                    <p>
-                      No hay eventos
-                      registrados.
-                    </p>
-
-                    <button
-                      onClick={() =>
-                        cambiarSeccion(
-                          'eventos'
-                        )
-                      }
-                    >
-                      Crear evento
-                    </button>
+                    No hay eventos
+                    registrados.
 
                   </div>
 
                 )}
-
-              </div>
-
-            </div>
-
-            {/* ==================
-                RESUMEN
-            ================== */}
-
-            <div className="dashboard-resumen">
-
-              <div>
-
-                <h2>
-                  Resumen general
-                </h2>
-
-                <p>
-                  Información actual del
-                  sistema MesereArte.
-                </p>
-
-              </div>
-
-              <div className="dashboard-resumen-grid">
-
-                <div>
-
-                  <span>
-                    Meseros por sala
-                  </span>
-
-                  <strong>
-                    {totalSalas > 0
-                      ? (
-                          totalMeseros /
-                          totalSalas
-                        ).toFixed(1)
-                      : '0'}
-                  </strong>
-
-                </div>
-
-                <div>
-
-                  <span>
-                    Eventos con personal
-                  </span>
-
-                  <strong>
-                    {eventosConPersonal}
-                    {' / '}
-                    {totalEventos}
-                  </strong>
-
-                </div>
-
-                <div>
-
-                  <span>
-                    Asignaciones
-                  </span>
-
-                  <strong>
-                    {asignaciones.length}
-                  </strong>
-
-                </div>
 
               </div>
 
