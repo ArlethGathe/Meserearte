@@ -1,0 +1,272 @@
+.admin-perfil-pagina {
+  width: 100%;
+  min-height: 100%;
+
+  padding: 36px 40px 50px;
+
+  box-sizing: border-box;
+
+  background: #f8ecd5;
+}
+
+/* =========================================
+   ENCABEZADO
+========================================= */
+
+.admin-perfil-encabezado {
+  margin-bottom: 26px;
+}
+
+.admin-perfil-etiqueta {
+  margin: 0 0 6px;
+
+  color: #b07b2e;
+
+  font-size: 12px;
+  font-weight: 800;
+
+  letter-spacing: 1.2px;
+}
+
+.admin-perfil-encabezado h1 {
+  margin: 0;
+
+  color: #281a12;
+
+  font-size: 32px;
+}
+
+.admin-perfil-encabezado > p:last-child {
+  margin: 7px 0 0;
+
+  color: #806d5d;
+
+  font-size: 15px;
+}
+
+/* =========================================
+   TARJETA PRINCIPAL
+========================================= */
+
+.admin-perfil-card {
+  max-width: 850px;
+
+  padding: 25px;
+
+  background: white;
+
+  border: 1px solid #ead9bf;
+  border-radius: 16px;
+
+  box-shadow:
+    0 4px 14px
+    rgba(55, 35, 20, 0.05);
+}
+
+/* =========================================
+   AVATAR
+========================================= */
+
+.admin-perfil-avatar {
+  display: flex;
+  align-items: center;
+
+  gap: 17px;
+
+  padding-bottom: 22px;
+
+  border-bottom:
+    1px solid #efe3d2;
+}
+
+.admin-avatar-circulo {
+  width: 62px;
+  height: 62px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  background: #39261b;
+  color: #f2bd68;
+
+  border-radius: 50%;
+
+  font-size: 27px;
+  font-weight: 800;
+}
+
+.admin-perfil-avatar h2 {
+  margin: 0;
+
+  color: #2b1a12;
+
+  font-size: 22px;
+}
+
+.admin-perfil-avatar p {
+  margin: 5px 0 0;
+
+  color: #8a7565;
+
+  font-size: 13px;
+}
+
+/* =========================================
+   DATOS
+========================================= */
+
+.admin-perfil-datos {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 15px;
+
+  margin-top: 22px;
+}
+
+.admin-perfil-campo {
+  padding: 15px;
+
+  background: #faf4e9;
+
+  border-radius: 9px;
+}
+
+.admin-perfil-campo span:first-child {
+  display: block;
+
+  margin-bottom: 6px;
+
+  color: #8a7565;
+
+  font-size: 12px;
+}
+
+.admin-perfil-campo strong {
+  display: block;
+
+  color: #332219;
+
+  font-size: 14px;
+
+  word-break: break-word;
+}
+
+.admin-perfil-completo {
+  grid-column: 1 / -1;
+}
+
+/* =========================================
+   ESTADO
+========================================= */
+
+.admin-perfil-estado {
+  display: inline-block;
+
+  padding: 5px 10px;
+
+  border-radius: 20px;
+
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.admin-perfil-estado.activo {
+  background: #e2f2e6;
+
+  color: #347247;
+}
+
+.admin-perfil-estado.inactivo {
+  background: #f8e1df;
+
+  color: #9f3d35;
+}
+
+/* =========================================
+   SEGURIDAD
+========================================= */
+
+.admin-perfil-seguridad {
+  max-width: 850px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 25px;
+
+  margin-top: 18px;
+
+  padding: 20px 24px;
+
+  box-sizing: border-box;
+
+  background: #302016;
+
+  border-radius: 14px;
+}
+
+.admin-perfil-seguridad h2 {
+  margin: 0;
+
+  color: white;
+
+  font-size: 18px;
+}
+
+.admin-perfil-seguridad p {
+  max-width: 600px;
+
+  margin: 6px 0 0;
+
+  color: #d8c8ba;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+.admin-perfil-seguridad > span {
+  flex-shrink: 0;
+
+  padding: 7px 11px;
+
+  background: #bc8a3c;
+  color: white;
+
+  border-radius: 20px;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 750px) {
+
+  .admin-perfil-pagina {
+    padding: 25px 20px;
+  }
+
+  .admin-perfil-datos {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-perfil-completo {
+    grid-column: auto;
+  }
+
+  .admin-perfil-seguridad {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+}

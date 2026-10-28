@@ -7,6 +7,7 @@ import AdminEventos from './AdminEventos.jsx'
 import AdminAsignaciones from './AdminAsignaciones.jsx'
 import AdminNotificaciones from './AdminNotificaciones.jsx'
 import AdminReportes from './AdminReportes.jsx'
+import AdminPerfil from './AdminPerfil.jsx'
 
 import {
   useMesereArte
@@ -158,7 +159,8 @@ function AdminDashboard({
 
           <button
             className={
-              seccion === 'asignaciones'
+              seccion ===
+              'asignaciones'
                 ? 'activo'
                 : ''
             }
@@ -173,7 +175,8 @@ function AdminDashboard({
 
           <button
             className={
-              seccion === 'notificaciones'
+              seccion ===
+              'notificaciones'
                 ? 'activo'
                 : ''
             }
@@ -199,6 +202,21 @@ function AdminDashboard({
             }
           >
             Reportes e historiales
+          </button>
+
+          <button
+            className={
+              seccion === 'perfil'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion(
+                'perfil'
+              )
+            }
+          >
+            Mi perfil
           </button>
 
         </nav>
@@ -243,6 +261,12 @@ function AdminDashboard({
 
           <AdminReportes />
 
+        ) : seccion === 'perfil' ? (
+
+          <AdminPerfil
+            usuario={usuario}
+          />
+
         ) : (
 
           <div className="dashboard-pagina">
@@ -268,24 +292,55 @@ function AdminDashboard({
             <div className="dashboard-cards">
 
               <div className="dashboard-card">
-                <span>Salas</span>
-                <strong>{totalSalas}</strong>
-                <p>Equipos registrados</p>
+
+                <span>
+                  Salas
+                </span>
+
+                <strong>
+                  {totalSalas}
+                </strong>
+
+                <p>
+                  Equipos registrados
+                </p>
+
               </div>
 
               <div className="dashboard-card">
-                <span>Meseros</span>
-                <strong>{totalMeseros}</strong>
-                <p>Usuarios registrados</p>
+
+                <span>
+                  Meseros
+                </span>
+
+                <strong>
+                  {totalMeseros}
+                </strong>
+
+                <p>
+                  Usuarios registrados
+                </p>
+
               </div>
 
               <div className="dashboard-card">
-                <span>Eventos</span>
-                <strong>{totalEventos}</strong>
-                <p>Eventos registrados</p>
+
+                <span>
+                  Eventos
+                </span>
+
+                <strong>
+                  {totalEventos}
+                </strong>
+
+                <p>
+                  Eventos registrados
+                </p>
+
               </div>
 
               <div className="dashboard-card">
+
                 <span>
                   Con personal
                 </span>
@@ -297,6 +352,7 @@ function AdminDashboard({
                 <p>
                   Eventos con asignaciones
                 </p>
+
               </div>
 
             </div>
