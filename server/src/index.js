@@ -25,6 +25,10 @@ if (!db.asistencias) {
   db.asistencias = []
 }
 
+if (!db.reportes) {
+  db.reportes = []
+}
+
 /* ========================================
    FUNCIONES AUXILIARES
 ======================================== */
@@ -89,6 +93,55 @@ function obtenerFechaMexico() {
     )?.value
 
   return `${obtener('year')}-${obtener('month')}-${obtener('day')}`
+}
+
+function obtenerResumenAsistencia(
+  eventoId
+) {
+  const asignados =
+    db.asignaciones.filter(
+      (asignacion) =>
+        asignacion.eventoId ===
+        eventoId
+    )
+
+  const registros =
+    db.asistencias.filter(
+      (asistencia) =>
+        asistencia.eventoId ===
+        eventoId
+    )
+
+  const presentes =
+    registros.filter(
+      (asistencia) =>
+        asistencia.estado ===
+        'Presente'
+    ).length
+
+  const ausentes =
+    registros.filter(
+      (asistencia) =>
+        asistencia.estado ===
+        'Ausente'
+    ).length
+
+  return {
+    total:
+      asignados.length,
+
+    presentes,
+
+    ausentes,
+
+    sinRegistrar:
+      Math.max(
+        0,
+        asignados.length -
+        presentes -
+        ausentes
+      )
+  }
 }
 
 /* ========================================
@@ -183,7 +236,7 @@ app.post(
 )
 
 /* ========================================
-   REGISTRO ADMINISTRADOR
+   REGISTRO ADMIN
 ======================================== */
 
 app.post(
@@ -217,15 +270,14 @@ app.post(
         .trim()
         .toLowerCase()
 
-    const correoExiste =
+    if (
       db.usuarios.some(
         (usuario) =>
           usuario.correo
             .toLowerCase() ===
           correoNormalizado
       )
-
-    if (correoExiste) {
+    ) {
       return res
         .status(400)
         .json({
@@ -356,15 +408,14 @@ app.post(
         .trim()
         .toLowerCase()
 
-    const correoExiste =
+    if (
       db.usuarios.some(
         (usuario) =>
           usuario.correo
             .toLowerCase() ===
           correoNormalizado
       )
-
-    if (correoExiste) {
+    ) {
       return res
         .status(400)
         .json({
@@ -485,16 +536,13 @@ app.post(
 app.get(
   '/api/usuarios',
   (req, res) => {
-    const usuariosSeguros =
+    res.json(
       db.usuarios.map(
         ({
           password,
           ...usuario
         }) => usuario
       )
-
-    res.json(
-      usuariosSeguros
     )
   }
 )
@@ -506,9 +554,7 @@ app.get(
 app.get(
   '/api/salas',
   (req, res) => {
-    res.json(
-      db.salas
-    )
+    res.json(db.salas)
   }
 )
 
@@ -553,8 +599,7 @@ app.post(
       codigo,
 
       administrador:
-        req.body
-          .administrador ||
+        req.body.administrador ||
         'Administrador',
 
       estado:
@@ -605,8 +650,7 @@ app.put(
           .nombre,
 
       descripcion:
-        req.body
-          .descripcion ??
+        req.body.descripcion ??
         db.salas[indice]
           .descripcion
     }
@@ -709,8 +753,7 @@ app.post(
         'Activo',
 
       disponibilidad:
-        req.body
-          .disponibilidad ||
+        req.body.disponibilidad ||
         'Disponible'
     }
 
@@ -975,8 +1018,7 @@ app.delete(
     db.asignaciones =
       db.asignaciones.filter(
         (asignacion) =>
-          asignacion.eventoId !==
-          id
+          asignacion.eventoId !== id
       )
 
     db.disponibilidades =
@@ -987,6 +1029,12 @@ app.delete(
 
     db.asistencias =
       db.asistencias.filter(
+        (item) =>
+          item.eventoId !== id
+      )
+
+    db.reportes =
+      db.reportes.filter(
         (item) =>
           item.eventoId !== id
       )
@@ -1166,12 +1214,6 @@ app.put(
       ...nuevasAsignaciones
     )
 
-    /*
-      Eliminamos disponibilidad
-      y asistencia de las personas
-      retiradas del evento.
-    */
-
     db.disponibilidades =
       db.disponibilidades.filter(
         (item) =>
@@ -1191,11 +1233,6 @@ app.put(
             item.meseroId
           )
       )
-
-    /*
-      Cada nueva asignación comienza
-      como Pendiente.
-    */
 
     meseroIds.forEach(
       (meseroId) => {
@@ -1328,12 +1365,6 @@ app.put(
             meseroId
       )
 
-    /*
-      Confirmado y No disponible
-      son respuestas definitivas
-      para el mesero.
-    */
-
     if (
       registro &&
       (
@@ -1361,7 +1392,6 @@ app.put(
           ),
 
         eventoId,
-
         meseroId,
 
         estado:
@@ -1381,11 +1411,6 @@ app.put(
 
     registro.fechaRespuesta =
       obtenerFechaMexico()
-
-    /*
-      Notificación automática
-      cuando no puede asistir.
-    */
 
     if (
       estado ===
@@ -1408,8 +1433,7 @@ app.put(
       const yaExiste =
         db.notificaciones.some(
           (notificacion) =>
-            notificacion
-              .automatica ===
+            notificacion.automatica ===
               true &&
             notificacion.tipo ===
               'Disponibilidad' &&
@@ -1488,8 +1512,7 @@ app.get(
         : null
 
     const destinatario =
-      req.query
-        .destinatario
+      req.query.destinatario
 
     let resultado = [
       ...db.notificaciones
@@ -1559,14 +1582,8 @@ app.put(
 )
 
 /* ========================================
-   CONTROL DE ASISTENCIA
+   ASISTENCIA
 ======================================== */
-
-/*
-  Devuelve la asistencia registrada
-  y también indica si hoy se puede
-  utilizar el control.
-*/
 
 app.get(
   '/api/asistencias/evento/:eventoId',
@@ -1595,13 +1612,6 @@ app.get(
     const fechaActual =
       obtenerFechaMexico()
 
-    const asistencias =
-      db.asistencias.filter(
-        (item) =>
-          item.eventoId ===
-          eventoId
-      )
-
     res.json({
       eventoId,
 
@@ -1614,19 +1624,15 @@ app.get(
         fechaActual ===
         evento.fecha,
 
-      asistencias
+      asistencias:
+        db.asistencias.filter(
+          (item) =>
+            item.eventoId ===
+            eventoId
+        )
     })
   }
 )
-
-/*
-  El capitán registra Presente
-  o Ausente.
-
-  El backend vuelve a revisar
-  que efectivamente sea el día
-  del evento.
-*/
 
 app.put(
   '/api/asistencias',
@@ -1643,8 +1649,7 @@ app.put(
 
     const capitanMeseroId =
       Number(
-        req.body
-          .capitanMeseroId
+        req.body.capitanMeseroId
       )
 
     const estado =
@@ -1680,11 +1685,8 @@ app.put(
         })
     }
 
-    const fechaActual =
-      obtenerFechaMexico()
-
     if (
-      fechaActual !==
+      obtenerFechaMexico() !==
       evento.fecha
     ) {
       return res
@@ -1780,6 +1782,357 @@ app.put(
     res.json(
       asistencia
     )
+  }
+)
+
+/* ========================================
+   REPORTES
+======================================== */
+
+/*
+  Lista general.
+  La utilizaremos posteriormente
+  en Reportes e historiales del
+  administrador.
+*/
+
+app.get(
+  '/api/reportes',
+  (req, res) => {
+    const salaId =
+      req.query.salaId
+        ? Number(
+            req.query.salaId
+          )
+        : null
+
+    let reportes = [
+      ...db.reportes
+    ]
+
+    if (salaId) {
+      reportes =
+        reportes.filter(
+          (reporte) =>
+            reporte.salaId ===
+            salaId
+        )
+    }
+
+    reportes.sort(
+      (a, b) =>
+        new Date(
+          b.fechaActualizacion
+        ) -
+        new Date(
+          a.fechaActualizacion
+        )
+    )
+
+    res.json(
+      reportes
+    )
+  }
+)
+
+/*
+  Consulta del reporte de un evento.
+*/
+
+app.get(
+  '/api/reportes/evento/:eventoId',
+  (req, res) => {
+    const eventoId =
+      Number(
+        req.params.eventoId
+      )
+
+    const evento =
+      db.eventos.find(
+        (evento) =>
+          evento.id ===
+          eventoId
+      )
+
+    if (!evento) {
+      return res
+        .status(404)
+        .json({
+          mensaje:
+            'Evento no encontrado.'
+        })
+    }
+
+    const fechaActual =
+      obtenerFechaMexico()
+
+    const reporte =
+      db.reportes.find(
+        (reporte) =>
+          reporte.eventoId ===
+          eventoId
+      ) || null
+
+    res.json({
+      eventoId,
+
+      fechaEvento:
+        evento.fecha,
+
+      fechaActual,
+
+      habilitado:
+        fechaActual >=
+        evento.fecha,
+
+      reporte,
+
+      resumenAsistencia:
+        obtenerResumenAsistencia(
+          eventoId
+        )
+    })
+  }
+)
+
+/*
+  Crea o actualiza el reporte.
+
+  Borrador:
+  puede seguir editándose.
+
+  Enviado:
+  queda cerrado definitivamente.
+*/
+
+app.put(
+  '/api/reportes/evento/:eventoId',
+  (req, res) => {
+    const eventoId =
+      Number(
+        req.params.eventoId
+      )
+
+    const capitanMeseroId =
+      Number(
+        req.body
+          .capitanMeseroId
+      )
+
+    const resumenServicio =
+      (
+        req.body
+          .resumenServicio ||
+        ''
+      ).trim()
+
+    const incidencias =
+      (
+        req.body
+          .incidencias ||
+        ''
+      ).trim()
+
+    const observaciones =
+      (
+        req.body
+          .observaciones ||
+        ''
+      ).trim()
+
+    const estado =
+      req.body.estado
+
+    if (
+      ![
+        'Borrador',
+        'Enviado'
+      ].includes(estado)
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'Estado de reporte no válido.'
+        })
+    }
+
+    const evento =
+      db.eventos.find(
+        (evento) =>
+          evento.id ===
+          eventoId
+      )
+
+    if (!evento) {
+      return res
+        .status(404)
+        .json({
+          mensaje:
+            'Evento no encontrado.'
+        })
+    }
+
+    const fechaActual =
+      obtenerFechaMexico()
+
+    if (
+      fechaActual <
+      evento.fecha
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'El reporte se habilitará a partir del día del evento.'
+        })
+    }
+
+    const asignacionCapitan =
+      db.asignaciones.find(
+        (asignacion) =>
+          asignacion.eventoId ===
+            eventoId &&
+          asignacion.meseroId ===
+            capitanMeseroId &&
+          asignacion.rol ===
+            'Capitán'
+      )
+
+    if (!asignacionCapitan) {
+      return res
+        .status(403)
+        .json({
+          mensaje:
+            'Este usuario no tiene asignado el rol de capitán en el evento.'
+        })
+    }
+
+    if (
+      estado ===
+        'Enviado' &&
+      !resumenServicio
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'El resumen del servicio es obligatorio para enviar el reporte final.'
+        })
+    }
+
+    let reporte =
+      db.reportes.find(
+        (reporte) =>
+          reporte.eventoId ===
+          eventoId
+      )
+
+    if (
+      reporte?.estado ===
+      'Enviado'
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'El reporte final ya fue enviado y no puede modificarse.'
+        })
+    }
+
+    const resumenAsistencia =
+      obtenerResumenAsistencia(
+        eventoId
+      )
+
+    if (!reporte) {
+      reporte = {
+        id:
+          generarId(
+            db.reportes
+          ),
+
+        eventoId,
+
+        salaId:
+          evento.salaId,
+
+        capitanMeseroId,
+
+        resumenServicio,
+
+        incidencias,
+
+        observaciones,
+
+        estado,
+
+        asistencia:
+          resumenAsistencia,
+
+        fechaCreacion:
+          new Date()
+            .toISOString(),
+
+        fechaActualizacion:
+          new Date()
+            .toISOString(),
+
+        fechaEnvio:
+          estado ===
+          'Enviado'
+            ? new Date()
+                .toISOString()
+            : null
+      }
+
+      db.reportes.push(
+        reporte
+      )
+    } else {
+      reporte.capitanMeseroId =
+        capitanMeseroId
+
+      reporte.resumenServicio =
+        resumenServicio
+
+      reporte.incidencias =
+        incidencias
+
+      reporte.observaciones =
+        observaciones
+
+      reporte.estado =
+        estado
+
+      reporte.asistencia =
+        resumenAsistencia
+
+      reporte.fechaActualizacion =
+        new Date()
+          .toISOString()
+
+      if (
+        estado ===
+        'Enviado'
+      ) {
+        reporte.fechaEnvio =
+          new Date()
+            .toISOString()
+      }
+    }
+
+    res.json({
+      mensaje:
+        estado ===
+        'Enviado'
+          ? 'Reporte final enviado correctamente.'
+          : 'Borrador guardado correctamente.',
+
+      reporte,
+
+      resumenAsistencia
+    })
   }
 )
 

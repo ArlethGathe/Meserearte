@@ -5,6 +5,9 @@ import {
 
 import './CapitanPanel.css'
 
+import CapitanReporte
+  from './CapitanReporte.jsx'
+
 import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
@@ -43,11 +46,6 @@ function CapitanPanel({
     asistenciaHabilitada,
     setAsistenciaHabilitada
   ] = useState(false)
-
-  const [
-    fechaActual,
-    setFechaActual
-  ] = useState('')
 
   const [
     cargandoAsistencia,
@@ -114,7 +112,7 @@ function CapitanPanel({
   }
 
   /* ========================================
-     EQUIPO DEL EVENTO
+     EQUIPO
   ======================================== */
 
   const equipoEvento =
@@ -177,7 +175,7 @@ function CapitanPanel({
       : []
 
   /* ========================================
-     CARGAR ASISTENCIA
+     ASISTENCIA
   ======================================== */
 
   const cargarAsistencias =
@@ -217,10 +215,6 @@ function CapitanPanel({
           resultado.habilitado
         )
 
-        setFechaActual(
-          resultado.fechaActual
-        )
-
       } catch (error) {
         setError(
           error.message
@@ -239,10 +233,6 @@ function CapitanPanel({
     [eventoSeleccionado]
   )
 
-  /* ========================================
-     ESTADO DE ASISTENCIA
-  ======================================== */
-
   const obtenerAsistencia = (
     meseroId
   ) => {
@@ -257,10 +247,6 @@ function CapitanPanel({
       ? registro.estado
       : 'Pendiente'
   }
-
-  /* ========================================
-     REGISTRAR ASISTENCIA
-  ======================================== */
 
   const registrarAsistencia =
     async (
@@ -346,8 +332,7 @@ function CapitanPanel({
         )
 
         setMensaje(
-          estado ===
-          'Presente'
+          estado === 'Presente'
             ? 'Asistencia registrada como presente.'
             : 'Asistencia registrada como ausente.'
         )
@@ -364,7 +349,7 @@ function CapitanPanel({
     }
 
   /* ========================================
-     CONTADORES DISPONIBILIDAD
+     CONTADORES
   ======================================== */
 
   const confirmados =
@@ -387,10 +372,6 @@ function CapitanPanel({
         integrante.disponibilidad ===
         'No disponible'
     ).length
-
-  /* ========================================
-     CONTADORES ASISTENCIA
-  ======================================== */
 
   const presentes =
     equipoEvento.filter(
@@ -433,10 +414,6 @@ function CapitanPanel({
     return `${dia}/${mes}/${anio}`
   }
 
-  /* ========================================
-     SIN EVENTOS
-  ======================================== */
-
   if (
     !eventos ||
     eventos.length === 0
@@ -458,10 +435,6 @@ function CapitanPanel({
 
   return (
     <div className="capitan-panel">
-
-      {/* =================================
-          MENSAJES
-      ================================= */}
 
       {mensaje && (
 
@@ -521,8 +494,8 @@ function CapitanPanel({
 
           <p>
             Consulta al personal
-            asignado y administra las
-            funciones correspondientes
+            asignado y administra
+            las funciones correspondientes
             al evento.
           </p>
 
@@ -544,7 +517,7 @@ function CapitanPanel({
       </div>
 
       {/* =================================
-          SELECT EVENTO
+          SELECTOR
       ================================= */}
 
       <section className="capitan-selector">
@@ -588,7 +561,7 @@ function CapitanPanel({
         <>
 
           {/* =================================
-              DATOS EVENTO
+              DATOS DEL EVENTO
           ================================= */}
 
           <section className="capitan-evento-card">
@@ -725,7 +698,7 @@ function CapitanPanel({
           </section>
 
           {/* =================================
-              DISPONIBILIDAD DEL EQUIPO
+              DISPONIBILIDAD
           ================================= */}
 
           <section className="capitan-resumen">
@@ -802,7 +775,7 @@ function CapitanPanel({
           )}
 
           {/* =================================
-              PERSONAL ASIGNADO
+              PERSONAL
           ================================= */}
 
           <section className="capitan-equipo">
@@ -965,7 +938,7 @@ function CapitanPanel({
           </section>
 
           {/* =================================
-              CONTROL DE ASISTENCIA
+              ASISTENCIA
           ================================= */}
 
           <section className="capitan-asistencia">
@@ -1031,6 +1004,7 @@ function CapitanPanel({
             ) : (
 
               <>
+
                 <div className="asistencia-resumen">
 
                   <div>
@@ -1242,7 +1216,9 @@ function CapitanPanel({
                   </table>
 
                 </div>
+
               </>
+
             )}
 
           </section>
@@ -1251,30 +1227,14 @@ function CapitanPanel({
               REPORTE
           ================================= */}
 
-          <section className="capitan-proxima-funcion">
-
-            <div>
-
-              <h2>
-                Reporte del evento
-              </h2>
-
-              <p>
-                El reporte se habilitará
-                a partir del día del
-                evento y permanecerá
-                disponible hasta que
-                sea enviado de forma
-                definitiva.
-              </p>
-
-            </div>
-
-            <span>
-              Siguiente función
-            </span>
-
-          </section>
+          <CapitanReporte
+            evento={
+              eventoActual
+            }
+            mesero={
+              mesero
+            }
+          />
 
         </>
       )}

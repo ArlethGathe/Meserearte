@@ -1,0 +1,477 @@
+.reporte-capitan {
+  margin-top: 18px;
+
+  padding: 22px;
+
+  background: white;
+
+  border: 1px solid #ead9bf;
+  border-radius: 15px;
+}
+
+/* =========================================
+   HEADER
+========================================= */
+
+.reporte-header {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 20px;
+
+  margin-bottom: 20px;
+}
+
+.reporte-header h2 {
+  margin: 0;
+
+  color: #2c1b13;
+
+  font-size: 20px;
+}
+
+.reporte-header p {
+  margin: 5px 0 0;
+
+  color: #8a7565;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+.reporte-estado {
+  flex-shrink: 0;
+
+  padding: 6px 11px;
+
+  border-radius: 20px;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.reporte-estado.disponible {
+  background: #e2f2e6;
+  color: #347247;
+}
+
+.reporte-estado.borrador {
+  background: #fff0d3;
+  color: #92621b;
+}
+
+.reporte-estado.enviado {
+  background: #e0ecf7;
+  color: #305f89;
+}
+
+.reporte-estado.bloqueado {
+  background: #eee8e1;
+  color: #75675d;
+}
+
+/* =========================================
+   MENSAJES
+========================================= */
+
+.reporte-mensaje {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 18px;
+
+  padding: 12px 14px;
+
+  border-radius: 8px;
+
+  font-size: 13px;
+}
+
+.reporte-mensaje.correcto {
+  background: #e2f2e6;
+  color: #347247;
+}
+
+.reporte-mensaje.error {
+  background: #fae4e2;
+  color: #9b3932;
+}
+
+.reporte-mensaje button {
+  border: none;
+
+  background: transparent;
+
+  color: inherit;
+
+  font-size: 20px;
+
+  cursor: pointer;
+}
+
+/* =========================================
+   BLOQUEADO
+========================================= */
+
+.reporte-bloqueado {
+  margin-bottom: 18px;
+
+  padding: 15px;
+
+  background: #f7efdf;
+
+  border-left: 4px solid #bc8a3c;
+  border-radius: 8px;
+
+  color: #72573e;
+}
+
+.reporte-bloqueado strong {
+  color: #5e422d;
+}
+
+.reporte-bloqueado p {
+  margin: 5px 0 0;
+
+  font-size: 13px;
+}
+
+/* =========================================
+   ASISTENCIA
+========================================= */
+
+.reporte-asistencia {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 12px;
+
+  margin-bottom: 20px;
+}
+
+.reporte-asistencia > div {
+  padding: 15px;
+
+  background: #faf4e9;
+
+  border-left: 4px solid #725c4c;
+  border-radius: 9px;
+}
+
+.reporte-asistencia span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #897565;
+
+  font-size: 11px;
+}
+
+.reporte-asistencia strong {
+  color: #2d1c13;
+
+  font-size: 23px;
+}
+
+.reporte-presentes {
+  border-left-color: #3b7d4e !important;
+}
+
+.reporte-presentes strong {
+  color: #347247;
+}
+
+.reporte-ausentes {
+  border-left-color: #b44c42 !important;
+}
+
+.reporte-ausentes strong {
+  color: #a03b34;
+}
+
+.reporte-pendientes {
+  border-left-color: #c18a2e !important;
+}
+
+.reporte-pendientes strong {
+  color: #96651c;
+}
+
+/* =========================================
+   FORMULARIO
+========================================= */
+
+.reporte-formulario {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 17px;
+}
+
+.reporte-formulario.deshabilitado {
+  opacity: 0.65;
+}
+
+.reporte-campo label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #4c382b;
+
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.reporte-campo label span {
+  margin-left: 3px;
+
+  color: #a03b34;
+}
+
+.reporte-campo textarea {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 12px 13px;
+
+  resize: vertical;
+
+  background: white;
+
+  border: 1px solid #d9c6ad;
+  border-radius: 9px;
+
+  color: #3d2c22;
+
+  font-family: inherit;
+  font-size: 13px;
+
+  line-height: 1.5;
+
+  outline: none;
+}
+
+.reporte-campo textarea:focus {
+  border-color: #bc8a3c;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(188, 138, 60, 0.12);
+}
+
+.reporte-campo textarea:disabled {
+  background: #f5f1eb;
+
+  cursor: not-allowed;
+}
+
+.reporte-campo small {
+  display: block;
+
+  margin-top: 5px;
+
+  color: #948173;
+
+  font-size: 11px;
+}
+
+/* =========================================
+   BOTONES
+========================================= */
+
+.reporte-acciones {
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  padding-top: 5px;
+}
+
+.reporte-acciones button {
+  border: none;
+
+  padding: 11px 17px;
+
+  border-radius: 8px;
+
+  font-weight: bold;
+
+  cursor: pointer;
+}
+
+.guardar-borrador {
+  background: #eee2d2;
+  color: #543d2e;
+}
+
+.guardar-borrador:hover {
+  background: #e3d2bd;
+}
+
+.enviar-reporte {
+  background: #bc8a3c;
+  color: white;
+}
+
+.enviar-reporte:hover {
+  background: #a87632;
+}
+
+.reporte-acciones button:disabled {
+  opacity: 0.55;
+
+  cursor: not-allowed;
+}
+
+/* =========================================
+   REPORTE FINAL
+========================================= */
+
+.reporte-final-aviso {
+  margin-bottom: 18px;
+
+  padding: 15px;
+
+  background: #e8f0f8;
+
+  border-left: 4px solid #4a779d;
+  border-radius: 8px;
+
+  color: #345b7c;
+}
+
+.reporte-final-aviso p {
+  margin: 5px 0 0;
+
+  font-size: 13px;
+}
+
+.reporte-final-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 12px;
+
+  margin-bottom: 16px;
+}
+
+.reporte-final-grid > div {
+  padding: 13px;
+
+  background: #faf4e9;
+
+  border-radius: 9px;
+}
+
+.reporte-final-grid span,
+.reporte-final-seccion span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #8a7565;
+
+  font-size: 11px;
+}
+
+.reporte-final-grid strong {
+  color: #332219;
+
+  font-size: 13px;
+}
+
+.reporte-final-seccion {
+  margin-bottom: 12px;
+
+  padding: 14px;
+
+  background: #faf4e9;
+
+  border-radius: 9px;
+}
+
+.reporte-final-seccion p {
+  margin: 0;
+
+  color: #4d382b;
+
+  font-size: 13px;
+
+  line-height: 1.55;
+
+  white-space: pre-wrap;
+}
+
+/* =========================================
+   FECHA
+========================================= */
+
+.reporte-fecha-sistema {
+  margin-top: 17px;
+
+  padding-top: 13px;
+
+  border-top: 1px solid #efe3d2;
+
+  color: #978375;
+
+  font-size: 11px;
+}
+
+/* =========================================
+   CARGANDO
+========================================= */
+
+.reporte-cargando {
+  padding: 25px;
+
+  color: #806d5d;
+
+  text-align: center;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 850px) {
+  .reporte-asistencia {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .reporte-header,
+  .reporte-acciones {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .reporte-asistencia,
+  .reporte-final-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reporte-acciones button {
+    width: 100%;
+  }
+}

@@ -1,590 +1,916 @@
-import { useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState
+} from 'react'
+
 import './AdminReportes.css'
 
-const reporteVacio = {
-  tipo: 'Evento',
-  evento: '',
-  mesero: '',
-  fecha: '',
-  descripcion: ''
-}
+import {
+  useMesereArte
+} from '../context/MesereArteContexto.jsx'
 
-function AdminReportes() {
-  const [vista, setVista] = useState('reportes')
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [detalleReporte, setDetalleReporte] = useState(null)
+const API_URL =
+  'http://localhost:3001/api'
 
-  const [busqueda, setBusqueda] = useState('')
-  const [filtroTipo, setFiltroTipo] = useState('Todos')
+function AdminReportes({
+  usuario
+}) {
+  const {
+    eventos,
+    meseros
+  } = useMesereArte()
 
-  const [formulario, setFormulario] = useState(reporteVacio)
+  const [
+    reportes,
+    setReportes
+  ] = useState([])
 
-  const eventos = [
-    'Boda Hernández & Ruiz',
-    'XV años Valentina',
-    'Graduación ESCOM'
-  ]
+  const [
+    cargando,
+    setCargando
+  ] = useState(true)
 
-  const meseros = [
-    'María López',
-    'Juan Pérez',
-    'Ana Torres',
-    'Carlos Ramírez'
-  ]
+  const [
+    error,
+    setError
+  ] = useState('')
 
-  const [reportes, setReportes] = useState([
-    {
-      id: 1,
-      tipo: 'Evento',
-      nombre: 'Reporte Boda Hernández & Ruiz',
-      evento: 'Boda Hernández & Ruiz',
-      mesero: '',
-      fecha: '2026-10-20',
-      descripcion:
-        'Evento realizado correctamente. Se registraron 12 meseros y una incidencia menor.',
-      autor: 'Administrador'
-    },
-    {
-      id: 2,
-      tipo: 'Mesero',
-      nombre: 'Reporte María López',
-      evento: 'Boda Hernández & Ruiz',
-      mesero: 'María López',
-      fecha: '2026-10-20',
-      descripcion:
-        'Asistencia puntual y desempeño satisfactorio durante el evento.',
-      autor: 'Administrador'
-    }
-  ])
+  const [
+    pestaña,
+    setPestaña
+  ] = useState('reportes')
 
-  const historiales = [
-    {
-      id: 1,
-      mesero: 'María López',
-      eventos: 15,
-      comoMesero: 12,
-      comoCapitan: 3,
-      asistencias: 14,
-      retardos: 1,
-      inasistencias: 0,
-      incidencias: 1,
-      observacion:
-        'Buen desempeño general y experiencia como capitán.'
-    },
-    {
-      id: 2,
-      mesero: 'Juan Pérez',
-      eventos: 8,
-      comoMesero: 8,
-      comoCapitan: 0,
-      asistencias: 7,
-      retardos: 0,
-      inasistencias: 1,
-      incidencias: 0,
-      observacion:
-        'Buen desempeño general.'
-    },
-    {
-      id: 3,
-      mesero: 'Ana Torres',
-      eventos: 11,
-      comoMesero: 9,
-      comoCapitan: 2,
-      asistencias: 11,
-      retardos: 0,
-      inasistencias: 0,
-      incidencias: 0,
-      observacion:
-        'Participación constante.'
-    }
-  ]
+  const [
+    busqueda,
+    setBusqueda
+  ] = useState('')
 
-  const [historialDetalle, setHistorialDetalle] = useState(null)
+  const [
+    reporteSeleccionado,
+    setReporteSeleccionado
+  ] = useState(null)
 
-  const manejarCambio = (e) => {
-    const { name, value } = e.target
+  /* ========================================
+     CARGAR REPORTES
+  ======================================== */
 
-    setFormulario({
-      ...formulario,
-      [name]: value
-    })
-  }
+  const cargarReportes =
+    async () => {
+      try {
+        setCargando(true)
+        setError('')
 
-  const crearReporte = (e) => {
-    e.preventDefault()
+        const url =
+          usuario?.salaId
+            ? `${API_URL}/reportes?salaId=${usuario.salaId}`
+            : `${API_URL}/reportes`
 
-    const nombre =
-      formulario.tipo === 'Evento'
-        ? `Reporte ${formulario.evento}`
-        : `Reporte ${formulario.mesero}`
+        const respuesta =
+          await fetch(url)
 
-    const nuevoReporte = {
-      id: Date.now(),
-      tipo: formulario.tipo,
-      nombre,
-      evento: formulario.evento,
-      mesero: formulario.mesero,
-      fecha: formulario.fecha,
-      descripcion: formulario.descripcion,
-      autor: 'Administrador'
+        const resultado =
+          await respuesta.json()
+
+        if (!respuesta.ok) {
+          throw new Error(
+            resultado.mensaje ||
+            'No se pudieron cargar los reportes.'
+          )
+        }
+
+        setReportes(
+          resultado
+        )
+
+      } catch (error) {
+        setError(
+          error.message
+        )
+      } finally {
+        setCargando(false)
+      }
     }
 
-    setReportes([
-      nuevoReporte,
-      ...reportes
-    ])
+  useEffect(() => {
+    cargarReportes()
+  }, [usuario?.salaId])
 
-    setFormulario(reporteVacio)
-    setMostrarFormulario(false)
+  /* ========================================
+     REPORTES FINALES
+  ======================================== */
+
+  const reportesFinales =
+    useMemo(
+      () =>
+        reportes
+          .filter(
+            (reporte) =>
+              reporte.estado ===
+              'Enviado'
+          )
+          .map(
+            (reporte) => {
+              const evento =
+                eventos.find(
+                  (evento) =>
+                    evento.id ===
+                    reporte.eventoId
+                )
+
+              const capitan =
+                meseros.find(
+                  (mesero) =>
+                    mesero.id ===
+                    reporte.capitanMeseroId
+                )
+
+              return {
+                ...reporte,
+
+                evento,
+
+                capitan
+              }
+            }
+          )
+          .sort(
+            (a, b) =>
+              new Date(
+                b.fechaEnvio
+              ) -
+              new Date(
+                a.fechaEnvio
+              )
+          ),
+      [
+        reportes,
+        eventos,
+        meseros
+      ]
+    )
+
+  /* ========================================
+     FILTRO
+  ======================================== */
+
+  const reportesFiltrados =
+    reportesFinales.filter(
+      (reporte) => {
+        const texto =
+          busqueda
+            .trim()
+            .toLowerCase()
+
+        if (!texto) {
+          return true
+        }
+
+        const nombreEvento =
+          reporte.evento?.nombre
+            ?.toLowerCase() ||
+          ''
+
+        const nombreCapitan =
+          `${reporte.capitan?.nombre || ''} ${reporte.capitan?.apellidos || ''}`
+            .toLowerCase()
+
+        return (
+          nombreEvento.includes(
+            texto
+          ) ||
+          nombreCapitan.includes(
+            texto
+          )
+        )
+      }
+    )
+
+  /* ========================================
+     HISTORIAL
+  ======================================== */
+
+  const historialEventos =
+    eventos
+      .filter(
+        (evento) =>
+          !usuario?.salaId ||
+          evento.salaId ===
+          usuario.salaId
+      )
+      .map(
+        (evento) => {
+          const reporte =
+            reportesFinales.find(
+              (reporte) =>
+                reporte.eventoId ===
+                evento.id
+            )
+
+          return {
+            ...evento,
+
+            reporte:
+              reporte || null
+          }
+        }
+      )
+      .sort(
+        (a, b) =>
+          new Date(
+            b.fecha
+          ) -
+          new Date(
+            a.fecha
+          )
+      )
+
+  /* ========================================
+     CONTADORES
+  ======================================== */
+
+  const totalReportes =
+    reportesFinales.length
+
+  const totalPresentes =
+    reportesFinales.reduce(
+      (
+        acumulado,
+        reporte
+      ) =>
+        acumulado +
+        (
+          reporte.asistencia
+            ?.presentes ||
+          0
+        ),
+      0
+    )
+
+  const totalAusentes =
+    reportesFinales.reduce(
+      (
+        acumulado,
+        reporte
+      ) =>
+        acumulado +
+        (
+          reporte.asistencia
+            ?.ausentes ||
+          0
+        ),
+      0
+    )
+
+  const totalIncidencias =
+    reportesFinales.filter(
+      (reporte) =>
+        reporte.incidencias &&
+        reporte.incidencias.trim()
+    ).length
+
+  /* ========================================
+     FECHAS
+  ======================================== */
+
+  const formatearFecha = (
+    fecha
+  ) => {
+    if (!fecha) {
+      return 'Sin fecha'
+    }
+
+    const fechaSimple =
+      fecha.includes('T')
+        ? fecha.split('T')[0]
+        : fecha
+
+    const [
+      anio,
+      mes,
+      dia
+    ] = fechaSimple.split('-')
+
+    return `${dia}/${mes}/${anio}`
   }
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) return ''
+  const formatearFechaHora = (
+    fecha
+  ) => {
+    if (!fecha) {
+      return ''
+    }
 
-    const partes = fecha.split('-')
+    return new Date(
+      fecha
+    ).toLocaleString(
+      'es-MX',
+      {
+        dateStyle:
+          'short',
 
-    return `${partes[2]}/${partes[1]}/${partes[0]}`
+        timeStyle:
+          'short'
+      }
+    )
   }
 
-  const reportesFiltrados = reportes.filter((reporte) => {
-    const texto = busqueda.toLowerCase()
-
-    const coincideBusqueda =
-      reporte.nombre.toLowerCase().includes(texto) ||
-      reporte.evento.toLowerCase().includes(texto) ||
-      reporte.mesero.toLowerCase().includes(texto)
-
-    const coincideTipo =
-      filtroTipo === 'Todos' ||
-      reporte.tipo === filtroTipo
-
-    return coincideBusqueda && coincideTipo
-  })
+  /* ========================================
+     COMPONENTE
+  ======================================== */
 
   return (
     <div className="reportes-pagina">
 
+      {/* ===================================
+          ENCABEZADO
+      =================================== */}
+
       <div className="reportes-encabezado">
 
         <div>
-          <h1>Reportes e historiales</h1>
+
+          <h1>
+            Reportes e historiales
+          </h1>
 
           <p>
-            Consulta reportes de eventos y el historial
-            de participación de los meseros.
+            Consulta los reportes finales
+            enviados por los capitanes y
+            el historial de los eventos.
           </p>
+
         </div>
 
-        {vista === 'reportes' && (
-          <button
-            className="nuevo-reporte"
-            onClick={() => setMostrarFormulario(true)}
-          >
-            + Crear reporte
-          </button>
-        )}
-
-      </div>
-
-      <div className="selector-reportes">
-
         <button
-          className={
-            vista === 'reportes'
-              ? 'selector-activo'
-              : ''
+          type="button"
+          className="actualizar-reportes"
+          onClick={
+            cargarReportes
           }
-          onClick={() => setVista('reportes')}
         >
-          Reportes
-        </button>
-
-        <button
-          className={
-            vista === 'historial'
-              ? 'selector-activo'
-              : ''
-          }
-          onClick={() => setVista('historial')}
-        >
-          Historial de meseros
+          Actualizar
         </button>
 
       </div>
 
-      {vista === 'reportes' ? (
+      {/* ===================================
+          RESUMEN
+      =================================== */}
 
-        <section className="reportes-contenedor">
+      <section className="reportes-resumen">
 
-          <div className="filtros-reportes">
+        <div>
+
+          <span>
+            Reportes recibidos
+          </span>
+
+          <strong>
+            {totalReportes}
+          </strong>
+
+          <p>
+            Reportes finales enviados.
+          </p>
+
+        </div>
+
+        <div className="resumen-presentes">
+
+          <span>
+            Asistencias
+          </span>
+
+          <strong>
+            {totalPresentes}
+          </strong>
+
+          <p>
+            Personal registrado
+            como presente.
+          </p>
+
+        </div>
+
+        <div className="resumen-ausentes">
+
+          <span>
+            Ausencias
+          </span>
+
+          <strong>
+            {totalAusentes}
+          </strong>
+
+          <p>
+            Ausencias registradas
+            por los capitanes.
+          </p>
+
+        </div>
+
+        <div className="resumen-incidencias">
+
+          <span>
+            Con incidencias
+          </span>
+
+          <strong>
+            {totalIncidencias}
+          </strong>
+
+          <p>
+            Reportes con alguna
+            incidencia registrada.
+          </p>
+
+        </div>
+
+      </section>
+
+      {/* ===================================
+          PESTAÑAS
+      =================================== */}
+
+      <div className="reportes-tabs">
+
+        <button
+          type="button"
+          className={
+            pestaña ===
+            'reportes'
+              ? 'activo'
+              : ''
+          }
+          onClick={() =>
+            setPestaña(
+              'reportes'
+            )
+          }
+        >
+          Reportes recibidos
+        </button>
+
+        <button
+          type="button"
+          className={
+            pestaña ===
+            'historial'
+              ? 'activo'
+              : ''
+          }
+          onClick={() =>
+            setPestaña(
+              'historial'
+            )
+          }
+        >
+          Historial de eventos
+        </button>
+
+      </div>
+
+      {/* ===================================
+          ERROR
+      =================================== */}
+
+      {error && (
+
+        <div className="reportes-error">
+
+          {error}
+
+        </div>
+
+      )}
+
+      {/* ===================================
+          REPORTES RECIBIDOS
+      =================================== */}
+
+      {pestaña ===
+        'reportes' && (
+
+        <>
+
+          <div className="reportes-filtros">
 
             <input
               type="text"
-              placeholder="Buscar por nombre, evento o mesero..."
-              value={busqueda}
+              placeholder="Buscar por evento o capitán..."
+              value={
+                busqueda
+              }
               onChange={(e) =>
-                setBusqueda(e.target.value)
+                setBusqueda(
+                  e.target.value
+                )
               }
             />
 
-            <select
-              value={filtroTipo}
-              onChange={(e) =>
-                setFiltroTipo(e.target.value)
-              }
-            >
-              <option value="Todos">
-                Todos los tipos
-              </option>
-
-              <option value="Evento">
-                Evento
-              </option>
-
-              <option value="Mesero">
-                Mesero
-              </option>
-
-            </select>
-
           </div>
 
-          <div className="tabla-responsive">
+          {cargando ? (
 
-            <table className="tabla-reportes">
+            <div className="reportes-vacio">
 
-              <thead>
+              Cargando reportes...
 
-                <tr>
-                  <th>Tipo</th>
-                  <th>Reporte</th>
-                  <th>Fecha</th>
-                  <th>Autor</th>
-                  <th>Acción</th>
-                </tr>
+            </div>
 
-              </thead>
+          ) : reportesFiltrados.length ===
+            0 ? (
 
-              <tbody>
+            <div className="reportes-vacio">
 
-                {reportesFiltrados.map((reporte) => (
+              <strong>
+                No hay reportes finales
+                disponibles.
+              </strong>
 
-                  <tr key={reporte.id}>
+              <p>
+                Cuando un capitán envíe
+                el reporte final de un
+                evento, aparecerá en
+                este apartado.
+              </p>
 
-                    <td>
+            </div>
 
-                      <span
-                        className={`tipo-reporte ${reporte.tipo.toLowerCase()}`}
-                      >
-                        {reporte.tipo}
+          ) : (
+
+            <div className="reportes-lista">
+
+              {reportesFiltrados.map(
+                (reporte) => (
+
+                  <article
+                    className="reporte-admin-card"
+                    key={
+                      reporte.id
+                    }
+                  >
+
+                    <div className="reporte-admin-superior">
+
+                      <div>
+
+                        <span className="reporte-admin-etiqueta">
+                          REPORTE FINAL
+                        </span>
+
+                        <h2>
+                          {reporte.evento
+                            ?.nombre ||
+                            `Evento #${reporte.eventoId}`}
+                        </h2>
+
+                        <p>
+                          {formatearFecha(
+                            reporte.evento
+                              ?.fecha
+                          )}
+
+                          {reporte.evento
+                            ?.horario
+                            ? ` · ${reporte.evento.horario}`
+                            : ''}
+                        </p>
+
+                      </div>
+
+                      <span className="reporte-admin-enviado">
+                        Recibido
                       </span>
 
-                    </td>
+                    </div>
 
-                    <td>
+                    <div className="reporte-admin-datos">
 
-                      <strong>
-                        {reporte.nombre}
-                      </strong>
+                      <div>
 
-                      <span className="reporte-secundario">
-                        {reporte.tipo === 'Evento'
-                          ? reporte.evento
-                          : reporte.mesero}
+                        <span>
+                          Capitán
+                        </span>
+
+                        <strong>
+                          {reporte.capitan
+                            ? `${reporte.capitan.nombre} ${reporte.capitan.apellidos}`
+                            : 'Sin información'}
+                        </strong>
+
+                      </div>
+
+                      <div>
+
+                        <span>
+                          Fecha de envío
+                        </span>
+
+                        <strong>
+                          {formatearFechaHora(
+                            reporte.fechaEnvio
+                          )}
+                        </strong>
+
+                      </div>
+
+                      <div>
+
+                        <span>
+                          Presentes
+                        </span>
+
+                        <strong>
+                          {reporte.asistencia
+                            ?.presentes ||
+                            0}
+                        </strong>
+
+                      </div>
+
+                      <div>
+
+                        <span>
+                          Ausentes
+                        </span>
+
+                        <strong>
+                          {reporte.asistencia
+                            ?.ausentes ||
+                            0}
+                        </strong>
+
+                      </div>
+
+                    </div>
+
+                    <div className="reporte-admin-resumen">
+
+                      <span>
+                        Resumen del servicio
                       </span>
 
-                    </td>
+                      <p>
+                        {
+                          reporte.resumenServicio
+                        }
+                      </p>
 
-                    <td>
-                      {formatearFecha(reporte.fecha)}
-                    </td>
+                    </div>
 
-                    <td>
-                      {reporte.autor}
-                    </td>
+                    {reporte.incidencias && (
 
-                    <td>
+                      <div className="reporte-admin-incidencia">
+
+                        <strong>
+                          Incidencias registradas
+                        </strong>
+
+                        <p>
+                          {
+                            reporte.incidencias
+                          }
+                        </p>
+
+                      </div>
+
+                    )}
+
+                    <div className="reporte-admin-pie">
+
+                      <span>
+                        Estado: Reporte
+                        finalizado
+                      </span>
 
                       <button
-                        className="ver-reporte"
+                        type="button"
                         onClick={() =>
-                          setDetalleReporte(reporte)
+                          setReporteSeleccionado(
+                            reporte
+                          )
                         }
                       >
-                        Ver
+                        Ver reporte completo
                       </button>
 
-                    </td>
+                    </div>
+
+                  </article>
+
+                )
+              )}
+
+            </div>
+
+          )}
+
+        </>
+
+      )}
+
+      {/* ===================================
+          HISTORIAL
+      =================================== */}
+
+      {pestaña ===
+        'historial' && (
+
+        <section className="historial-eventos">
+
+          {historialEventos.length ===
+          0 ? (
+
+            <div className="reportes-vacio">
+
+              No hay eventos
+              registrados.
+
+            </div>
+
+          ) : (
+
+            <div className="tabla-reportes-responsive">
+
+              <table className="tabla-historial-reportes">
+
+                <thead>
+
+                  <tr>
+
+                    <th>
+                      Evento
+                    </th>
+
+                    <th>
+                      Fecha
+                    </th>
+
+                    <th>
+                      Ubicación
+                    </th>
+
+                    <th>
+                      Estado del reporte
+                    </th>
+
+                    <th>
+                      Acción
+                    </th>
 
                   </tr>
 
-                ))}
+                </thead>
 
-              </tbody>
+                <tbody>
 
-            </table>
+                  {historialEventos.map(
+                    (evento) => (
 
-          </div>
+                      <tr
+                        key={
+                          evento.id
+                        }
+                      >
 
-        </section>
+                        <td>
 
-      ) : (
+                          <strong>
+                            {
+                              evento.nombre
+                            }
+                          </strong>
 
-        <section className="reportes-contenedor">
+                        </td>
 
-          <div className="historial-cards">
+                        <td>
+                          {formatearFecha(
+                            evento.fecha
+                          )}
+                        </td>
 
-            {historiales.map((historial) => (
+                        <td>
+                          {
+                            evento.ubicacion
+                          }
+                        </td>
 
-              <div
-                className="historial-card"
-                key={historial.id}
-              >
+                        <td>
 
-                <div>
+                          {evento.reporte ? (
 
-                  <h3>
-                    {historial.mesero}
-                  </h3>
+                            <span className="historial-reporte recibido">
+                              Reporte recibido
+                            </span>
 
-                  <p>
-                    {historial.eventos} eventos participados
-                  </p>
+                          ) : (
 
-                </div>
+                            <span className="historial-reporte pendiente">
+                              Sin reporte final
+                            </span>
 
-                <div className="historial-resumen">
+                          )}
 
-                  <span>
-                    Asistencias
-                    <strong>
-                      {historial.asistencias}
-                    </strong>
-                  </span>
+                        </td>
 
-                  <span>
-                    Retardos
-                    <strong>
-                      {historial.retardos}
-                    </strong>
-                  </span>
+                        <td>
 
-                  <span>
-                    Inasistencias
-                    <strong>
-                      {historial.inasistencias}
-                    </strong>
-                  </span>
+                          {evento.reporte ? (
 
-                </div>
+                            <button
+                              type="button"
+                              className="ver-historial"
+                              onClick={() =>
+                                setReporteSeleccionado(
+                                  evento.reporte
+                                )
+                              }
+                            >
+                              Ver reporte
+                            </button>
 
-                <button
-                  onClick={() =>
-                    setHistorialDetalle(historial)
-                  }
-                >
-                  Ver historial
-                </button>
+                          ) : (
 
-              </div>
+                            <span className="sin-accion-reporte">
+                              —
+                            </span>
 
-            ))}
+                          )}
 
-          </div>
+                        </td>
 
-        </section>
+                      </tr>
 
-      )}
+                    )
+                  )}
 
-      {/* CREAR REPORTE */}
+                </tbody>
 
-      {mostrarFormulario && (
-
-        <div className="modal-fondo-reporte">
-
-          <div className="modal-reporte">
-
-            <div className="modal-reporte-header">
-
-              <div>
-
-                <h2>Crear reporte</h2>
-
-                <p>
-                  Registra la información del reporte.
-                </p>
-
-              </div>
-
-              <button
-                className="cerrar-modal-reporte"
-                onClick={() =>
-                  setMostrarFormulario(false)
-                }
-              >
-                ×
-              </button>
+              </table>
 
             </div>
 
-            <form onSubmit={crearReporte}>
+          )}
 
-              <label>
-                Tipo de reporte
-              </label>
-
-              <select
-                name="tipo"
-                value={formulario.tipo}
-                onChange={manejarCambio}
-              >
-                <option value="Evento">
-                  Reporte de evento
-                </option>
-
-                <option value="Mesero">
-                  Reporte de mesero
-                </option>
-              </select>
-
-              <label>
-                Evento relacionado
-              </label>
-
-              <select
-                name="evento"
-                value={formulario.evento}
-                onChange={manejarCambio}
-                required
-              >
-
-                <option value="">
-                  Selecciona un evento
-                </option>
-
-                {eventos.map((evento) => (
-
-                  <option
-                    key={evento}
-                    value={evento}
-                  >
-                    {evento}
-                  </option>
-
-                ))}
-
-              </select>
-
-              {formulario.tipo === 'Mesero' && (
-                <>
-                  <label>
-                    Mesero
-                  </label>
-
-                  <select
-                    name="mesero"
-                    value={formulario.mesero}
-                    onChange={manejarCambio}
-                    required
-                  >
-
-                    <option value="">
-                      Selecciona un mesero
-                    </option>
-
-                    {meseros.map((mesero) => (
-
-                      <option
-                        key={mesero}
-                        value={mesero}
-                      >
-                        {mesero}
-                      </option>
-
-                    ))}
-
-                  </select>
-                </>
-              )}
-
-              <label>
-                Fecha
-              </label>
-
-              <input
-                type="date"
-                name="fecha"
-                value={formulario.fecha}
-                onChange={manejarCambio}
-                required
-              />
-
-              <label>
-                Descripción / observaciones
-              </label>
-
-              <textarea
-                name="descripcion"
-                value={formulario.descripcion}
-                onChange={manejarCambio}
-                rows="5"
-                placeholder="Registra incidencias, observaciones o información del seguimiento..."
-                required
-              />
-
-              <div className="modal-reporte-botones">
-
-                <button
-                  type="button"
-                  className="cancelar-reporte"
-                  onClick={() =>
-                    setMostrarFormulario(false)
-                  }
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  className="guardar-reporte"
-                >
-                  Crear reporte
-                </button>
-
-              </div>
-
-            </form>
-
-          </div>
-
-        </div>
+        </section>
 
       )}
 
-      {/* DETALLE REPORTE */}
+      {/* ===================================
+          MODAL DETALLE
+      =================================== */}
 
-      {detalleReporte && (
+      {reporteSeleccionado && (
 
-        <div className="modal-fondo-reporte">
+        <div
+          className="modal-reporte-fondo"
+          onClick={() =>
+            setReporteSeleccionado(
+              null
+            )
+          }
+        >
 
-          <div className="modal-reporte">
+          <div
+            className="modal-reporte"
+            onClick={(e) =>
+              e.stopPropagation()
+            }
+          >
 
             <div className="modal-reporte-header">
 
               <div>
+
+                <span>
+                  REPORTE FINAL
+                </span>
+
                 <h2>
-                  {detalleReporte.nombre}
+                  {reporteSeleccionado
+                    .evento?.nombre ||
+                    `Evento #${reporteSeleccionado.eventoId}`}
                 </h2>
 
                 <p>
-                  Información completa del reporte.
+                  Enviado el{' '}
+                  {formatearFechaHora(
+                    reporteSeleccionado
+                      .fechaEnvio
+                  )}
                 </p>
+
               </div>
 
               <button
-                className="cerrar-modal-reporte"
+                type="button"
+                className="cerrar-reporte"
                 onClick={() =>
-                  setDetalleReporte(null)
+                  setReporteSeleccionado(
+                    null
+                  )
                 }
               >
                 ×
@@ -592,178 +918,155 @@ function AdminReportes() {
 
             </div>
 
-            <div className="detalle-reporte-grid">
+            <div className="modal-reporte-info">
 
               <div>
-                <span>Tipo</span>
-                <strong>
-                  {detalleReporte.tipo}
-                </strong>
-              </div>
 
-              <div>
-                <span>Fecha</span>
+                <span>
+                  Fecha del evento
+                </span>
+
                 <strong>
                   {formatearFecha(
-                    detalleReporte.fecha
+                    reporteSeleccionado
+                      .evento?.fecha
                   )}
                 </strong>
+
               </div>
 
               <div>
-                <span>Evento</span>
-                <strong>
-                  {detalleReporte.evento}
-                </strong>
-              </div>
-
-              <div>
-                <span>Autor</span>
-                <strong>
-                  {detalleReporte.autor}
-                </strong>
-              </div>
-
-              {detalleReporte.mesero && (
-
-                <div className="detalle-reporte-completo">
-
-                  <span>Mesero</span>
-
-                  <strong>
-                    {detalleReporte.mesero}
-                  </strong>
-
-                </div>
-
-              )}
-
-              <div className="detalle-reporte-completo">
 
                 <span>
-                  Descripción / observaciones
+                  Capitán
                 </span>
 
-                <p>
-                  {detalleReporte.descripcion}
-                </p>
+                <strong>
+                  {reporteSeleccionado
+                    .capitan
+                    ? `${reporteSeleccionado.capitan.nombre} ${reporteSeleccionado.capitan.apellidos}`
+                    : 'Sin información'}
+                </strong>
+
+              </div>
+
+              <div>
+
+                <span>
+                  Personal asignado
+                </span>
+
+                <strong>
+                  {reporteSeleccionado
+                    .asistencia
+                    ?.total ||
+                    0}
+                </strong>
+
+              </div>
+
+              <div>
+
+                <span>
+                  Presentes
+                </span>
+
+                <strong>
+                  {reporteSeleccionado
+                    .asistencia
+                    ?.presentes ||
+                    0}
+                </strong>
+
+              </div>
+
+              <div>
+
+                <span>
+                  Ausentes
+                </span>
+
+                <strong>
+                  {reporteSeleccionado
+                    .asistencia
+                    ?.ausentes ||
+                    0}
+                </strong>
+
+              </div>
+
+              <div>
+
+                <span>
+                  Sin registrar
+                </span>
+
+                <strong>
+                  {reporteSeleccionado
+                    .asistencia
+                    ?.sinRegistrar ||
+                    0}
+                </strong>
 
               </div>
 
             </div>
 
-          </div>
+            <div className="modal-reporte-seccion">
 
-        </div>
+              <span>
+                Resumen del servicio
+              </span>
 
-      )}
+              <p>
+                {
+                  reporteSeleccionado
+                    .resumenServicio
+                }
+              </p>
 
-      {/* HISTORIAL DEL MESERO */}
+            </div>
 
-      {historialDetalle && (
+            <div className="modal-reporte-seccion">
 
-        <div className="modal-fondo-reporte">
+              <span>
+                Incidencias
+              </span>
 
-          <div className="modal-reporte">
+              <p>
+                {reporteSeleccionado
+                  .incidencias ||
+                  'No se registraron incidencias.'}
+              </p>
 
-            <div className="modal-reporte-header">
+            </div>
 
-              <div>
+            <div className="modal-reporte-seccion">
 
-                <h2>
-                  Historial de {historialDetalle.mesero}
-                </h2>
+              <span>
+                Observaciones
+              </span>
 
-                <p>
-                  Participación y cumplimiento registrado.
-                </p>
+              <p>
+                {reporteSeleccionado
+                  .observaciones ||
+                  'Sin observaciones adicionales.'}
+              </p>
 
-              </div>
+            </div>
+
+            <div className="modal-reporte-botones">
 
               <button
-                className="cerrar-modal-reporte"
+                type="button"
                 onClick={() =>
-                  setHistorialDetalle(null)
+                  setReporteSeleccionado(
+                    null
+                  )
                 }
               >
-                ×
+                Cerrar
               </button>
-
-            </div>
-
-            <div className="detalle-reporte-grid">
-
-              <div>
-                <span>
-                  Eventos participados
-                </span>
-
-                <strong>
-                  {historialDetalle.eventos}
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Como mesero
-                </span>
-
-                <strong>
-                  {historialDetalle.comoMesero}
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Como capitán
-                </span>
-
-                <strong>
-                  {historialDetalle.comoCapitan}
-                </strong>
-              </div>
-
-              <div>
-                <span>Asistencias</span>
-
-                <strong>
-                  {historialDetalle.asistencias}
-                </strong>
-              </div>
-
-              <div>
-                <span>Retardos</span>
-
-                <strong>
-                  {historialDetalle.retardos}
-                </strong>
-              </div>
-
-              <div>
-                <span>Inasistencias</span>
-
-                <strong>
-                  {historialDetalle.inasistencias}
-                </strong>
-              </div>
-
-              <div>
-                <span>Incidencias</span>
-
-                <strong>
-                  {historialDetalle.incidencias}
-                </strong>
-              </div>
-
-              <div className="detalle-reporte-completo">
-
-                <span>Observaciones</span>
-
-                <p>
-                  {historialDetalle.observacion}
-                </p>
-
-              </div>
 
             </div>
 

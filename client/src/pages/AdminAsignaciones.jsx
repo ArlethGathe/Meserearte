@@ -1,905 +1,504 @@
 import { useState } from 'react'
-import './AdminAsignaciones.css'
+import './AdminDashboard.css'
+
+import AdminSalas from './AdminSalas.jsx'
+import AdminUsuarios from './AdminUsuarios.jsx'
+import AdminEventos from './AdminEventos.jsx'
+import AdminAsignaciones from './AdminAsignaciones.jsx'
+import AdminNotificaciones from './AdminNotificaciones.jsx'
+import AdminReportes from './AdminReportes.jsx'
+import AdminPerfil from './AdminPerfil.jsx'
 
 import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-function AdminAsignaciones() {
+function AdminDashboard({
+  usuario,
+  onLogout
+}) {
+  const [
+    seccion,
+    setSeccion
+  ] = useState('inicio')
+
   const {
     salas,
-    eventos,
     meseros,
-    asignaciones,
-    disponibilidades,
-    guardarAsignacionesAPI
+    eventos,
+    asignaciones
   } = useMesereArte()
 
-  const [
-    eventoSeleccionado,
-    setEventoSeleccionado
-  ] = useState('')
+  const totalSalas =
+    salas.length
 
-  const [
-    meserosSeleccionados,
-    setMeserosSeleccionados
-  ] = useState([])
+  const totalMeseros =
+    meseros.length
 
-  const [capitan, setCapitan] =
-    useState('')
+  const totalEventos =
+    eventos.length
 
-  const [mensaje, setMensaje] =
-    useState('')
-
-  const [error, setError] =
-    useState('')
-
-  const [guardando, setGuardando] =
-    useState(false)
-
-  /* ========================================
-     EVENTO ACTUAL
-  ======================================== */
-
-  const eventoActual =
-    eventos.find(
+  const eventosConPersonal =
+    eventos.filter(
       (evento) =>
-        evento.id ===
-        Number(eventoSeleccionado)
-    )
+        asignaciones.some(
+          (asignacion) =>
+            asignacion.eventoId ===
+            evento.id
+        )
+    ).length
 
-  /* ========================================
-     SALA
-  ======================================== */
-
-  const obtenerNombreSala = (
-    salaId
+  const obtenerCantidadAsignados = (
+    eventoId
   ) => {
-    const sala =
-      salas.find(
-        (sala) =>
-          sala.id ===
-          Number(salaId)
-      )
-
-    return sala
-      ? sala.nombre
-      : 'Sin sala'
+    return asignaciones.filter(
+      (asignacion) =>
+        asignacion.eventoId ===
+        eventoId
+    ).length
   }
 
-  /* ========================================
-     DISPONIBILIDAD
-  ======================================== */
-
-  const obtenerDisponibilidad = (
-    eventoId,
-    meseroId
+  const formatearFecha = (
+    fecha
   ) => {
-    const registro =
-      disponibilidades.find(
-        (item) =>
-          item.eventoId ===
-            eventoId &&
-          item.meseroId ===
-            meseroId
-      )
+    if (!fecha) return ''
 
-    return registro
-      ? registro.estado
-      : 'Pendiente'
+    const [
+      anio,
+      mes,
+      dia
+    ] = fecha.split('-')
+
+    return `${dia}/${mes}/${anio}`
   }
 
-  /* ========================================
-     PERSONAL DE LA SALA
-  ======================================== */
-
-  const meserosDeLaSala =
-    eventoActual
-      ? meseros.filter(
-          (mesero) =>
-            mesero.salaId ===
-              eventoActual.salaId &&
-            mesero.estado ===
-              'Activo'
+  const proximosEventos = [
+    ...eventos
+  ]
+    .sort(
+      (a, b) =>
+        new Date(
+          `${a.fecha}T${a.horario || '00:00'}`
+        ) -
+        new Date(
+          `${b.fecha}T${b.horario || '00:00'}`
         )
-      : []
-
-  /* ========================================
-     CAMBIAR EVENTO
-  ======================================== */
-
-  const cambiarEvento = (e) => {
-    const eventoId =
-      Number(e.target.value)
-
-    setEventoSeleccionado(
-      e.target.value
     )
-
-    setMensaje('')
-    setError('')
-
-    if (!eventoId) {
-      setMeserosSeleccionados([])
-      setCapitan('')
-      return
-    }
-
-    const actuales =
-      asignaciones.filter(
-        (asignacion) =>
-          asignacion.eventoId ===
-          eventoId
-      )
-
-    setMeserosSeleccionados(
-      actuales.map(
-        (asignacion) =>
-          asignacion.meseroId
-      )
-    )
-
-    const capitanActual =
-      actuales.find(
-        (asignacion) =>
-          asignacion.rol ===
-          'Capitán'
-      )
-
-    setCapitan(
-      capitanActual
-        ? String(
-            capitanActual.meseroId
-          )
-        : ''
-    )
-  }
-
-  /* ========================================
-     SELECCIONAR / QUITAR MESERO
-  ======================================== */
-
-  const seleccionarMesero = (
-    meseroId
-  ) => {
-    setMensaje('')
-    setError('')
-
-    const yaSeleccionado =
-      meserosSeleccionados.includes(
-        meseroId
-      )
-
-    /*
-      Si ya está seleccionado,
-      el administrador sí puede quitarlo.
-    */
-
-    if (yaSeleccionado) {
-      setMeserosSeleccionados(
-        meserosSeleccionados.filter(
-          (id) =>
-            id !== meseroId
-        )
-      )
-
-      if (
-        Number(capitan) ===
-        meseroId
-      ) {
-        setCapitan('')
-      }
-
-      return
-    }
-
-    /*
-      Si no estaba asignado,
-      simplemente lo agregamos.
-      Su disponibilidad comenzará
-      como Pendiente al guardar.
-    */
-
-    setMeserosSeleccionados([
-      ...meserosSeleccionados,
-      meseroId
-    ])
-  }
-
-  /* ========================================
-     GUARDAR
-  ======================================== */
-
-  const guardarAsignacion =
-    async () => {
-      if (!eventoActual) {
-        setError(
-          'Selecciona un evento.'
-        )
-        return
-      }
-
-      if (
-        meserosSeleccionados.length ===
-        0
-      ) {
-        setError(
-          'Selecciona al menos un mesero.'
-        )
-        return
-      }
-
-      if (
-        capitan &&
-        !meserosSeleccionados.includes(
-          Number(capitan)
-        )
-      ) {
-        setError(
-          'El capitán debe pertenecer a los meseros asignados.'
-        )
-        return
-      }
-
-      /*
-        No permitimos guardar como capitán
-        a alguien que indicó No disponible.
-      */
-
-      if (capitan) {
-        const disponibilidadCapitan =
-          obtenerDisponibilidad(
-            eventoActual.id,
-            Number(capitan)
-          )
-
-        if (
-          disponibilidadCapitan ===
-          'No disponible'
-        ) {
-          setError(
-            'El mesero seleccionado como capitán indicó que no está disponible.'
-          )
-          return
-        }
-      }
-
-      try {
-        setGuardando(true)
-        setMensaje('')
-        setError('')
-
-        await guardarAsignacionesAPI(
-          eventoActual.id,
-          meserosSeleccionados,
-          capitan
-        )
-
-        setMensaje(
-          'Asignación actualizada correctamente.'
-        )
-
-      } catch (error) {
-        setError(
-          error.message
-        )
-      } finally {
-        setGuardando(false)
-      }
-    }
-
-  /* ========================================
-     CONTADORES
-  ======================================== */
-
-  const confirmados =
-    eventoActual
-      ? meserosSeleccionados.filter(
-          (meseroId) =>
-            obtenerDisponibilidad(
-              eventoActual.id,
-              meseroId
-            ) === 'Confirmado'
-        ).length
-      : 0
-
-  const pendientes =
-    eventoActual
-      ? meserosSeleccionados.filter(
-          (meseroId) =>
-            obtenerDisponibilidad(
-              eventoActual.id,
-              meseroId
-            ) === 'Pendiente'
-        ).length
-      : 0
-
-  const noDisponibles =
-    eventoActual
-      ? meserosSeleccionados.filter(
-          (meseroId) =>
-            obtenerDisponibilidad(
-              eventoActual.id,
-              meseroId
-            ) ===
-            'No disponible'
-        ).length
-      : 0
-
-  const obtenerRolMesero = (
-    meseroId
-  ) => {
-    if (
-      !meserosSeleccionados.includes(
-        meseroId
-      )
-    ) {
-      return 'Sin asignar'
-    }
-
-    if (
-      Number(capitan) === meseroId
-    ) {
-      return 'Capitán'
-    }
-
-    return 'Mesero'
-  }
-
-  /* ========================================
-     COMPONENTE
-  ======================================== */
+    .slice(0, 3)
 
   return (
-    <div className="asignaciones-pagina">
+    <div className="admin-layout">
 
-      <div className="asignaciones-encabezado">
+      <aside className="admin-sidebar">
 
-        <div>
+        <div className="admin-logo">
 
-          <h1>
-            Asignación de meseros
-          </h1>
+          <h2>
+            MesereArte
+          </h2>
 
-          <p>
-            Asigna al personal del evento
-            y consulta el estado de
-            confirmación de cada mesero.
-          </p>
+          <span>
+            Gestión de eventos
+          </span>
 
         </div>
 
-      </div>
-
-      {/* MENSAJES */}
-
-      {mensaje && (
-
-        <div className="asignacion-mensaje correcto">
-
-          <span>
-            {mensaje}
-          </span>
+        <nav className="admin-menu">
 
           <button
+            className={
+              seccion === 'inicio'
+                ? 'activo'
+                : ''
+            }
             onClick={() =>
-              setMensaje('')
+              setSeccion('inicio')
             }
           >
-            ×
+            Inicio
+          </button>
+
+          <button
+            className={
+              seccion === 'salas'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion('salas')
+            }
+          >
+            Salas
+          </button>
+
+          <button
+            className={
+              seccion === 'usuarios'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion('usuarios')
+            }
+          >
+            Usuarios
+          </button>
+
+          <button
+            className={
+              seccion === 'eventos'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion('eventos')
+            }
+          >
+            Eventos
+          </button>
+
+          <button
+            className={
+              seccion ===
+              'asignaciones'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion(
+                'asignaciones'
+              )
+            }
+          >
+            Asignaciones
+          </button>
+
+          <button
+            className={
+              seccion ===
+              'notificaciones'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion(
+                'notificaciones'
+              )
+            }
+          >
+            Notificaciones
+          </button>
+
+          <button
+            className={
+              seccion ===
+              'reportes'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion(
+                'reportes'
+              )
+            }
+          >
+            Reportes e historiales
+          </button>
+
+          <button
+            className={
+              seccion ===
+              'perfil'
+                ? 'activo'
+                : ''
+            }
+            onClick={() =>
+              setSeccion(
+                'perfil'
+              )
+            }
+          >
+            Mi perfil
+          </button>
+
+        </nav>
+
+        <div className="admin-logout">
+
+          <button
+            onClick={onLogout}
+          >
+            Cerrar sesión
           </button>
 
         </div>
 
-      )}
+      </aside>
 
-      {error && (
+      <main className="admin-main">
 
-        <div className="asignacion-mensaje error">
+        {seccion ===
+          'salas' ? (
 
-          <span>
-            {error}
-          </span>
+          <AdminSalas />
 
-          <button
-            onClick={() =>
-              setError('')
-            }
-          >
-            ×
-          </button>
+        ) : seccion ===
+          'usuarios' ? (
 
-        </div>
+          <AdminUsuarios />
 
-      )}
+        ) : seccion ===
+          'eventos' ? (
 
-      {/* SELECCIÓN DE EVENTO */}
+          <AdminEventos />
 
-      <section className="seleccion-evento">
+        ) : seccion ===
+          'asignaciones' ? (
 
-        <label>
-          Selecciona un evento
-        </label>
+          <AdminAsignaciones />
 
-        <select
-          value={
-            eventoSeleccionado
-          }
-          onChange={
-            cambiarEvento
-          }
-        >
+        ) : seccion ===
+          'notificaciones' ? (
 
-          <option value="">
-            Selecciona un evento
-          </option>
+          <AdminNotificaciones
+            usuario={usuario}
+          />
 
-          {eventos.map(
-            (evento) => (
+        ) : seccion ===
+          'reportes' ? (
 
-              <option
-                key={evento.id}
-                value={evento.id}
-              >
-                {evento.nombre}
-              </option>
+          <AdminReportes
+            usuario={usuario}
+          />
 
-            )
-          )}
+        ) : seccion ===
+          'perfil' ? (
 
-        </select>
+          <AdminPerfil
+            usuario={usuario}
+          />
 
-      </section>
+        ) : (
 
-      {eventoActual && (
-        <>
+          <div className="dashboard-pagina">
 
-          {/* DATOS DEL EVENTO */}
-
-          <section className="resumen-evento-asignacion">
-
-            <div>
-              <span>
-                Evento
-              </span>
-
-              <strong>
-                {eventoActual.nombre}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Sala
-              </span>
-
-              <strong>
-                {obtenerNombreSala(
-                  eventoActual.salaId
-                )}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Fecha
-              </span>
-
-              <strong>
-                {eventoActual.fecha}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Horario
-              </span>
-
-              <strong>
-                {eventoActual.horario}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Requeridos
-              </span>
-
-              <strong>
-                {
-                  eventoActual
-                    .meserosRequeridos
-                }
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Asignados
-              </span>
-
-              <strong>
-                {
-                  meserosSeleccionados.length
-                }
-              </strong>
-            </div>
-
-          </section>
-
-          {/* CONTADORES */}
-
-          <section className="resumen-confirmaciones">
-
-            <div className="confirmacion-card confirmados">
-
-              <span>
-                Confirmados
-              </span>
-
-              <strong>
-                {confirmados}
-              </strong>
-
-            </div>
-
-            <div className="confirmacion-card pendientes">
-
-              <span>
-                Pendientes
-              </span>
-
-              <strong>
-                {pendientes}
-              </strong>
-
-            </div>
-
-            <div className="confirmacion-card no-disponibles">
-
-              <span>
-                No disponibles
-              </span>
-
-              <strong>
-                {noDisponibles}
-              </strong>
-
-            </div>
-
-          </section>
-
-          {/* TABLA */}
-
-          <section className="personal-disponible">
-
-            <div className="personal-titulo">
+            <div className="dashboard-encabezado">
 
               <div>
 
-                <h2>
-                  Personal de la sala
-                </h2>
+                <p>
+                  PANEL DE ADMINISTRACIÓN
+                </p>
+
+                <h1>
+                  Hola, {
+                    usuario?.nombre ||
+                    'Administrador'
+                  }
+                </h1>
 
                 <p>
-                  Los cambios se aplicarán
-                  cuando presiones
-                  Guardar asignación.
+                  Consulta el estado
+                  general de tus equipos
+                  y eventos.
                 </p>
 
               </div>
 
-              <span>
-                {
-                  meserosDeLaSala.length
-                }{' '}
-                meseros activos
-              </span>
-
             </div>
 
-            <div className="tabla-responsive">
+            <div className="dashboard-cards">
 
-              <table className="tabla-asignaciones">
+              <div className="dashboard-card">
 
-                <thead>
+                <span>
+                  Salas
+                </span>
 
-                  <tr>
-                    <th>
-                      Asignado
-                    </th>
+                <strong>
+                  {totalSalas}
+                </strong>
 
-                    <th>
-                      Mesero
-                    </th>
+                <p>
+                  Equipos registrados
+                </p>
 
-                    <th>
-                      Rol
-                    </th>
+              </div>
 
-                    <th>
-                      Disponibilidad
-                    </th>
+              <div className="dashboard-card">
 
-                    <th>
-                      Estado
-                    </th>
-                  </tr>
+                <span>
+                  Meseros
+                </span>
 
-                </thead>
+                <strong>
+                  {totalMeseros}
+                </strong>
 
-                <tbody>
+                <p>
+                  Usuarios registrados
+                </p>
 
-                  {meserosDeLaSala.map(
-                    (mesero) => {
+              </div>
 
-                      const seleccionado =
-                        meserosSeleccionados.includes(
-                          mesero.id
-                        )
+              <div className="dashboard-card">
 
-                      const rol =
-                        obtenerRolMesero(
-                          mesero.id
-                        )
+                <span>
+                  Eventos
+                </span>
 
-                      const disponibilidad =
-                        seleccionado
-                          ? obtenerDisponibilidad(
-                              eventoActual.id,
-                              mesero.id
-                            )
-                          : 'Sin asignar'
+                <strong>
+                  {totalEventos}
+                </strong>
 
-                      return (
+                <p>
+                  Eventos registrados
+                </p>
 
-                        <tr
-                          key={mesero.id}
-                          className={
-                            disponibilidad ===
-                            'No disponible'
-                              ? 'fila-no-disponible'
-                              : ''
-                          }
-                        >
+              </div>
 
-                          <td>
+              <div className="dashboard-card">
 
-                            <input
-                              type="checkbox"
-                              className="check-mesero"
-                              checked={
-                                seleccionado
-                              }
-                              onChange={() =>
-                                seleccionarMesero(
-                                  mesero.id
-                                )
-                              }
-                            />
-
-                          </td>
-
-                          <td>
-
-                            <div className="datos-mesero-asignacion">
-
-                              <strong>
-                                {mesero.nombre}{' '}
-                                {mesero.apellidos}
-                              </strong>
-
-                              <span>
-                                {
-                                  mesero.correo
-                                }
-                              </span>
-
-                            </div>
-
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={`rol-tabla ${
-                                rol === 'Capitán'
-                                  ? 'capitan'
-                                  : rol === 'Mesero'
-                                    ? 'mesero'
-                                    : 'sin-rol'
-                              }`}
-                            >
-                              {rol}
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={`estado-respuesta ${disponibilidad
-                                .toLowerCase()
-                                .replaceAll(
-                                  ' ',
-                                  '-'
-                                )}`}
-                            >
-                              {
-                                disponibilidad
-                              }
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            <span className="estado-activo">
-                              {
-                                mesero.estado
-                              }
-                            </span>
-
-                          </td>
-
-                        </tr>
-
-                      )
-                    }
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </section>
-
-          {/* CAPITÁN */}
-
-          <section className="capitan-seccion">
-
-            <div>
-
-              <h2>
-                Capitán del evento
-              </h2>
-
-              <p>
-                Debe ser un mesero que
-                permanezca asignado al
-                evento.
-              </p>
-
-            </div>
-
-            <select
-              value={capitan}
-              onChange={(e) =>
-                setCapitan(
-                  e.target.value
-                )
-              }
-            >
-
-              <option value="">
-                Sin capitán asignado
-              </option>
-
-              {meseros
-                .filter(
-                  (mesero) => {
-
-                    const seleccionado =
-                      meserosSeleccionados.includes(
-                        mesero.id
-                      )
-
-                    if (!seleccionado) {
-                      return false
-                    }
-
-                    return (
-                      obtenerDisponibilidad(
-                        eventoActual.id,
-                        mesero.id
-                      ) !==
-                      'No disponible'
-                    )
-                  }
-                )
-                .map(
-                  (mesero) => (
-
-                    <option
-                      key={mesero.id}
-                      value={mesero.id}
-                    >
-                      {mesero.nombre}{' '}
-                      {mesero.apellidos}
-                    </option>
-
-                  )
-                )}
-
-            </select>
-
-          </section>
-
-          {/* GUARDAR */}
-
-          <div className="resumen-asignacion">
-
-            <div>
-
-              <h3>
-                Resumen
-              </h3>
-
-              <p>
-                Asignados:{' '}
+                <span>
+                  Con personal
+                </span>
 
                 <strong>
                   {
-                    meserosSeleccionados.length
+                    eventosConPersonal
                   }
                 </strong>
 
-                {' / '}
-
-                {
-                  eventoActual
-                    .meserosRequeridos
-                }
-              </p>
-
-              <p>
-                Confirmados:{' '}
-
-                <strong>
-                  {confirmados}
-                </strong>
-              </p>
-
-              {noDisponibles > 0 && (
-
-                <p className="advertencia-no-disponibles">
-
-                  Hay{' '}
-                  <strong>
-                    {noDisponibles}
-                  </strong>{' '}
-                  mesero(s) que indicaron
-                  que no pueden asistir.
-
+                <p>
+                  Eventos con
+                  asignaciones
                 </p>
 
-              )}
+              </div>
 
             </div>
 
-            <button
-              className="guardar-asignacion"
-              disabled={
-                guardando
-              }
-              onClick={
-                guardarAsignacion
-              }
-            >
-              {guardando
-                ? 'Guardando...'
-                : 'Guardar asignación'}
-            </button>
+            <div className="dashboard-seccion">
+
+              <div className="dashboard-seccion-header">
+
+                <div>
+
+                  <h2>
+                    Próximos eventos
+                  </h2>
+
+                  <p>
+                    Consulta los eventos
+                    registrados.
+                  </p>
+
+                </div>
+
+                <button
+                  onClick={() =>
+                    setSeccion(
+                      'eventos'
+                    )
+                  }
+                >
+                  Ver todos
+                </button>
+
+              </div>
+
+              <div className="dashboard-eventos">
+
+                {proximosEventos.length >
+                0 ? (
+
+                  proximosEventos.map(
+                    (evento) => (
+
+                      <div
+                        className="dashboard-evento"
+                        key={
+                          evento.id
+                        }
+                      >
+
+                        <div className="dashboard-evento-info">
+
+                          <h3>
+                            {
+                              evento.nombre
+                            }
+                          </h3>
+
+                          <p>
+                            {formatearFecha(
+                              evento.fecha
+                            )}
+                            {' · '}
+                            {
+                              evento.horario
+                            }
+                          </p>
+
+                          <span>
+                            {
+                              evento.ubicacion
+                            }
+                          </span>
+
+                        </div>
+
+                        <div className="dashboard-evento-personal">
+
+                          <span>
+                            Personal
+                          </span>
+
+                          <strong>
+                            {obtenerCantidadAsignados(
+                              evento.id
+                            )}
+                            {' / '}
+                            {
+                              evento
+                                .meserosRequeridos
+                            }
+                          </strong>
+
+                          <small>
+                            meseros
+                          </small>
+
+                        </div>
+
+                      </div>
+
+                    )
+                  )
+
+                ) : (
+
+                  <div className="dashboard-sin-eventos">
+
+                    No hay eventos
+                    registrados.
+
+                  </div>
+
+                )}
+
+              </div>
+
+            </div>
 
           </div>
 
-        </>
-      )}
+        )}
+
+      </main>
 
     </div>
   )
 }
 
-export default AdminAsignaciones
+export default AdminDashboard
