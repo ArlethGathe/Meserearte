@@ -4,6 +4,8 @@ import './MeseroDashboard.css'
 
 import CapitanPanel from './CapitanPanel.jsx'
 
+import MeseroNotificaciones from './MeseroNotificaciones.jsx'
+
 import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
@@ -1061,31 +1063,11 @@ function MeseroDashboard({
 
         {seccion ===
           'notificaciones' && (
-
-          <div className="mesero-pagina">
-
-            <div className="mesero-titulo">
-
-              <h1>
-                Notificaciones
-              </h1>
-
-              <p>
-                Avisos relacionados con
-                tus eventos y tu equipo.
-              </p>
-
-            </div>
-
-            <div className="mesero-vacio">
-
-              No tienes notificaciones
-              nuevas.
-
-            </div>
-
-          </div>
-
+            
+          <MeseroNotificaciones
+           usuario={usuario}
+           />
+          
         )}
 
         {/* =================================

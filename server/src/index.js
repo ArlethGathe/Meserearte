@@ -153,6 +153,7 @@ app.get(
   (req, res) => {
     res.json({
       ok: true,
+
       mensaje:
         'API de MesereArte funcionando'
     })
@@ -270,14 +271,15 @@ app.post(
         .trim()
         .toLowerCase()
 
-    if (
+    const correoExiste =
       db.usuarios.some(
         (usuario) =>
           usuario.correo
             .toLowerCase() ===
           correoNormalizado
       )
-    ) {
+
+    if (correoExiste) {
       return res
         .status(400)
         .json({
@@ -408,14 +410,15 @@ app.post(
         .trim()
         .toLowerCase()
 
-    if (
+    const correoExiste =
       db.usuarios.some(
         (usuario) =>
           usuario.correo
             .toLowerCase() ===
           correoNormalizado
       )
-    ) {
+
+    if (correoExiste) {
       return res
         .status(400)
         .json({
@@ -554,7 +557,9 @@ app.get(
 app.get(
   '/api/salas',
   (req, res) => {
-    res.json(db.salas)
+    res.json(
+      db.salas
+    )
   }
 )
 
@@ -1285,24 +1290,6 @@ app.get(
   }
 )
 
-app.get(
-  '/api/disponibilidades/mesero/:meseroId',
-  (req, res) => {
-    const meseroId =
-      Number(
-        req.params.meseroId
-      )
-
-    res.json(
-      db.disponibilidades.filter(
-        (item) =>
-          item.meseroId ===
-          meseroId
-      )
-    )
-  }
-)
-
 app.put(
   '/api/disponibilidades',
   (req, res) => {
@@ -1319,14 +1306,14 @@ app.put(
     const estado =
       req.body.estado
 
-    const estadosPermitidos = [
+    const permitidos = [
       'Pendiente',
       'Confirmado',
       'No disponible'
     ]
 
     if (
-      !estadosPermitidos.includes(
+      !permitidos.includes(
         estado
       )
     ) {
@@ -1475,6 +1462,9 @@ app.put(
           destinatario:
             'Administrador',
 
+          destinatarioMeseroId:
+            null,
+
           emisor:
             'Sistema',
 
@@ -1498,7 +1488,360 @@ app.put(
 )
 
 /* ========================================
-   NOTIFICACIONES
+   NOTIFICACIONES - ENVIAR
+======================================== */
+
+app.post(
+  '/api/notificaciones',
+  (req, res) => {
+    const {
+      tipo,
+      titulo,
+      mensaje,
+      salaId,
+      eventoId,
+      modoDestinatario,
+      meseroId
+    } = req.body
+
+    if (
+      !tipo ||
+      !titulo ||
+      !mensaje ||
+      !salaId ||
+      !modoDestinatario
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'Completa los datos de la notificación.'
+        })
+    }
+
+    const salaIdNumero =
+      Number(salaId)
+
+    const sala =
+      db.salas.find(
+        (sala) =>
+          sala.id ===
+          salaIdNumero
+      )
+
+    if (!sala) {
+      return res
+        .status(404)
+        .json({
+          mensaje:
+            'La sala seleccionada no existe.'
+        })
+    }
+
+    let destinatarios = []
+
+    if (
+      modoDestinatario ===
+      'Todos'
+    ) {
+      destinatarios =
+        db.meseros.filter(
+          (mesero) =>
+            mesero.salaId ===
+              salaIdNumero &&
+            mesero.estado ===
+              'Activo'
+        )
+    }
+
+    if (
+      modoDestinatario ===
+      'Evento'
+    ) {
+      const evento =
+        db.eventos.find(
+          (evento) =>
+            evento.id ===
+              Number(eventoId) &&
+            evento.salaId ===
+              salaIdNumero
+        )
+
+      if (!evento) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'Selecciona un evento válido.'
+          })
+      }
+
+      const ids =
+        db.asignaciones
+          .filter(
+            (asignacion) =>
+              asignacion.eventoId ===
+              evento.id
+          )
+          .map(
+            (asignacion) =>
+              asignacion.meseroId
+          )
+
+      destinatarios =
+        db.meseros.filter(
+          (mesero) =>
+            ids.includes(
+              mesero.id
+            ) &&
+            mesero.estado ===
+              'Activo'
+        )
+    }
+
+    if (
+      modoDestinatario ===
+      'Individual'
+    ) {
+      const mesero =
+        db.meseros.find(
+          (mesero) =>
+            mesero.id ===
+              Number(meseroId) &&
+            mesero.salaId ===
+              salaIdNumero &&
+            mesero.estado ===
+              'Activo'
+        )
+
+      if (!mesero) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'Selecciona un mesero válido.'
+          })
+      }
+
+      destinatarios = [
+        mesero
+      ]
+    }
+
+    if (
+      destinatarios.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'No hay meseros disponibles para recibir este aviso.'
+        })
+    }
+
+    const envioId =
+      `ENV-${Date.now()}-${Math.floor(
+        Math.random() *
+        10000
+      )}`
+
+    const eventoNumero =
+      eventoId
+        ? Number(eventoId)
+        : null
+
+    const nuevas =
+      destinatarios.map(
+        (mesero) => ({
+          id:
+            generarId(
+              db.notificaciones
+            ),
+
+          envioId,
+
+          tipo,
+
+          titulo:
+            titulo.trim(),
+
+          mensaje:
+            mensaje.trim(),
+
+          salaId:
+            salaIdNumero,
+
+          eventoId:
+            eventoNumero,
+
+          meseroId:
+            null,
+
+          destinatario:
+            'Mesero',
+
+          destinatarioMeseroId:
+            mesero.id,
+
+          modoDestinatario,
+
+          emisor:
+            'Administrador',
+
+          automatica:
+            false,
+
+          fecha:
+            new Date()
+              .toISOString(),
+
+          leida:
+            false
+        })
+      )
+
+    /*
+      generarId se calcularía igual
+      durante el map, por eso ajustamos
+      los ids después.
+    */
+
+    const primerId =
+      generarId(
+        db.notificaciones
+      )
+
+    nuevas.forEach(
+      (
+        notificacion,
+        index
+      ) => {
+        notificacion.id =
+          primerId + index
+      }
+    )
+
+    db.notificaciones.push(
+      ...nuevas
+    )
+
+    res
+      .status(201)
+      .json({
+        mensaje:
+          'Notificación enviada correctamente.',
+
+        envioId,
+
+        enviados:
+          nuevas.length
+      })
+  }
+)
+
+/* ========================================
+   NOTIFICACIONES - HISTORIAL ENVIADOS
+======================================== */
+
+app.get(
+  '/api/notificaciones/enviadas',
+  (req, res) => {
+    const salaId =
+      req.query.salaId
+        ? Number(
+            req.query.salaId
+          )
+        : null
+
+    let enviadas =
+      db.notificaciones.filter(
+        (notificacion) =>
+          notificacion.emisor ===
+            'Administrador' &&
+          notificacion.destinatario ===
+            'Mesero'
+      )
+
+    if (salaId) {
+      enviadas =
+        enviadas.filter(
+          (notificacion) =>
+            notificacion.salaId ===
+            salaId
+        )
+    }
+
+    const grupos =
+      {}
+
+    enviadas.forEach(
+      (notificacion) => {
+        const clave =
+          notificacion.envioId ||
+          `IND-${notificacion.id}`
+
+        if (!grupos[clave]) {
+          grupos[clave] = {
+            envioId:
+              clave,
+
+            tipo:
+              notificacion.tipo,
+
+            titulo:
+              notificacion.titulo,
+
+            mensaje:
+              notificacion.mensaje,
+
+            salaId:
+              notificacion.salaId,
+
+            eventoId:
+              notificacion.eventoId,
+
+            modoDestinatario:
+              notificacion
+                .modoDestinatario,
+
+            fecha:
+              notificacion.fecha,
+
+            enviados: 0,
+
+            leidos: 0
+          }
+        }
+
+        grupos[clave]
+          .enviados += 1
+
+        if (
+          notificacion.leida
+        ) {
+          grupos[clave]
+            .leidos += 1
+        }
+      }
+    )
+
+    const resultado =
+      Object.values(
+        grupos
+      ).sort(
+        (a, b) =>
+          new Date(b.fecha) -
+          new Date(a.fecha)
+      )
+
+    res.json(
+      resultado
+    )
+  }
+)
+
+/* ========================================
+   NOTIFICACIONES - CONSULTAR
 ======================================== */
 
 app.get(
@@ -1513,6 +1856,13 @@ app.get(
 
     const destinatario =
       req.query.destinatario
+
+    const meseroId =
+      req.query.meseroId
+        ? Number(
+            req.query.meseroId
+          )
+        : null
 
     let resultado = [
       ...db.notificaciones
@@ -1534,6 +1884,16 @@ app.get(
             notificacion
               .destinatario ===
             destinatario
+        )
+    }
+
+    if (meseroId) {
+      resultado =
+        resultado.filter(
+          (notificacion) =>
+            notificacion
+              .destinatarioMeseroId ===
+            meseroId
         )
     }
 
@@ -1649,7 +2009,8 @@ app.put(
 
     const capitanMeseroId =
       Number(
-        req.body.capitanMeseroId
+        req.body
+          .capitanMeseroId
       )
 
     const estado =
@@ -1789,13 +2150,6 @@ app.put(
    REPORTES
 ======================================== */
 
-/*
-  Lista general.
-  La utilizaremos posteriormente
-  en Reportes e historiales del
-  administrador.
-*/
-
 app.get(
   '/api/reportes',
   (req, res) => {
@@ -1834,10 +2188,6 @@ app.get(
     )
   }
 )
-
-/*
-  Consulta del reporte de un evento.
-*/
 
 app.get(
   '/api/reportes/evento/:eventoId',
@@ -1894,16 +2244,6 @@ app.get(
     })
   }
 )
-
-/*
-  Crea o actualiza el reporte.
-
-  Borrador:
-  puede seguir editándose.
-
-  Enviado:
-  queda cerrado definitivamente.
-*/
 
 app.put(
   '/api/reportes/evento/:eventoId',

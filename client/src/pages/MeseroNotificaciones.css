@@ -1,0 +1,300 @@
+.mesero-notificaciones {
+  width: 100%;
+
+  padding: 36px 40px 50px;
+
+  box-sizing: border-box;
+}
+
+.mesero-notificaciones-header {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 20px;
+
+  margin-bottom: 22px;
+}
+
+.mesero-notificaciones-header h1 {
+  margin: 0;
+
+  color: #281a12;
+
+  font-size: 32px;
+}
+
+.mesero-notificaciones-header p {
+  margin: 7px 0 0;
+
+  color: #806d5d;
+}
+
+.mesero-notificaciones-header button {
+  border: none;
+
+  padding: 10px 15px;
+
+  background: #bc8a3c;
+  color: white;
+
+  border-radius: 8px;
+
+  font-weight: bold;
+
+  cursor: pointer;
+}
+
+/* =========================================
+   RESUMEN
+========================================= */
+
+.mesero-notificaciones-resumen {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, 180px);
+
+  gap: 13px;
+
+  margin-bottom: 20px;
+}
+
+.mesero-notificaciones-resumen > div {
+  padding: 16px;
+
+  background: white;
+
+  border: 1px solid #ead9bf;
+  border-radius: 11px;
+}
+
+.mesero-notificaciones-resumen span {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: #897565;
+
+  font-size: 11px;
+}
+
+.mesero-notificaciones-resumen strong {
+  color: #2d1c13;
+
+  font-size: 25px;
+}
+
+/* =========================================
+   CARDS
+========================================= */
+
+.mesero-notificacion-lista {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 14px;
+}
+
+.mesero-notificacion-card {
+  padding: 20px;
+
+  background: white;
+
+  border: 1px solid #ead9bf;
+  border-radius: 13px;
+}
+
+.mesero-notificacion-card.nueva {
+  border-left: 5px solid #bc8a3c;
+
+  box-shadow:
+    0 4px 14px
+    rgba(55, 35, 20, 0.05);
+}
+
+.mesero-notificacion-card.leida {
+  opacity: 0.78;
+}
+
+.mesero-notificacion-superior {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 15px;
+
+  margin-bottom: 10px;
+}
+
+.mesero-notificacion-tipo,
+.mesero-notificacion-nueva {
+  display: inline-block;
+
+  padding: 5px 9px;
+
+  border-radius: 20px;
+
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.mesero-notificacion-tipo {
+  background: #f3e1c2;
+  color: #80591c;
+}
+
+.mesero-notificacion-nueva {
+  margin-left: 6px;
+
+  background: #e2f2e6;
+  color: #347247;
+}
+
+.mesero-notificacion-fecha {
+  color: #927e6e;
+
+  font-size: 11px;
+}
+
+.mesero-notificacion-card h2 {
+  margin: 0 0 8px;
+
+  color: #2d1c13;
+
+  font-size: 18px;
+}
+
+.mesero-notificacion-card > p {
+  margin: 0;
+
+  color: #685448;
+
+  line-height: 1.5;
+
+  font-size: 13px;
+}
+
+/* =========================================
+   EVENTO
+========================================= */
+
+.mesero-notificacion-evento {
+  margin-top: 13px;
+
+  padding: 11px;
+
+  background: #faf4e9;
+
+  border-radius: 8px;
+}
+
+.mesero-notificacion-evento span {
+  display: block;
+
+  margin-bottom: 3px;
+
+  color: #8a7565;
+
+  font-size: 10px;
+}
+
+.mesero-notificacion-evento strong {
+  color: #3e2c21;
+
+  font-size: 12px;
+}
+
+/* =========================================
+   PIE
+========================================= */
+
+.mesero-notificacion-pie {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 20px;
+
+  margin-top: 15px;
+
+  padding-top: 13px;
+
+  border-top: 1px solid #efe3d2;
+
+  color: #8a7668;
+
+  font-size: 11px;
+}
+
+.mesero-notificacion-pie button {
+  border: none;
+
+  padding: 8px 11px;
+
+  background: #39261b;
+  color: white;
+
+  border-radius: 7px;
+
+  font-weight: bold;
+
+  cursor: pointer;
+}
+
+/* =========================================
+   VACÍO / ERROR
+========================================= */
+
+.mesero-notificacion-vacio {
+  padding: 35px;
+
+  background: white;
+
+  border: 1px solid #ead9bf;
+  border-radius: 13px;
+
+  color: #806d5d;
+
+  text-align: center;
+}
+
+.mesero-notificacion-error {
+  margin-bottom: 17px;
+
+  padding: 12px 14px;
+
+  background: #fae4e2;
+  color: #9c3932;
+
+  border-radius: 8px;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 700px) {
+  .mesero-notificaciones {
+    padding: 25px 20px;
+  }
+
+  .mesero-notificaciones-header,
+  .mesero-notificacion-pie {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .mesero-notificaciones-resumen {
+    grid-template-columns: 1fr;
+  }
+
+  .mesero-notificaciones-header button {
+    width: 100%;
+  }
+}
