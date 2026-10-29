@@ -1,5 +1,8 @@
 import { useState } from 'react'
+
 import './MeseroDashboard.css'
+
+import CapitanPanel from './CapitanPanel.jsx'
 
 import {
   useMesereArte
@@ -18,19 +21,25 @@ function MeseroDashboard({
     actualizarDisponibilidadAPI
   } = useMesereArte()
 
-  const [seccion, setSeccion] =
-    useState('inicio')
+  const [
+    seccion,
+    setSeccion
+  ] = useState('inicio')
 
   const [
     procesandoEvento,
     setProcesandoEvento
   ] = useState(null)
 
-  const [mensaje, setMensaje] =
-    useState('')
+  const [
+    mensaje,
+    setMensaje
+  ] = useState('')
 
-  const [error, setError] =
-    useState('')
+  const [
+    error,
+    setError
+  ] = useState('')
 
   /* ========================================
      MESERO ACTUAL
@@ -52,11 +61,12 @@ function MeseroDashboard({
   const salaActual =
     salas.find(
       (sala) =>
-        sala.id === usuario.salaId
+        sala.id ===
+        usuario.salaId
     )
 
   /* ========================================
-     ASIGNACIONES DEL MESERO
+     ASIGNACIONES
   ======================================== */
 
   const asignacionesMesero =
@@ -74,44 +84,46 @@ function MeseroDashboard({
 
   const eventosAsignados =
     asignacionesMesero
-      .map((asignacion) => {
-        const evento =
-          eventos.find(
-            (evento) =>
-              evento.id ===
-              asignacion.eventoId
-          )
+      .map(
+        (asignacion) => {
+          const evento =
+            eventos.find(
+              (evento) =>
+                evento.id ===
+                asignacion.eventoId
+            )
 
-        if (!evento) {
-          return null
+          if (!evento) {
+            return null
+          }
+
+          const registroDisponibilidad =
+            disponibilidades.find(
+              (item) =>
+                item.eventoId ===
+                  evento.id &&
+                item.meseroId ===
+                  meseroActual.id
+            )
+
+          return {
+            ...evento,
+
+            rolEvento:
+              asignacion.rol,
+
+            disponibilidad:
+              registroDisponibilidad
+                ?.estado ||
+              'Pendiente',
+
+            fechaRespuesta:
+              registroDisponibilidad
+                ?.fechaRespuesta ||
+              null
+          }
         }
-
-        const registroDisponibilidad =
-          disponibilidades.find(
-            (item) =>
-              item.eventoId ===
-                evento.id &&
-              item.meseroId ===
-                meseroActual.id
-          )
-
-        return {
-          ...evento,
-
-          rolEvento:
-            asignacion.rol,
-
-          disponibilidad:
-            registroDisponibilidad
-              ?.estado ||
-            'Pendiente',
-
-          fechaRespuesta:
-            registroDisponibilidad
-              ?.fechaRespuesta ||
-            null
-        }
-      })
+      )
       .filter(Boolean)
       .sort(
         (a, b) =>
@@ -122,6 +134,20 @@ function MeseroDashboard({
             `${b.fecha}T${b.horario || '00:00'}`
           )
       )
+
+  /* ========================================
+     EVENTOS COMO CAPITÁN
+  ======================================== */
+
+  const eventosCapitan =
+    eventosAsignados.filter(
+      (evento) =>
+        evento.rolEvento ===
+        'Capitán'
+    )
+
+  const totalEventosCapitan =
+    eventosCapitan.length
 
   /* ========================================
      FECHA
@@ -171,7 +197,8 @@ function MeseroDashboard({
         )
 
         if (
-          estado === 'Confirmado'
+          estado ===
+          'Confirmado'
         ) {
           setMensaje(
             'Asistencia confirmada correctamente.'
@@ -179,7 +206,8 @@ function MeseroDashboard({
         }
 
         if (
-          estado === 'No disponible'
+          estado ===
+          'No disponible'
         ) {
           setMensaje(
             'Se registró que no estás disponible para este evento.'
@@ -187,13 +215,17 @@ function MeseroDashboard({
         }
 
       } catch (error) {
+
         setError(
           error.message
         )
+
       } finally {
+
         setProcesandoEvento(
           null
         )
+
       }
     }
 
@@ -213,13 +245,6 @@ function MeseroDashboard({
       (evento) =>
         evento.disponibilidad ===
         'Pendiente'
-    ).length
-
-  const eventosComoCapitan =
-    eventosAsignados.filter(
-      (evento) =>
-        evento.rolEvento ===
-        'Capitán'
     ).length
 
   return (
@@ -311,6 +336,28 @@ function MeseroDashboard({
             Notificaciones
           </button>
 
+          {/* SOLO APARECE SI ES CAPITÁN */}
+
+          {totalEventosCapitan > 0 && (
+
+            <button
+              className={
+                seccion ===
+                'capitan'
+                  ? 'activo'
+                  : ''
+              }
+              onClick={() =>
+                setSeccion(
+                  'capitan'
+                )
+              }
+            >
+              Funciones de capitán
+            </button>
+
+          )}
+
           <button
             className={
               seccion === 'perfil'
@@ -346,8 +393,6 @@ function MeseroDashboard({
 
       <main className="mesero-main">
 
-        {/* MENSAJE */}
-
         {mensaje && (
 
           <div className="mesero-mensaje correcto">
@@ -367,8 +412,6 @@ function MeseroDashboard({
           </div>
 
         )}
-
-        {/* ERROR */}
 
         {error && (
 
@@ -407,7 +450,9 @@ function MeseroDashboard({
                 </p>
 
                 <h1>
-                  Hola, {usuario.nombre}
+                  Hola, {
+                    usuario.nombre
+                  }
                 </h1>
 
                 <p>
@@ -449,7 +494,8 @@ function MeseroDashboard({
                 </strong>
 
                 <p>
-                  Eventos en los que participas.
+                  Eventos en los que
+                  participas.
                 </p>
 
               </div>
@@ -493,7 +539,9 @@ function MeseroDashboard({
                 </span>
 
                 <strong>
-                  {eventosComoCapitan}
+                  {
+                    totalEventosCapitan
+                  }
                 </strong>
 
                 <p>
@@ -524,7 +572,9 @@ function MeseroDashboard({
 
                 <button
                   onClick={() =>
-                    setSeccion('eventos')
+                    setSeccion(
+                      'eventos'
+                    )
                   }
                 >
                   Ver todos
@@ -544,7 +594,9 @@ function MeseroDashboard({
 
                         <div
                           className="mesero-evento"
-                          key={evento.id}
+                          key={
+                            evento.id
+                          }
                         >
 
                           <div className="mesero-evento-etiquetas">
@@ -578,7 +630,9 @@ function MeseroDashboard({
                           </div>
 
                           <h3>
-                            {evento.nombre}
+                            {
+                              evento.nombre
+                            }
                           </h3>
 
                           <p>
@@ -586,11 +640,15 @@ function MeseroDashboard({
                               evento.fecha
                             )}
                             {' · '}
-                            {evento.horario}
+                            {
+                              evento.horario
+                            }
                           </p>
 
                           <small>
-                            {evento.ubicacion}
+                            {
+                              evento.ubicacion
+                            }
                           </small>
 
                         </div>
@@ -621,7 +679,8 @@ function MeseroDashboard({
             MIS EVENTOS
         ================================= */}
 
-        {seccion === 'eventos' && (
+        {seccion ===
+          'eventos' && (
 
           <div className="mesero-pagina">
 
@@ -648,7 +707,9 @@ function MeseroDashboard({
 
                     <div
                       className="mesero-evento-card"
-                      key={evento.id}
+                      key={
+                        evento.id
+                      }
                     >
 
                       <div className="mesero-evento-superior">
@@ -686,13 +747,17 @@ function MeseroDashboard({
                           </div>
 
                           <h2>
-                            {evento.nombre}
+                            {
+                              evento.nombre
+                            }
                           </h2>
 
                         </div>
 
                         <span className="evento-estado-mesero">
-                          {evento.estado}
+                          {
+                            evento.estado
+                          }
                         </span>
 
                       </div>
@@ -720,7 +785,9 @@ function MeseroDashboard({
                           </span>
 
                           <strong>
-                            {evento.horario}
+                            {
+                              evento.horario
+                            }
                           </strong>
 
                         </div>
@@ -732,7 +799,9 @@ function MeseroDashboard({
                           </span>
 
                           <strong>
-                            {evento.ubicacion}
+                            {
+                              evento.ubicacion
+                            }
                           </strong>
 
                         </div>
@@ -779,7 +848,8 @@ function MeseroDashboard({
 
                 <div className="mesero-vacio">
 
-                  No tienes eventos asignados.
+                  No tienes eventos
+                  asignados.
 
                 </div>
 
@@ -829,7 +899,9 @@ function MeseroDashboard({
 
                       <div
                         className="disponibilidad-card"
-                        key={evento.id}
+                        key={
+                          evento.id
+                        }
                       >
 
                         <div className="disponibilidad-info">
@@ -863,7 +935,9 @@ function MeseroDashboard({
                           </div>
 
                           <h2>
-                            {evento.nombre}
+                            {
+                              evento.nombre
+                            }
                           </h2>
 
                           <p>
@@ -871,32 +945,23 @@ function MeseroDashboard({
                               evento.fecha
                             )}
                             {' · '}
-                            {evento.horario}
+                            {
+                              evento.horario
+                            }
                           </p>
 
                           <span>
-                            {evento.ubicacion}
+                            {
+                              evento.ubicacion
+                            }
                           </span>
-
-                          {evento.fechaRespuesta && (
-
-                            <small>
-                              Respuesta registrada
-                              el{' '}
-                              {formatearFecha(
-                                evento.fechaRespuesta
-                              )}
-                            </small>
-
-                          )}
 
                         </div>
 
                         <div className="disponibilidad-acciones">
 
-                          {/* PENDIENTE */}
-
-                          {estado === 'Pendiente' && (
+                          {estado ===
+                            'Pendiente' && (
                             <>
 
                               <button
@@ -939,9 +1004,8 @@ function MeseroDashboard({
                             </>
                           )}
 
-                          {/* CONFIRMADO */}
-
-                          {estado === 'Confirmado' && (
+                          {estado ===
+                            'Confirmado' && (
 
                             <button
                               type="button"
@@ -952,8 +1016,6 @@ function MeseroDashboard({
                             </button>
 
                           )}
-
-                          {/* NO DISPONIBLE */}
 
                           {estado ===
                             'No disponible' && (
@@ -980,7 +1042,8 @@ function MeseroDashboard({
 
                 <div className="mesero-vacio">
 
-                  No tienes eventos asignados.
+                  No tienes eventos
+                  asignados.
 
                 </div>
 
@@ -1026,10 +1089,30 @@ function MeseroDashboard({
         )}
 
         {/* =================================
+            FUNCIONES DE CAPITÁN
+        ================================= */}
+
+        {seccion ===
+          'capitan' &&
+          totalEventosCapitan > 0 && (
+
+          <CapitanPanel
+            mesero={
+              meseroActual
+            }
+            eventos={
+              eventosCapitan
+            }
+          />
+
+        )}
+
+        {/* =================================
             PERFIL
         ================================= */}
 
-        {seccion === 'perfil' && (
+        {seccion ===
+          'perfil' && (
 
           <div className="mesero-pagina">
 
@@ -1056,7 +1139,9 @@ function MeseroDashboard({
 
                 <strong>
                   {usuario.nombre}{' '}
-                  {usuario.apellidos}
+                  {
+                    usuario.apellidos
+                  }
                 </strong>
 
               </div>
@@ -1068,7 +1153,9 @@ function MeseroDashboard({
                 </span>
 
                 <strong>
-                  {usuario.correo}
+                  {
+                    usuario.correo
+                  }
                 </strong>
 
               </div>
@@ -1080,7 +1167,8 @@ function MeseroDashboard({
                 </span>
 
                 <strong>
-                  {meseroActual?.telefono ||
+                  {meseroActual
+                    ?.telefono ||
                     'Sin registrar'}
                 </strong>
 
@@ -1093,7 +1181,9 @@ function MeseroDashboard({
                 </span>
 
                 <strong>
-                  {usuario.rol}
+                  {
+                    usuario.rol
+                  }
                 </strong>
 
               </div>
@@ -1119,7 +1209,9 @@ function MeseroDashboard({
                 </span>
 
                 <strong>
-                  {usuario.estado}
+                  {
+                    usuario.estado
+                  }
                 </strong>
 
               </div>
@@ -1145,7 +1237,9 @@ function MeseroDashboard({
                 </span>
 
                 <strong>
-                  {eventosComoCapitan}
+                  {
+                    totalEventosCapitan
+                  }
                 </strong>
 
               </div>

@@ -1,0 +1,646 @@
+.capitan-panel {
+  width: 100%;
+  min-height: 100%;
+
+  padding: 36px 40px 50px;
+
+  box-sizing: border-box;
+
+  background: #f8ecd5;
+}
+
+/* =========================================
+   ENCABEZADO
+========================================= */
+
+.capitan-encabezado {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  align-items:
+    flex-start;
+
+  gap: 25px;
+
+  margin-bottom: 25px;
+}
+
+.capitan-etiqueta {
+  margin: 0 0 5px;
+
+  color: #af792b;
+
+  font-size: 12px;
+  font-weight: 800;
+
+  letter-spacing: 1.2px;
+}
+
+.capitan-encabezado h1 {
+  margin: 0;
+
+  color: #281a12;
+
+  font-size: 32px;
+}
+
+.capitan-encabezado > div:first-child > p:last-child {
+  max-width: 650px;
+
+  margin: 7px 0 0;
+
+  color: #806d5d;
+
+  line-height: 1.5;
+}
+
+.capitan-identidad {
+  min-width: 190px;
+
+  padding: 13px 16px;
+
+  background: #302016;
+
+  border-radius: 11px;
+}
+
+.capitan-identidad span {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: #d6c6b8;
+
+  font-size: 11px;
+}
+
+.capitan-identidad strong {
+  color: #efbb66;
+
+  font-size: 14px;
+}
+
+/* =========================================
+   SELECT
+========================================= */
+
+.capitan-selector {
+  margin-bottom: 20px;
+
+  padding: 19px 20px;
+
+  background: white;
+
+  border:
+    1px solid #ead9bf;
+
+  border-radius: 14px;
+}
+
+.capitan-selector label {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #4b372a;
+
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.capitan-selector select {
+  width: 100%;
+
+  padding: 11px 12px;
+
+  box-sizing: border-box;
+
+  background: white;
+
+  border:
+    1px solid #d9c6ad;
+
+  border-radius: 8px;
+
+  color: #3e2c21;
+
+  font-size: 14px;
+
+  outline: none;
+}
+
+.capitan-selector select:focus {
+  border-color: #bc8a3c;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(188, 138, 60, 0.12);
+}
+
+/* =========================================
+   EVENTO
+========================================= */
+
+.capitan-evento-card {
+  margin-bottom: 18px;
+
+  padding: 22px;
+
+  background: white;
+
+  border:
+    1px solid #ead9bf;
+
+  border-radius: 15px;
+}
+
+.capitan-evento-titulo {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  align-items:
+    flex-start;
+
+  gap: 20px;
+
+  margin-bottom: 19px;
+}
+
+.capitan-evento-titulo span:first-child {
+  color: #a9772c;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.capitan-evento-titulo h2 {
+  margin: 4px 0 0;
+
+  color: #2b1a12;
+
+  font-size: 23px;
+}
+
+.capitan-rol-badge {
+  padding: 6px 11px;
+
+  background: #f1dfb8;
+
+  color: #7f581a;
+
+  border-radius: 20px;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.capitan-evento-datos {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 12px;
+}
+
+.capitan-evento-datos > div {
+  padding: 13px;
+
+  background: #faf4e9;
+
+  border-radius: 9px;
+}
+
+.capitan-evento-datos span,
+.capitan-observaciones span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #8b7666;
+
+  font-size: 11px;
+}
+
+.capitan-evento-datos strong {
+  color: #36251b;
+
+  font-size: 13px;
+}
+
+.capitan-observaciones {
+  margin-top: 12px;
+
+  padding: 13px;
+
+  background: #faf4e9;
+
+  border-radius: 9px;
+}
+
+.capitan-observaciones p {
+  margin: 0;
+
+  color: #4e392b;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+/* =========================================
+   RESUMEN
+========================================= */
+
+.capitan-resumen {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
+  gap: 13px;
+
+  margin-bottom: 18px;
+}
+
+.capitan-resumen > div {
+  padding: 17px;
+
+  background: white;
+
+  border:
+    1px solid #ead9bf;
+
+  border-radius: 12px;
+
+  border-left:
+    5px solid #725c4c;
+}
+
+.capitan-resumen .capitan-resumen-confirmado {
+  border-left-color: #3b7d4e;
+}
+
+.capitan-resumen .capitan-resumen-pendiente {
+  border-left-color: #c18a2e;
+}
+
+.capitan-resumen .capitan-resumen-no-disponible {
+  border-left-color: #b44c42;
+}
+
+.capitan-resumen span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #897565;
+
+  font-size: 12px;
+}
+
+.capitan-resumen strong {
+  color: #2d1c13;
+
+  font-size: 25px;
+}
+
+.capitan-resumen-confirmado strong {
+  color: #347247;
+}
+
+.capitan-resumen-pendiente strong {
+  color: #9a691d;
+}
+
+.capitan-resumen-no-disponible strong {
+  color: #a23f37;
+}
+
+/* =========================================
+   ADVERTENCIA
+========================================= */
+
+.capitan-advertencia {
+  margin-bottom: 18px;
+
+  padding: 13px 15px;
+
+  background: #fae4e2;
+
+  border-left:
+    4px solid #b44c42;
+
+  border-radius: 8px;
+
+  color: #8f3731;
+
+  font-size: 13px;
+}
+
+/* =========================================
+   EQUIPO
+========================================= */
+
+.capitan-equipo {
+  margin-bottom: 18px;
+
+  padding: 22px;
+
+  background: white;
+
+  border:
+    1px solid #ead9bf;
+
+  border-radius: 15px;
+}
+
+.capitan-equipo-header {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  align-items:
+    flex-start;
+
+  gap: 20px;
+
+  margin-bottom: 18px;
+}
+
+.capitan-equipo-header h2 {
+  margin: 0;
+
+  color: #2c1b13;
+
+  font-size: 20px;
+}
+
+.capitan-equipo-header p {
+  margin: 5px 0 0;
+
+  color: #8a7565;
+
+  font-size: 13px;
+}
+
+.capitan-equipo-header > span {
+  padding: 6px 10px;
+
+  background: #f4eadb;
+
+  color: #6d5341;
+
+  border-radius: 20px;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* =========================================
+   TABLA
+========================================= */
+
+.capitan-tabla-responsive {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+.capitan-tabla {
+  width: 100%;
+
+  border-collapse: collapse;
+}
+
+.capitan-tabla th {
+  padding: 12px;
+
+  text-align: left;
+
+  color: #776051;
+
+  font-size: 12px;
+
+  border-bottom:
+    1px solid #eadbc6;
+}
+
+.capitan-tabla td {
+  padding: 14px 12px;
+
+  color: #443126;
+
+  border-bottom:
+    1px solid #f0e5d4;
+}
+
+.capitan-tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.capitan-tabla tbody tr:hover {
+  background: #fdf8ef;
+}
+
+.capitan-personal-datos {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.capitan-personal-datos strong {
+  color: #2d1c13;
+
+  font-size: 13px;
+}
+
+.capitan-personal-datos span {
+  color: #907b6c;
+
+  font-size: 11px;
+}
+
+/* =========================================
+   ROLES
+========================================= */
+
+.capitan-tabla-rol,
+.capitan-disponibilidad,
+.capitan-estado-activo {
+  display: inline-block;
+
+  padding: 5px 9px;
+
+  border-radius: 20px;
+
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.capitan-tabla-rol.capitan {
+  background: #f2dfb5;
+
+  color: #795314;
+}
+
+.capitan-tabla-rol.mesero {
+  background: #eee6dd;
+
+  color: #655247;
+}
+
+/* =========================================
+   DISPONIBILIDAD
+========================================= */
+
+.capitan-disponibilidad.confirmado {
+  background: #e2f2e6;
+
+  color: #347247;
+}
+
+.capitan-disponibilidad.pendiente {
+  background: #fff0d3;
+
+  color: #96651c;
+}
+
+.capitan-disponibilidad.no-disponible {
+  background: #f9e1df;
+
+  color: #a03b34;
+}
+
+.capitan-estado-activo {
+  background: #e6f4e8;
+
+  color: #367447;
+}
+
+/* =========================================
+   SIGUIENTE FUNCIÓN
+========================================= */
+
+.capitan-proxima-funcion {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  align-items: center;
+
+  gap: 25px;
+
+  padding: 20px 22px;
+
+  background: #302016;
+
+  border-radius: 14px;
+}
+
+.capitan-proxima-funcion h2 {
+  margin: 0;
+
+  color: white;
+
+  font-size: 18px;
+}
+
+.capitan-proxima-funcion p {
+  max-width: 650px;
+
+  margin: 6px 0 0;
+
+  color: #d7c8bc;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+.capitan-proxima-funcion > span {
+  flex-shrink: 0;
+
+  padding: 7px 11px;
+
+  background: #bc8a3c;
+
+  color: white;
+
+  border-radius: 20px;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.capitan-vacio {
+  padding: 35px;
+
+  background: white;
+
+  border:
+    1px solid #ead9bf;
+
+  border-radius: 14px;
+
+  color: #806d5d;
+
+  text-align: center;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 1000px) {
+
+  .capitan-resumen {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+
+  .capitan-evento-datos {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+
+}
+
+@media (max-width: 750px) {
+
+  .capitan-panel {
+    padding: 25px 20px;
+  }
+
+  .capitan-encabezado,
+  .capitan-equipo-header,
+  .capitan-proxima-funcion {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .capitan-identidad {
+    min-width: 0;
+  }
+
+  .capitan-resumen,
+  .capitan-evento-datos {
+    grid-template-columns: 1fr;
+  }
+
+}
