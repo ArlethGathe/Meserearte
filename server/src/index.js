@@ -13,9 +13,9 @@ app.use(
 
 app.use(express.json())
 
-/* ========================================
+/* =========================================================
    ARREGLOS AUXILIARES
-======================================== */
+========================================================= */
 
 if (!db.notificaciones) {
   db.notificaciones = []
@@ -29,12 +29,12 @@ if (!db.reportes) {
   db.reportes = []
 }
 
-/* ========================================
-   FUNCIONES AUXILIARES
-======================================== */
+/* =========================================================
+   FUNCIONES GENERALES
+========================================================= */
 
 function generarId(lista) {
-  if (lista.length === 0) {
+  if (!lista || lista.length === 0) {
     return 1
   }
 
@@ -72,15 +72,9 @@ function obtenerFechaMexico() {
       {
         timeZone:
           'America/Mexico_City',
-
-        year:
-          'numeric',
-
-        month:
-          '2-digit',
-
-        day:
-          '2-digit'
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
       }
     ).formatToParts(
       new Date()
@@ -94,6 +88,321 @@ function obtenerFechaMexico() {
 
   return `${obtener('year')}-${obtener('month')}-${obtener('day')}`
 }
+
+function normalizarFecha(fecha) {
+  if (!fecha) {
+    return ''
+  }
+
+  return String(fecha)
+    .split('T')[0]
+}
+
+function normalizarUbicacion(
+  ubicacion
+) {
+  if (!ubicacion) {
+    return ''
+  }
+
+  return ubicacion
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(
+      /[\u0300-\u036f]/g,
+      ''
+    )
+    .replace(
+      /\s+/g,
+      ' '
+    )
+}
+
+/* =========================================================
+   HORARIOS Y TRASLAPES
+========================================================= */
+
+function extraerHorasEvento(
+  evento
+) {
+  if (
+    evento.horaInicio &&
+    evento.horaFin
+  ) {
+    return {
+      inicio:
+        evento.horaInicio,
+      fin:
+        evento.horaFin
+    }
+  }
+
+  if (!evento.horario) {
+    return {
+      inicio: null,
+      fin: null
+    }
+  }
+
+  const horas =
+    String(
+      evento.horario
+    ).match(
+      /\d{1,2}:\d{2}/g
+    ) || []
+
+  return {
+    inicio:
+      horas[0] || null,
+
+    fin:
+      horas[1] || null
+  }
+}
+
+function convertirHoraAMinutos(
+  hora
+) {
+  if (!hora) {
+    return null
+  }
+
+  const [
+    horas,
+    minutos
+  ] = hora
+    .split(':')
+    .map(Number)
+
+  if (
+    Number.isNaN(horas) ||
+    Number.isNaN(minutos)
+  ) {
+    return null
+  }
+
+  return (
+    horas * 60 +
+    minutos
+  )
+}
+
+/*
+  Construimos una línea temporal
+  numérica para poder comparar incluso
+  eventos que cruzan la medianoche.
+
+  Ejemplo:
+  07/11/2026 19:00 - 01:00
+
+  La hora de término se interpreta
+  internamente como el día siguiente.
+*/
+
+function obtenerIntervaloEvento(
+  evento
+) {
+  const fecha =
+    normalizarFecha(
+      evento.fecha
+    )
+
+  const {
+    inicio,
+    fin
+  } =
+    extraerHorasEvento(
+      evento
+    )
+
+  if (
+    !fecha ||
+    !inicio ||
+    !fin
+  ) {
+    return null
+  }
+
+  const [
+    anio,
+    mes,
+    dia
+  ] =
+    fecha
+      .split('-')
+      .map(Number)
+
+  const minutosInicio =
+    convertirHoraAMinutos(
+      inicio
+    )
+
+  const minutosFin =
+    convertirHoraAMinutos(
+      fin
+    )
+
+  if (
+    minutosInicio === null ||
+    minutosFin === null
+  ) {
+    return null
+  }
+
+  const inicioDia =
+    Date.UTC(
+      anio,
+      mes - 1,
+      dia
+    ) / 60000
+
+  const inicioTotal =
+    inicioDia +
+    minutosInicio
+
+  let finTotal =
+    inicioDia +
+    minutosFin
+
+  /*
+    Si termina antes que inicia,
+    internamente significa que termina
+    después de medianoche.
+  */
+
+  if (
+    finTotal <
+    inicioTotal
+  ) {
+    finTotal += 24 * 60
+  }
+
+  return {
+    inicio:
+      inicioTotal,
+    fin:
+      finTotal
+  }
+}
+
+function hayTraslapeEventos(
+  eventoA,
+  eventoB
+) {
+  const intervaloA =
+    obtenerIntervaloEvento(
+      eventoA
+    )
+
+  const intervaloB =
+    obtenerIntervaloEvento(
+      eventoB
+    )
+
+  if (
+    !intervaloA ||
+    !intervaloB
+  ) {
+    return false
+  }
+
+  return (
+    intervaloA.inicio <
+      intervaloB.fin &&
+    intervaloA.fin >
+      intervaloB.inicio
+  )
+}
+
+/*
+  Busca si un mesero ya está ocupado
+  durante el horario del evento.
+
+  eventoIgnoradoId sirve cuando estamos
+  editando el propio evento.
+*/
+
+function buscarConflictoMesero(
+  meseroId,
+  eventoNuevo,
+  eventoIgnoradoId = null
+) {
+  const asignacionesMesero =
+    db.asignaciones.filter(
+      (asignacion) =>
+        asignacion.meseroId ===
+          meseroId &&
+        asignacion.eventoId !==
+          eventoIgnoradoId
+    )
+
+  for (
+    const asignacion of
+    asignacionesMesero
+  ) {
+    const otroEvento =
+      db.eventos.find(
+        (evento) =>
+          evento.id ===
+          asignacion.eventoId
+      )
+
+    if (
+      otroEvento &&
+      hayTraslapeEventos(
+        eventoNuevo,
+        otroEvento
+      )
+    ) {
+      return otroEvento
+    }
+  }
+
+  return null
+}
+
+/* =========================================================
+   MISMA UBICACIÓN
+========================================================= */
+
+function buscarEventoMismaUbicacion(
+  eventoNuevo,
+  eventoIgnoradoId = null
+) {
+  const fecha =
+    normalizarFecha(
+      eventoNuevo.fecha
+    )
+
+  const ubicacion =
+    normalizarUbicacion(
+      eventoNuevo.ubicacion
+    )
+
+  if (
+    !fecha ||
+    !ubicacion
+  ) {
+    return null
+  }
+
+  return db.eventos.find(
+    (evento) =>
+      evento.id !==
+        eventoIgnoradoId &&
+      normalizarFecha(
+        evento.fecha
+      ) === fecha &&
+      normalizarUbicacion(
+        evento.ubicacion
+      ) === ubicacion
+  )
+}
+
+/* =========================================================
+   ASISTENCIA
+========================================================= */
 
 function obtenerResumenAsistencia(
   eventoId
@@ -144,25 +453,24 @@ function obtenerResumenAsistencia(
   }
 }
 
-/* ========================================
+/* =========================================================
    HEALTH
-======================================== */
+========================================================= */
 
 app.get(
   '/api/health',
   (req, res) => {
     res.json({
       ok: true,
-
       mensaje:
         'API de MesereArte funcionando'
     })
   }
 )
 
-/* ========================================
+/* =========================================================
    AUTENTICACIÓN
-======================================== */
+========================================================= */
 
 app.post(
   '/api/auth/login',
@@ -196,7 +504,8 @@ app.post(
               .toLowerCase() &&
           usuario.password ===
             password &&
-          usuario.rol === rol
+          usuario.rol ===
+            rol
       )
 
     if (!usuario) {
@@ -236,9 +545,9 @@ app.post(
   }
 )
 
-/* ========================================
-   REGISTRO ADMIN
-======================================== */
+/* =========================================================
+   REGISTRO ADMINISTRADOR
+========================================================= */
 
 app.post(
   '/api/auth/registro-admin',
@@ -271,7 +580,7 @@ app.post(
         .trim()
         .toLowerCase()
 
-    const correoExiste =
+    const existe =
       db.usuarios.some(
         (usuario) =>
           usuario.correo
@@ -279,7 +588,7 @@ app.post(
           correoNormalizado
       )
 
-    if (correoExiste) {
+    if (existe) {
       return res
         .status(400)
         .json({
@@ -375,9 +684,9 @@ app.post(
   }
 )
 
-/* ========================================
+/* =========================================================
    REGISTRO MESERO
-======================================== */
+========================================================= */
 
 app.post(
   '/api/auth/registro-mesero',
@@ -410,7 +719,7 @@ app.post(
         .trim()
         .toLowerCase()
 
-    const correoExiste =
+    const existe =
       db.usuarios.some(
         (usuario) =>
           usuario.correo
@@ -418,7 +727,7 @@ app.post(
           correoNormalizado
       )
 
-    if (correoExiste) {
+    if (existe) {
       return res
         .status(400)
         .json({
@@ -532,9 +841,9 @@ app.post(
   }
 )
 
-/* ========================================
+/* =========================================================
    USUARIOS
-======================================== */
+========================================================= */
 
 app.get(
   '/api/usuarios',
@@ -550,9 +859,9 @@ app.get(
   }
 )
 
-/* ========================================
+/* =========================================================
    SALAS
-======================================== */
+========================================================= */
 
 app.get(
   '/api/salas',
@@ -651,13 +960,11 @@ app.put(
 
       nombre:
         req.body.nombre ??
-        db.salas[indice]
-          .nombre,
+        db.salas[indice].nombre,
 
       descripcion:
         req.body.descripcion ??
-        db.salas[indice]
-          .descripcion
+        db.salas[indice].descripcion
     }
 
     res.json(
@@ -711,9 +1018,9 @@ app.delete(
   }
 )
 
-/* ========================================
+/* =========================================================
    MESEROS
-======================================== */
+========================================================= */
 
 app.get(
   '/api/meseros',
@@ -865,9 +1172,9 @@ app.delete(
   }
 )
 
-/* ========================================
+/* =========================================================
    EVENTOS
-======================================== */
+========================================================= */
 
 app.get(
   '/api/eventos',
@@ -878,9 +1185,73 @@ app.get(
   }
 )
 
+/* =========================================================
+   CREAR EVENTO
+========================================================= */
+
 app.post(
   '/api/eventos',
   (req, res) => {
+    const {
+      salaId,
+      nombre,
+      tipo,
+      fecha,
+      horaInicio,
+      horaFin,
+      horario,
+      ubicacion
+    } = req.body
+
+    if (
+      !salaId ||
+      !nombre ||
+      !fecha ||
+      !ubicacion
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'Completa los datos obligatorios del evento.'
+        })
+    }
+
+    if (
+      horaInicio &&
+      horaFin &&
+      horaInicio === horaFin
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'La hora de inicio y la hora de término no pueden ser iguales.'
+        })
+    }
+
+    const eventoTemporal = {
+      fecha,
+      ubicacion,
+      horaInicio,
+      horaFin,
+      horario
+    }
+
+    const conflictoUbicacion =
+      buscarEventoMismaUbicacion(
+        eventoTemporal
+      )
+
+    if (conflictoUbicacion) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            `Ya existe el evento "${conflictoUbicacion.nombre}" en esa ubicación para la misma fecha.`
+        })
+    }
+
     const nuevoEvento = {
       id:
         generarId(
@@ -888,34 +1259,45 @@ app.post(
         ),
 
       salaId:
-        Number(
-          req.body.salaId
-        ),
+        Number(salaId),
 
-      nombre:
-        req.body.nombre,
+      nombre,
 
-      tipo:
-        req.body.tipo,
+      tipo,
 
       fecha:
-        req.body.fecha,
+        normalizarFecha(
+          fecha
+        ),
+
+      horaInicio:
+        horaInicio || '',
+
+      horaFin:
+        horaFin || '',
 
       horario:
-        req.body.horario,
+        horario ||
+        (
+          horaInicio &&
+          horaFin
+            ? `${horaInicio} - ${horaFin}`
+            : ''
+        ),
 
-      ubicacion:
-        req.body.ubicacion,
+      ubicacion,
 
       invitados:
         Number(
-          req.body.invitados
+          req.body.invitados ||
+          0
         ),
 
       meserosRequeridos:
         Number(
           req.body
-            .meserosRequeridos
+            .meserosRequeridos ||
+          0
         ),
 
       uniforme:
@@ -943,6 +1325,10 @@ app.post(
   }
 )
 
+/* =========================================================
+   EDITAR EVENTO
+========================================================= */
+
 app.put(
   '/api/eventos/:id',
   (req, res) => {
@@ -966,8 +1352,11 @@ app.put(
         })
     }
 
-    db.eventos[indice] = {
-      ...db.eventos[indice],
+    const eventoAnterior =
+      db.eventos[indice]
+
+    const eventoActualizado = {
+      ...eventoAnterior,
       ...req.body,
 
       id,
@@ -978,33 +1367,124 @@ app.put(
           ? Number(
               req.body.salaId
             )
-          : db.eventos[
-              indice
-            ].salaId,
+          : eventoAnterior.salaId,
+
+      fecha:
+        req.body.fecha
+          ? normalizarFecha(
+              req.body.fecha
+            )
+          : eventoAnterior.fecha,
 
       invitados:
         Number(
           req.body.invitados ??
-          db.eventos[
-            indice
-          ].invitados
+          eventoAnterior.invitados
         ),
 
       meserosRequeridos:
         Number(
           req.body
             .meserosRequeridos ??
-          db.eventos[
-            indice
-          ].meserosRequeridos
+          eventoAnterior
+            .meserosRequeridos
         )
     }
 
+    if (
+      eventoActualizado.horaInicio &&
+      eventoActualizado.horaFin &&
+      eventoActualizado.horaInicio ===
+        eventoActualizado.horaFin
+    ) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            'La hora de inicio y la hora de término no pueden ser iguales.'
+        })
+    }
+
+    if (
+      eventoActualizado.horaInicio &&
+      eventoActualizado.horaFin
+    ) {
+      eventoActualizado.horario =
+        `${eventoActualizado.horaInicio} - ${eventoActualizado.horaFin}`
+    }
+
+    /*
+      Revisamos que no exista otro evento
+      en el mismo lugar y misma fecha.
+    */
+
+    const conflictoUbicacion =
+      buscarEventoMismaUbicacion(
+        eventoActualizado,
+        id
+      )
+
+    if (conflictoUbicacion) {
+      return res
+        .status(400)
+        .json({
+          mensaje:
+            `Ya existe el evento "${conflictoUbicacion.nombre}" en esa ubicación para la misma fecha.`
+        })
+    }
+
+    /*
+      Si el evento ya tiene personal,
+      revisamos que cambiar fecha u horario
+      no genere traslapes.
+    */
+
+    const personalAsignado =
+      db.asignaciones.filter(
+        (asignacion) =>
+          asignacion.eventoId === id
+      )
+
+    for (
+      const asignacion of
+      personalAsignado
+    ) {
+      const conflicto =
+        buscarConflictoMesero(
+          asignacion.meseroId,
+          eventoActualizado,
+          id
+        )
+
+      if (conflicto) {
+        const mesero =
+          db.meseros.find(
+            (item) =>
+              item.id ===
+              asignacion.meseroId
+          )
+
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              `${mesero?.nombre || 'Un mesero'} ${mesero?.apellidos || ''} tendría traslape con el evento "${conflicto.nombre}".`
+          })
+      }
+    }
+
+    db.eventos[indice] =
+      eventoActualizado
+
     res.json(
-      db.eventos[indice]
+      eventoActualizado
     )
   }
 )
+
+/* =========================================================
+   ELIMINAR EVENTO
+========================================================= */
 
 app.delete(
   '/api/eventos/:id',
@@ -1051,9 +1531,9 @@ app.delete(
   }
 )
 
-/* ========================================
+/* =========================================================
    ASIGNACIONES
-======================================== */
+========================================================= */
 
 app.get(
   '/api/asignaciones',
@@ -1081,6 +1561,10 @@ app.get(
     )
   }
 )
+
+/* =========================================================
+   GUARDAR ASIGNACIONES
+========================================================= */
 
 app.put(
   '/api/asignaciones/evento/:eventoId',
@@ -1122,6 +1606,10 @@ app.put(
           )
         : null
 
+    /*
+      Capitán debe estar asignado.
+    */
+
     if (
       capitanId &&
       !meseroIds.includes(
@@ -1135,6 +1623,10 @@ app.put(
             'El capitán debe pertenecer al personal asignado.'
         })
     }
+
+    /*
+      Validamos cada mesero.
+    */
 
     for (
       const meseroId of
@@ -1164,7 +1656,7 @@ app.put(
           .status(400)
           .json({
             mensaje:
-              `${mesero.nombre} no se encuentra activo.`
+              `${mesero.nombre} ${mesero.apellidos} no se encuentra activo.`
           })
       }
 
@@ -1176,10 +1668,35 @@ app.put(
           .status(400)
           .json({
             mensaje:
-              `${mesero.nombre} no pertenece a la sala del evento.`
+              `${mesero.nombre} ${mesero.apellidos} no pertenece a la sala del evento.`
+          })
+      }
+
+      /*
+        Restricción de traslape.
+      */
+
+      const conflicto =
+        buscarConflictoMesero(
+          meseroId,
+          evento,
+          eventoId
+        )
+
+      if (conflicto) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              `${mesero.nombre} ${mesero.apellidos} ya está asignado al evento "${conflicto.nombre}" durante un horario que se traslapa.`
           })
       }
     }
+
+    /*
+      Reemplazamos las asignaciones
+      actuales del evento.
+    */
 
     db.asignaciones =
       db.asignaciones.filter(
@@ -1219,6 +1736,11 @@ app.put(
       ...nuevasAsignaciones
     )
 
+    /*
+      Eliminamos disponibilidad de
+      quienes dejaron de estar asignados.
+    */
+
     db.disponibilidades =
       db.disponibilidades.filter(
         (item) =>
@@ -1229,6 +1751,11 @@ app.put(
           )
       )
 
+    /*
+      También eliminamos asistencia de
+      quien fue retirado del evento.
+    */
+
     db.asistencias =
       db.asistencias.filter(
         (item) =>
@@ -1238,6 +1765,11 @@ app.put(
             item.meseroId
           )
       )
+
+    /*
+      Los nuevos asignados comienzan
+      como Pendiente.
+    */
 
     meseroIds.forEach(
       (meseroId) => {
@@ -1277,15 +1809,33 @@ app.put(
   }
 )
 
-/* ========================================
+/* =========================================================
    DISPONIBILIDAD
-======================================== */
+========================================================= */
 
 app.get(
   '/api/disponibilidades',
   (req, res) => {
     res.json(
       db.disponibilidades
+    )
+  }
+)
+
+app.get(
+  '/api/disponibilidades/mesero/:meseroId',
+  (req, res) => {
+    const meseroId =
+      Number(
+        req.params.meseroId
+      )
+
+    res.json(
+      db.disponibilidades.filter(
+        (item) =>
+          item.meseroId ===
+          meseroId
+      )
     )
   }
 )
@@ -1306,14 +1856,14 @@ app.put(
     const estado =
       req.body.estado
 
-    const permitidos = [
+    const estadosPermitidos = [
       'Pendiente',
       'Confirmado',
       'No disponible'
     ]
 
     if (
-      !permitidos.includes(
+      !estadosPermitidos.includes(
         estado
       )
     ) {
@@ -1398,6 +1948,11 @@ app.put(
 
     registro.fechaRespuesta =
       obtenerFechaMexico()
+
+    /*
+      Si indica No disponible,
+      avisamos al administrador.
+    */
 
     if (
       estado ===
@@ -1487,9 +2042,9 @@ app.put(
   }
 )
 
-/* ========================================
-   NOTIFICACIONES - ENVIAR
-======================================== */
+/* =========================================================
+   ENVIAR NOTIFICACIÓN
+========================================================= */
 
 app.post(
   '/api/notificaciones',
@@ -1629,7 +2184,8 @@ app.post(
     }
 
     if (
-      destinatarios.length === 0
+      destinatarios.length ===
+      0
     ) {
       return res
         .status(400)
@@ -1650,13 +2206,20 @@ app.post(
         ? Number(eventoId)
         : null
 
+    const primerId =
+      generarId(
+        db.notificaciones
+      )
+
     const nuevas =
       destinatarios.map(
-        (mesero) => ({
+        (
+          mesero,
+          index
+        ) => ({
           id:
-            generarId(
-              db.notificaciones
-            ),
+            primerId +
+            index,
 
           envioId,
 
@@ -1700,27 +2263,6 @@ app.post(
         })
       )
 
-    /*
-      generarId se calcularía igual
-      durante el map, por eso ajustamos
-      los ids después.
-    */
-
-    const primerId =
-      generarId(
-        db.notificaciones
-      )
-
-    nuevas.forEach(
-      (
-        notificacion,
-        index
-      ) => {
-        notificacion.id =
-          primerId + index
-      }
-    )
-
     db.notificaciones.push(
       ...nuevas
     )
@@ -1739,9 +2281,9 @@ app.post(
   }
 )
 
-/* ========================================
-   NOTIFICACIONES - HISTORIAL ENVIADOS
-======================================== */
+/* =========================================================
+   HISTORIAL DE NOTIFICACIONES ENVIADAS
+========================================================= */
 
 app.get(
   '/api/notificaciones/enviadas',
@@ -1771,8 +2313,7 @@ app.get(
         )
     }
 
-    const grupos =
-      {}
+    const grupos = {}
 
     enviadas.forEach(
       (notificacion) => {
@@ -1840,9 +2381,9 @@ app.get(
   }
 )
 
-/* ========================================
-   NOTIFICACIONES - CONSULTAR
-======================================== */
+/* =========================================================
+   CONSULTAR NOTIFICACIONES
+========================================================= */
 
 app.get(
   '/api/notificaciones',
@@ -1941,9 +2482,9 @@ app.put(
   }
 )
 
-/* ========================================
+/* =========================================================
    ASISTENCIA
-======================================== */
+========================================================= */
 
 app.get(
   '/api/asistencias/evento/:eventoId',
@@ -1982,7 +2523,9 @@ app.get(
 
       habilitado:
         fechaActual ===
-        evento.fecha,
+        normalizarFecha(
+          evento.fecha
+        ),
 
       asistencias:
         db.asistencias.filter(
@@ -2048,7 +2591,9 @@ app.put(
 
     if (
       obtenerFechaMexico() !==
-      evento.fecha
+      normalizarFecha(
+        evento.fecha
+      )
     ) {
       return res
         .status(400)
@@ -2113,6 +2658,7 @@ app.put(
           ),
 
         eventoId,
+
         meseroId,
 
         estado,
@@ -2146,9 +2692,9 @@ app.put(
   }
 )
 
-/* ========================================
+/* =========================================================
    REPORTES
-======================================== */
+========================================================= */
 
 app.get(
   '/api/reportes',
@@ -2233,7 +2779,9 @@ app.get(
 
       habilitado:
         fechaActual >=
-        evento.fecha,
+        normalizarFecha(
+          evento.fecha
+        ),
 
       reporte,
 
@@ -2318,7 +2866,9 @@ app.put(
 
     if (
       fechaActual <
-      evento.fecha
+      normalizarFecha(
+        evento.fecha
+      )
     ) {
       return res
         .status(400)
@@ -2476,9 +3026,9 @@ app.put(
   }
 )
 
-/* ========================================
+/* =========================================================
    SERVIDOR
-======================================== */
+========================================================= */
 
 app.listen(
   PORT,

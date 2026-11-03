@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import {
+  useMemo,
+  useState
+} from 'react'
+
 import './AdminEventos.css'
 
 import {
@@ -10,7 +14,8 @@ const formularioVacio = {
   nombre: '',
   tipo: '',
   fecha: '',
-  horario: '',
+  horaInicio: '',
+  horaFin: '',
   ubicacion: '',
   invitados: '',
   meserosRequeridos: '',
@@ -28,208 +33,638 @@ function AdminEventos() {
     eliminarEventoAPI
   } = useMesereArte()
 
-  const [busqueda, setBusqueda] = useState('')
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [eventoDetalle, setEventoDetalle] = useState(null)
-  const [idEdicion, setIdEdicion] = useState(null)
-  const [guardando, setGuardando] = useState(false)
+  const [
+    busqueda,
+    setBusqueda
+  ] = useState('')
 
-  const [formulario, setFormulario] =
-    useState(formularioVacio)
+  const [
+    mostrarFormulario,
+    setMostrarFormulario
+  ] = useState(false)
 
-  const obtenerNombreSala = (salaId) => {
-    const sala = salas.find(
-      (sala) => sala.id === Number(salaId)
-    )
+  const [
+    eventoDetalle,
+    setEventoDetalle
+  ] = useState(null)
+
+  const [
+    idEdicion,
+    setIdEdicion
+  ] = useState(null)
+
+  const [
+    formulario,
+    setFormulario
+  ] = useState(
+    formularioVacio
+  )
+
+  const [
+    guardando,
+    setGuardando
+  ] = useState(false)
+
+  const [
+    mensaje,
+    setMensaje
+  ] = useState('')
+
+  const [
+    error,
+    setError
+  ] = useState('')
+
+  /* ========================================
+     TIPOS DE EVENTO
+  ======================================== */
+
+  const tiposEvento = [
+    'Boda',
+    'XV años',
+    'Bautizo',
+    'Primera comunión',
+    'Cumpleaños',
+    'Graduación',
+    'Aniversario',
+    'Evento empresarial',
+    'Evento escolar',
+    'Otro'
+  ]
+
+  /* ========================================
+     SALA
+  ======================================== */
+
+  const obtenerNombreSala = (
+    salaId
+  ) => {
+    const sala =
+      salas.find(
+        (sala) =>
+          sala.id ===
+          Number(salaId)
+      )
 
     return sala
       ? sala.nombre
       : 'Sin sala'
   }
 
-  const obtenerMeserosAsignados = (eventoId) => {
+  /* ========================================
+     PERSONAL ASIGNADO
+  ======================================== */
+
+  const obtenerCantidadAsignados = (
+    eventoId
+  ) => {
     return asignaciones.filter(
       (asignacion) =>
-        asignacion.eventoId === eventoId
+        asignacion.eventoId ===
+        eventoId
     ).length
   }
 
-  const manejarCambio = (e) => {
-    const { name, value } = e.target
+  /* ========================================
+     FECHA
+  ======================================== */
 
-    setFormulario({
-      ...formulario,
-      [name]: value
-    })
+  const obtenerFechaSimple = (
+    fecha
+  ) => {
+    if (!fecha) {
+      return ''
+    }
+
+    return fecha.includes('T')
+      ? fecha.split('T')[0]
+      : fecha
   }
 
-  const abrirNuevoEvento = () => {
-    setIdEdicion(null)
+  const formatearFecha = (
+    fecha
+  ) => {
+    if (!fecha) {
+      return ''
+    }
+
+    const fechaSimple =
+      obtenerFechaSimple(
+        fecha
+      )
+
+    const [
+      anio,
+      mes,
+      dia
+    ] =
+      fechaSimple.split('-')
+
+    return `${dia}/${mes}/${anio}`
+  }
+
+  /* ========================================
+     HORARIO
+  ======================================== */
+
+  const obtenerHorario = (
+    evento
+  ) => {
+    if (
+      evento.horaInicio &&
+      evento.horaFin
+    ) {
+      return `${evento.horaInicio} - ${evento.horaFin}`
+    }
+
+    return (
+      evento.horario ||
+      'Sin horario'
+    )
+  }
+
+  /*
+    Compatibilidad con eventos anteriores
+    que solamente tengan el campo horario.
+  */
+
+  const extraerHoras = (
+    horario
+  ) => {
+    if (!horario) {
+      return {
+        horaInicio: '',
+        horaFin: ''
+      }
+    }
+
+    const coincidencias =
+      horario.match(
+        /\d{1,2}:\d{2}/g
+      ) || []
+
+    return {
+      horaInicio:
+        coincidencias[0] ||
+        '',
+
+      horaFin:
+        coincidencias[1] ||
+        ''
+    }
+  }
+
+  /* ========================================
+     FILTRAR EVENTOS
+  ======================================== */
+
+  const eventosFiltrados =
+    useMemo(
+      () => {
+        const texto =
+          busqueda
+            .trim()
+            .toLowerCase()
+
+        if (!texto) {
+          return eventos
+        }
+
+        return eventos.filter(
+          (evento) => {
+            const sala =
+              obtenerNombreSala(
+                evento.salaId
+              ).toLowerCase()
+
+            const nombre =
+              evento.nombre
+                ?.toLowerCase() ||
+              ''
+
+            const tipo =
+              evento.tipo
+                ?.toLowerCase() ||
+              ''
+
+            const ubicacion =
+              evento.ubicacion
+                ?.toLowerCase() ||
+              ''
+
+            return (
+              nombre.includes(
+                texto
+              ) ||
+              tipo.includes(
+                texto
+              ) ||
+              ubicacion.includes(
+                texto
+              ) ||
+              sala.includes(
+                texto
+              )
+            )
+          }
+        )
+      },
+      [
+        eventos,
+        busqueda,
+        salas
+      ]
+    )
+
+  /* ========================================
+     CAMBIAR CAMPOS
+  ======================================== */
+
+  const manejarCambio = (
+    e
+  ) => {
+    const {
+      name,
+      value
+    } = e.target
+
+    setFormulario(
+      (anterior) => ({
+        ...anterior,
+
+        [name]:
+          value
+      })
+    )
+
+    setMensaje('')
+    setError('')
+  }
+
+  /* ========================================
+     NUEVO EVENTO
+  ======================================== */
+
+  const abrirNuevoEvento =
+    () => {
+      setIdEdicion(null)
+
+      setFormulario(
+        formularioVacio
+      )
+
+      setEventoDetalle(null)
+
+      setMensaje('')
+      setError('')
+
+      setMostrarFormulario(
+        true
+      )
+    }
+
+  /* ========================================
+     EDITAR EVENTO
+  ======================================== */
+
+  const abrirEdicion = (
+    evento
+  ) => {
+    const horas =
+      extraerHoras(
+        evento.horario
+      )
+
+    setIdEdicion(
+      evento.id
+    )
 
     setFormulario({
-      ...formularioVacio,
       salaId:
-        salas.length > 0
-          ? salas[0].id
-          : ''
-    })
+        String(
+          evento.salaId
+        ),
 
-    setMostrarFormulario(true)
-  }
+      nombre:
+        evento.nombre ||
+        '',
 
-  const abrirEdicion = (evento) => {
-    setIdEdicion(evento.id)
+      tipo:
+        evento.tipo ||
+        '',
 
-    setFormulario({
-      salaId: evento.salaId,
-      nombre: evento.nombre,
-      tipo: evento.tipo,
-      fecha: evento.fecha,
-      horario: evento.horario,
-      ubicacion: evento.ubicacion,
-      invitados: evento.invitados,
+      fecha:
+        obtenerFechaSimple(
+          evento.fecha
+        ),
+
+      horaInicio:
+        evento.horaInicio ||
+        horas.horaInicio,
+
+      horaFin:
+        evento.horaFin ||
+        horas.horaFin,
+
+      ubicacion:
+        evento.ubicacion ||
+        '',
+
+      invitados:
+        evento.invitados ??
+        '',
+
       meserosRequeridos:
-        evento.meserosRequeridos,
+        evento.meserosRequeridos ??
+        '',
+
       uniforme:
-        evento.uniforme || '',
+        evento.uniforme ||
+        '',
+
       observaciones:
-        evento.observaciones || ''
+        evento.observaciones ||
+        ''
     })
 
-    setMostrarFormulario(true)
+    setEventoDetalle(null)
+
+    setMensaje('')
+    setError('')
+
+    setMostrarFormulario(
+      true
+    )
   }
 
-  const cerrarFormulario = () => {
-    setMostrarFormulario(false)
-    setIdEdicion(null)
-    setFormulario(formularioVacio)
-  }
+  /* ========================================
+     CERRAR FORMULARIO
+  ======================================== */
 
-  const guardarEvento = async (e) => {
-    e.preventDefault()
+  const cerrarFormulario =
+    () => {
+      setMostrarFormulario(
+        false
+      )
 
-    try {
-      setGuardando(true)
+      setIdEdicion(null)
+
+      setFormulario(
+        formularioVacio
+      )
+
+      setError('')
+    }
+
+  /* ========================================
+     GUARDAR EVENTO
+  ======================================== */
+
+  const guardarEvento =
+    async (e) => {
+      e.preventDefault()
+
+      setMensaje('')
+      setError('')
+
+      if (
+        !formulario.salaId ||
+        !formulario.nombre.trim() ||
+        !formulario.tipo ||
+        !formulario.fecha ||
+        !formulario.horaInicio ||
+        !formulario.horaFin ||
+        !formulario.ubicacion.trim()
+      ) {
+        setError(
+          'Completa todos los campos obligatorios.'
+        )
+
+        return
+      }
+
+      /*
+        La hora final puede ser menor
+        que la inicial.
+
+        Ejemplo:
+        19:00 - 01:00
+
+        Esto representa un evento
+        nocturno y debe permitirse.
+
+        Solamente rechazamos que ambas
+        horas sean exactamente iguales.
+      */
+
+      if (
+        formulario.horaInicio ===
+        formulario.horaFin
+      ) {
+        setError(
+          'La hora de inicio y la hora de término no pueden ser iguales.'
+        )
+
+        return
+      }
 
       const datos = {
-        ...formulario,
-
         salaId:
-          Number(formulario.salaId),
+          Number(
+            formulario.salaId
+          ),
+
+        nombre:
+          formulario.nombre
+            .trim(),
+
+        tipo:
+          formulario.tipo,
+
+        fecha:
+          formulario.fecha,
+
+        horaInicio:
+          formulario.horaInicio,
+
+        horaFin:
+          formulario.horaFin,
+
+        /*
+          Conservamos horario porque
+          otras pantallas de MesereArte
+          todavía utilizan este campo.
+        */
+
+        horario:
+          `${formulario.horaInicio} - ${formulario.horaFin}`,
+
+        ubicacion:
+          formulario.ubicacion
+            .trim(),
 
         invitados:
-          Number(formulario.invitados),
+          Number(
+            formulario.invitados ||
+            0
+          ),
 
         meserosRequeridos:
           Number(
-            formulario.meserosRequeridos
+            formulario.meserosRequeridos ||
+            0
+          ),
+
+        uniforme:
+          formulario.uniforme
+            .trim(),
+
+        observaciones:
+          formulario.observaciones
+            .trim()
+      }
+
+      try {
+        setGuardando(true)
+
+        if (idEdicion) {
+          await actualizarEventoAPI(
+            idEdicion,
+            datos
           )
-      }
 
-      if (idEdicion) {
-        await actualizarEventoAPI(
-          idEdicion,
-          datos
-        )
-      } else {
-        await crearEventoAPI(datos)
-      }
-
-      cerrarFormulario()
-    } catch (error) {
-      window.alert(error.message)
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-  const eliminarEvento = async (evento) => {
-    const confirmar =
-      window.confirm(
-        `¿Deseas eliminar el evento "${evento.nombre}"?`
-      )
-
-    if (!confirmar) {
-      return
-    }
-
-    try {
-      await eliminarEventoAPI(
-        evento.id
-      )
-
-      if (
-        eventoDetalle?.id ===
-        evento.id
-      ) {
-        setEventoDetalle(null)
-      }
-    } catch (error) {
-      window.alert(error.message)
-    }
-  }
-
-  const formatearFecha = (fecha) => {
-    if (!fecha) return ''
-
-    const partes =
-      fecha.split('-')
-
-    if (partes.length !== 3) {
-      return fecha
-    }
-
-    return `${partes[2]}/${partes[1]}/${partes[0]}`
-  }
-
-  const eventosFiltrados =
-    eventos.filter(
-      (evento) => {
-        const texto =
-          busqueda.toLowerCase()
-
-        return (
-          evento.nombre
-            .toLowerCase()
-            .includes(texto) ||
-
-          evento.ubicacion
-            .toLowerCase()
-            .includes(texto) ||
-
-          obtenerNombreSala(
-            evento.salaId
+          setMensaje(
+            'Evento actualizado correctamente.'
           )
-            .toLowerCase()
-            .includes(texto)
+        } else {
+          await crearEventoAPI(
+            datos
+          )
+
+          setMensaje(
+            'Evento creado correctamente.'
+          )
+        }
+
+        setMostrarFormulario(
+          false
+        )
+
+        setIdEdicion(null)
+
+        setFormulario(
+          formularioVacio
+        )
+
+      } catch (error) {
+        setError(
+          error.message
+        )
+
+      } finally {
+        setGuardando(false)
+      }
+    }
+
+  /* ========================================
+     ELIMINAR EVENTO
+  ======================================== */
+
+  const eliminarEvento =
+    async (evento) => {
+      const confirmar =
+        window.confirm(
+          `¿Deseas eliminar el evento "${evento.nombre}"?`
+        )
+
+      if (!confirmar) {
+        return
+      }
+
+      try {
+        setError('')
+        setMensaje('')
+
+        await eliminarEventoAPI(
+          evento.id
+        )
+
+        setMensaje(
+          'Evento eliminado correctamente.'
+        )
+
+      } catch (error) {
+        setError(
+          error.message
         )
       }
-    )
+    }
+
+  /* ========================================
+     COMPONENTE
+  ======================================== */
 
   return (
     <div className="eventos-pagina">
 
+      {/* ===================================
+          ENCABEZADO
+      =================================== */}
+
       <div className="eventos-encabezado">
 
         <div>
+
           <h1>
-            Gestión de eventos
+            Eventos
           </h1>
 
           <p>
-            Registra, consulta, edita
-            y elimina eventos.
+            Crea y administra los
+            eventos de tus equipos.
           </p>
+
         </div>
 
         <button
-          className="nuevo-evento"
-          onClick={abrirNuevoEvento}
+          type="button"
+          onClick={
+            abrirNuevoEvento
+          }
         >
           + Nuevo evento
         </button>
 
       </div>
+
+      {/* ===================================
+          MENSAJES
+      =================================== */}
+
+      {mensaje && (
+
+        <div className="mensaje-exito">
+
+          {mensaje}
+
+        </div>
+
+      )}
+
+      {error &&
+        !mostrarFormulario && (
+
+        <div className="mensaje-error">
+
+          {error}
+
+        </div>
+
+      )}
+
+      {/* ===================================
+          LISTADO DE EVENTOS
+      =================================== */}
 
       <div className="eventos-contenedor">
 
@@ -237,8 +672,10 @@ function AdminEventos() {
 
           <input
             type="text"
-            placeholder="Buscar evento..."
-            value={busqueda}
+            placeholder="Buscar evento, tipo, ubicación o sala..."
+            value={
+              busqueda
+            }
             onChange={(e) =>
               setBusqueda(
                 e.target.value
@@ -253,105 +690,178 @@ function AdminEventos() {
           <table className="tabla-eventos">
 
             <thead>
+
               <tr>
-                <th>Evento</th>
-                <th>Sala</th>
-                <th>Fecha</th>
-                <th>Ubicación</th>
-                <th>Meseros</th>
-                <th>Estado</th>
-                <th>Acciones</th>
+
+                <th>
+                  Evento
+                </th>
+
+                <th>
+                  Sala
+                </th>
+
+                <th>
+                  Fecha
+                </th>
+
+                <th>
+                  Horario
+                </th>
+
+                <th>
+                  Ubicación
+                </th>
+
+                <th>
+                  Personal
+                </th>
+
+                <th>
+                  Estado
+                </th>
+
+                <th>
+                  Acciones
+                </th>
+
               </tr>
+
             </thead>
 
             <tbody>
 
-              {eventosFiltrados.map(
-                (evento) => (
+              {eventosFiltrados.length ===
+              0 ? (
 
-                  <tr key={evento.id}>
+                <tr>
 
-                    <td className="evento-nombre">
-                      {evento.nombre}
-                    </td>
+                  <td colSpan="8">
 
-                    <td>
-                      {obtenerNombreSala(
-                        evento.salaId
-                      )}
-                    </td>
+                    No hay eventos registrados.
 
-                    <td>
-                      {formatearFecha(
-                        evento.fecha
-                      )}
-                    </td>
+                  </td>
 
-                    <td>
-                      {evento.ubicacion}
-                    </td>
+                </tr>
 
-                    <td>
-                      {obtenerMeserosAsignados(
+              ) : (
+
+                eventosFiltrados.map(
+                  (evento) => (
+
+                    <tr
+                      key={
                         evento.id
-                      )}{' '}
-                      asignados
-                    </td>
+                      }
+                    >
 
-                    <td>
+                      <td>
 
-                      <span
-                        className={`etiqueta-estado ${evento.estado.toLowerCase()}`}
-                      >
-                        {evento.estado}
-                      </span>
-
-                    </td>
-
-                    <td>
-
-                      <div className="acciones-evento">
-
-                        <button
-                          className="accion-ver"
-                          onClick={() =>
-                            setEventoDetalle(
-                              evento
-                            )
+                        <strong>
+                          {
+                            evento.nombre
                           }
-                        >
-                          Ver
-                        </button>
+                        </strong>
 
-                        <button
-                          className="accion-editar"
-                          onClick={() =>
-                            abrirEdicion(
-                              evento
-                            )
-                          }
-                        >
-                          Editar
-                        </button>
+                        <span>
+                          {evento.tipo ||
+                            'Sin tipo'}
+                        </span>
 
-                        <button
-                          className="accion-eliminar"
-                          onClick={() =>
-                            eliminarEvento(
-                              evento
-                            )
-                          }
-                        >
-                          Eliminar
-                        </button>
+                      </td>
 
-                      </div>
+                      <td>
+                        {obtenerNombreSala(
+                          evento.salaId
+                        )}
+                      </td>
 
-                    </td>
+                      <td>
+                        {formatearFecha(
+                          evento.fecha
+                        )}
+                      </td>
 
-                  </tr>
+                      <td>
+                        {obtenerHorario(
+                          evento
+                        )}
+                      </td>
 
+                      <td>
+                        {
+                          evento.ubicacion
+                        }
+                      </td>
+
+                      <td>
+
+                        {obtenerCantidadAsignados(
+                          evento.id
+                        )}
+
+                        {' / '}
+
+                        {
+                          evento
+                            .meserosRequeridos
+                        }
+
+                      </td>
+
+                      <td>
+
+                        {evento.estado ||
+                          'Pendiente'}
+
+                      </td>
+
+                      <td>
+
+                        <div className="acciones-evento">
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEventoDetalle(
+                                evento
+                              )
+                            }
+                          >
+                            Ver
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              abrirEdicion(
+                                evento
+                              )
+                            }
+                          >
+                            Editar
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              eliminarEvento(
+                                evento
+                              )
+                            }
+                          >
+                            Eliminar
+                          </button>
+
+                        </div>
+
+                      </td>
+
+                    </tr>
+
+                  )
                 )
+
               )}
 
             </tbody>
@@ -362,13 +872,27 @@ function AdminEventos() {
 
       </div>
 
+      {/* ===================================
+          MODAL NUEVO / EDITAR
+      =================================== */}
+
       {mostrarFormulario && (
 
-        <div className="modal-fondo">
+        <div
+          className="modal-fondo"
+          onClick={
+            cerrarFormulario
+          }
+        >
 
-          <div className="modal-evento">
+          <div
+            className="modal"
+            onClick={(e) =>
+              e.stopPropagation()
+            }
+          >
 
-            <div className="modal-encabezado">
+            <div className="modal-header">
 
               <div>
 
@@ -379,50 +903,148 @@ function AdminEventos() {
                 </h2>
 
                 <p>
-                  Ingresa la información
-                  del evento.
+                  Registra la información
+                  general del evento.
                 </p>
 
               </div>
 
               <button
-                className="cerrar-modal"
-                onClick={cerrarFormulario}
                 type="button"
+                onClick={
+                  cerrarFormulario
+                }
               >
                 ×
               </button>
 
             </div>
 
+            {error && (
+
+              <div className="mensaje-error">
+
+                {error}
+
+              </div>
+
+            )}
+
             <form
-              className="form-evento"
-              onSubmit={guardarEvento}
+              onSubmit={
+                guardarEvento
+              }
             >
 
               <div className="form-grid">
 
-                <div className="campo-completo">
+                {/* SALA */}
+
+                <div>
 
                   <label>
-                    Sala
+                    Sala *
                   </label>
 
                   <select
                     name="salaId"
-                    value={formulario.salaId}
-                    onChange={manejarCambio}
-                    required
+                    value={
+                      formulario.salaId
+                    }
+                    onChange={
+                      manejarCambio
+                    }
                   >
 
-                    {salas.map(
-                      (sala) => (
+                    <option value="">
+                      Selecciona una sala
+                    </option>
+
+                    {salas
+                      .filter(
+                        (sala) =>
+                          sala.estado ===
+                            'Activa' ||
+                          sala.id ===
+                            Number(
+                              formulario.salaId
+                            )
+                      )
+                      .map(
+                        (sala) => (
+
+                          <option
+                            key={
+                              sala.id
+                            }
+                            value={
+                              sala.id
+                            }
+                          >
+                            {
+                              sala.nombre
+                            }
+                          </option>
+
+                        )
+                      )}
+
+                  </select>
+
+                </div>
+
+                {/* NOMBRE */}
+
+                <div>
+
+                  <label>
+                    Nombre del evento *
+                  </label>
+
+                  <input
+                    type="text"
+                    name="nombre"
+                    value={
+                      formulario.nombre
+                    }
+                    onChange={
+                      manejarCambio
+                    }
+                    placeholder="Ejemplo: Boda Martínez"
+                  />
+
+                </div>
+
+                {/* TIPO */}
+
+                <div>
+
+                  <label>
+                    Tipo de evento *
+                  </label>
+
+                  <select
+                    name="tipo"
+                    value={
+                      formulario.tipo
+                    }
+                    onChange={
+                      manejarCambio
+                    }
+                  >
+
+                    <option value="">
+                      Selecciona el tipo de evento
+                    </option>
+
+                    {tiposEvento.map(
+                      (tipo) => (
 
                         <option
-                          key={sala.id}
-                          value={sala.id}
+                          key={tipo}
+                          value={tipo}
                         >
-                          {sala.nombre}
+                          {tipo}
                         </option>
 
                       )
@@ -432,107 +1054,75 @@ function AdminEventos() {
 
                 </div>
 
-                <div>
-
-                  <label>
-                    Nombre del evento
-                  </label>
-
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={formulario.nombre}
-                    onChange={manejarCambio}
-                    required
-                  />
-
-                </div>
+                {/* FECHA */}
 
                 <div>
 
                   <label>
-                    Tipo de evento
-                  </label>
-
-                  <select
-                    name="tipo"
-                    value={formulario.tipo}
-                    onChange={manejarCambio}
-                    required
-                  >
-
-                    <option value="">
-                      Selecciona
-                    </option>
-
-                    <option value="Boda">
-                      Boda
-                    </option>
-
-                    <option value="XV años">
-                      XV años
-                    </option>
-
-                    <option value="Graduación">
-                      Graduación
-                    </option>
-
-                    <option value="Cumpleaños">
-                      Cumpleaños
-                    </option>
-
-                    <option value="Corporativo">
-                      Corporativo
-                    </option>
-
-                    <option value="Bautizo">
-                      Bautizo
-                    </option>
-
-                    <option value="Otro">
-                      Otro
-                    </option>
-
-                  </select>
-
-                </div>
-
-                <div>
-
-                  <label>
-                    Fecha
+                    Fecha *
                   </label>
 
                   <input
                     type="date"
                     name="fecha"
-                    value={formulario.fecha}
-                    onChange={manejarCambio}
-                    required
+                    value={
+                      formulario.fecha
+                    }
+                    onChange={
+                      manejarCambio
+                    }
                   />
 
                 </div>
+
+                {/* HORA DE INICIO */}
 
                 <div>
 
                   <label>
-                    Horario
+                    Hora de inicio *
                   </label>
 
                   <input
                     type="time"
-                    name="horario"
-                    value={formulario.horario}
-                    onChange={manejarCambio}
-                    required
+                    name="horaInicio"
+                    value={
+                      formulario.horaInicio
+                    }
+                    onChange={
+                      manejarCambio
+                    }
                   />
 
                 </div>
 
+                {/* HORA DE TÉRMINO */}
+
+                <div>
+
+                  <label>
+                    Hora de término *
+                  </label>
+
+                  <input
+                    type="time"
+                    name="horaFin"
+                    value={
+                      formulario.horaFin
+                    }
+                    onChange={
+                      manejarCambio
+                    }
+                  />
+
+                </div>
+
+                {/* UBICACIÓN */}
+
                 <div className="campo-completo">
 
                   <label>
-                    Ubicación
+                    Ubicación *
                   </label>
 
                   <input
@@ -541,11 +1131,15 @@ function AdminEventos() {
                     value={
                       formulario.ubicacion
                     }
-                    onChange={manejarCambio}
-                    required
+                    onChange={
+                      manejarCambio
+                    }
+                    placeholder="Salón, jardín o dirección"
                   />
 
                 </div>
+
+                {/* INVITADOS */}
 
                 <div>
 
@@ -555,16 +1149,20 @@ function AdminEventos() {
 
                   <input
                     type="number"
+                    min="0"
                     name="invitados"
-                    min="1"
                     value={
                       formulario.invitados
                     }
-                    onChange={manejarCambio}
-                    required
+                    onChange={
+                      manejarCambio
+                    }
+                    placeholder="0"
                   />
 
                 </div>
+
+                {/* MESEROS */}
 
                 <div>
 
@@ -574,17 +1172,21 @@ function AdminEventos() {
 
                   <input
                     type="number"
+                    min="0"
                     name="meserosRequeridos"
-                    min="1"
                     value={
                       formulario
                         .meserosRequeridos
                     }
-                    onChange={manejarCambio}
-                    required
+                    onChange={
+                      manejarCambio
+                    }
+                    placeholder="0"
                   />
 
                 </div>
+
+                {/* UNIFORME */}
 
                 <div className="campo-completo">
 
@@ -598,10 +1200,15 @@ function AdminEventos() {
                     value={
                       formulario.uniforme
                     }
-                    onChange={manejarCambio}
+                    onChange={
+                      manejarCambio
+                    }
+                    placeholder="Ejemplo: Camisa blanca, pantalón negro y zapatos negros"
                   />
 
                 </div>
+
+                {/* OBSERVACIONES */}
 
                 <div className="campo-completo">
 
@@ -610,38 +1217,44 @@ function AdminEventos() {
                   </label>
 
                   <textarea
+                    rows="4"
                     name="observaciones"
                     value={
-                      formulario.observaciones
+                      formulario
+                        .observaciones
                     }
-                    onChange={manejarCambio}
-                    rows="4"
+                    onChange={
+                      manejarCambio
+                    }
+                    placeholder="Agrega información adicional del evento..."
                   />
 
                 </div>
 
               </div>
 
-              <div className="modal-botones">
+              <div className="modal-acciones">
 
                 <button
                   type="button"
-                  className="boton-cancelar"
-                  onClick={cerrarFormulario}
+                  onClick={
+                    cerrarFormulario
+                  }
                 >
                   Cancelar
                 </button>
 
                 <button
                   type="submit"
-                  className="boton-guardar-evento"
-                  disabled={guardando}
+                  disabled={
+                    guardando
+                  }
                 >
                   {guardando
                     ? 'Guardando...'
                     : idEdicion
                       ? 'Guardar cambios'
-                      : 'Guardar evento'}
+                      : 'Crear evento'}
                 </button>
 
               </div>
@@ -654,24 +1267,50 @@ function AdminEventos() {
 
       )}
 
+      {/* ===================================
+          DETALLE DEL EVENTO
+      =================================== */}
+
       {eventoDetalle && (
 
-        <div className="modal-fondo">
+        <div
+          className="modal-fondo"
+          onClick={() =>
+            setEventoDetalle(
+              null
+            )
+          }
+        >
 
-          <div className="modal-evento">
+          <div
+            className="modal"
+            onClick={(e) =>
+              e.stopPropagation()
+            }
+          >
 
-            <div className="modal-encabezado">
+            <div className="modal-header">
 
               <div>
+
                 <h2>
-                  Detalles del evento
+                  {
+                    eventoDetalle.nombre
+                  }
                 </h2>
+
+                <p>
+                  Detalle del evento
+                </p>
+
               </div>
 
               <button
-                className="cerrar-modal"
+                type="button"
                 onClick={() =>
-                  setEventoDetalle(null)
+                  setEventoDetalle(
+                    null
+                  )
                 }
               >
                 ×
@@ -679,113 +1318,125 @@ function AdminEventos() {
 
             </div>
 
-            <div className="detalle-grid">
+            <div className="detalle-evento">
 
-              <div>
-                <span>Evento</span>
-                <strong>
-                  {eventoDetalle.nombre}
-                </strong>
-              </div>
-
-              <div>
-                <span>Sala</span>
-                <strong>
-                  {obtenerNombreSala(
-                    eventoDetalle.salaId
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>Tipo</span>
-                <strong>
-                  {eventoDetalle.tipo}
-                </strong>
-              </div>
-
-              <div>
-                <span>Fecha</span>
-                <strong>
-                  {formatearFecha(
-                    eventoDetalle.fecha
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>Horario</span>
-                <strong>
-                  {eventoDetalle.horario}
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Meseros asignados
-                </span>
+              <p>
 
                 <strong>
-                  {obtenerMeserosAsignados(
-                    eventoDetalle.id
-                  )}
-                </strong>
-              </div>
+                  Tipo:
+                </strong>{' '}
 
-              <div className="detalle-completo">
-                <span>
-                  Ubicación
-                </span>
+                {eventoDetalle.tipo ||
+                  'Sin especificar'}
 
-                <strong>
-                  {eventoDetalle.ubicacion}
-                </strong>
-              </div>
+              </p>
 
-              <div>
-                <span>
-                  Invitados
-                </span>
+              <p>
 
                 <strong>
-                  {eventoDetalle.invitados}
-                </strong>
-              </div>
+                  Sala:
+                </strong>{' '}
 
-              <div>
-                <span>
-                  Meseros requeridos
-                </span>
+                {obtenerNombreSala(
+                  eventoDetalle.salaId
+                )}
 
-                <strong>
-                  {
-                    eventoDetalle
-                      .meserosRequeridos
-                  }
-                </strong>
-              </div>
+              </p>
 
-              <div className="detalle-completo">
-                <span>
-                  Uniforme
-                </span>
+              <p>
 
                 <strong>
-                  {eventoDetalle.uniforme ||
-                    'Sin especificar'}
-                </strong>
-              </div>
+                  Fecha:
+                </strong>{' '}
 
-              <div className="detalle-completo">
-                <span>
-                  Observaciones
-                </span>
+                {formatearFecha(
+                  eventoDetalle.fecha
+                )}
+
+              </p>
+
+              <p>
 
                 <strong>
-                  {eventoDetalle.observaciones ||
-                    'Sin observaciones'}
-                </strong>
-              </div>
+                  Horario:
+                </strong>{' '}
+
+                {obtenerHorario(
+                  eventoDetalle
+                )}
+
+              </p>
+
+              <p>
+
+                <strong>
+                  Ubicación:
+                </strong>{' '}
+
+                {
+                  eventoDetalle.ubicacion
+                }
+
+              </p>
+
+              <p>
+
+                <strong>
+                  Invitados:
+                </strong>{' '}
+
+                {
+                  eventoDetalle.invitados
+                }
+
+              </p>
+
+              <p>
+
+                <strong>
+                  Meseros requeridos:
+                </strong>{' '}
+
+                {
+                  eventoDetalle
+                    .meserosRequeridos
+                }
+
+              </p>
+
+              <p>
+
+                <strong>
+                  Estado:
+                </strong>{' '}
+
+                {eventoDetalle.estado ||
+                  'Pendiente'}
+
+              </p>
+
+              <p>
+
+                <strong>
+                  Uniforme:
+                </strong>{' '}
+
+                {eventoDetalle.uniforme ||
+                  'Sin especificar'}
+
+              </p>
+
+              <p>
+
+                <strong>
+                  Observaciones:
+                </strong>{' '}
+
+                {eventoDetalle
+                  .observaciones ||
+                  'Sin observaciones'}
+
+              </p>
 
             </div>
 
