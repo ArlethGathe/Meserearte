@@ -133,6 +133,7 @@ function extraerHorasEvento(
     return {
       inicio:
         evento.horaInicio,
+
       fin:
         evento.horaFin
     }
@@ -187,18 +188,6 @@ function convertirHoraAMinutos(
     minutos
   )
 }
-
-/*
-  Construimos una línea temporal
-  numérica para poder comparar incluso
-  eventos que cruzan la medianoche.
-
-  Ejemplo:
-  07/11/2026 19:00 - 01:00
-
-  La hora de término se interpreta
-  internamente como el día siguiente.
-*/
 
 function obtenerIntervaloEvento(
   evento
@@ -266,9 +255,10 @@ function obtenerIntervaloEvento(
     minutosFin
 
   /*
-    Si termina antes que inicia,
-    internamente significa que termina
-    después de medianoche.
+    Si la hora final es menor que
+    la inicial, internamente se
+    interpreta que termina después
+    de medianoche.
   */
 
   if (
@@ -281,6 +271,7 @@ function obtenerIntervaloEvento(
   return {
     inicio:
       inicioTotal,
+
     fin:
       finTotal
   }
@@ -314,14 +305,6 @@ function hayTraslapeEventos(
       intervaloB.inicio
   )
 }
-
-/*
-  Busca si un mesero ya está ocupado
-  durante el horario del evento.
-
-  eventoIgnoradoId sirve cuando estamos
-  editando el propio evento.
-*/
 
 function buscarConflictoMesero(
   meseroId,
@@ -363,7 +346,7 @@ function buscarConflictoMesero(
 }
 
 /* =========================================================
-   MISMA UBICACIÓN
+   UBICACIÓN
 ========================================================= */
 
 function buscarEventoMismaUbicacion(
@@ -454,6 +437,84 @@ function obtenerResumenAsistencia(
 }
 
 /* =========================================================
+   EVALUACIONES DE PERSONAL
+========================================================= */
+
+function normalizarEvaluacionesPersonal(
+  evaluaciones = []
+) {
+  if (!Array.isArray(evaluaciones)) {
+    return []
+  }
+
+  return evaluaciones.map(
+    (evaluacion) => ({
+      meseroId:
+        Number(
+          evaluacion.meseroId
+        ),
+
+      desempeno:
+        evaluacion.desempeno === '' ||
+        evaluacion.desempeno === null ||
+        evaluacion.desempeno === undefined
+          ? null
+          : Number(
+              evaluacion.desempeno
+            ),
+
+      puntualidad:
+        evaluacion.puntualidad === '' ||
+        evaluacion.puntualidad === null ||
+        evaluacion.puntualidad === undefined
+          ? null
+          : Number(
+              evaluacion.puntualidad
+            ),
+
+      actitud:
+        evaluacion.actitud === '' ||
+        evaluacion.actitud === null ||
+        evaluacion.actitud === undefined
+          ? null
+          : Number(
+              evaluacion.actitud
+            ),
+
+      incidencia:
+        Boolean(
+          evaluacion.incidencia
+        ),
+
+      observacion:
+        (
+          evaluacion.observacion ||
+          ''
+        ).trim()
+    })
+  )
+}
+
+function evaluacionValida(
+  evaluacion
+) {
+  const valores = [
+    evaluacion.desempeno,
+    evaluacion.puntualidad,
+    evaluacion.actitud
+  ]
+
+  return valores.every(
+    (valor) =>
+      Number.isInteger(
+        valor
+      ) &&
+      valor >= 1 &&
+      valor <= 5
+  )
+}
+
+/* =========================================================
    HEALTH
 ========================================================= */
 
@@ -462,6 +523,7 @@ app.get(
   (req, res) => {
     res.json({
       ok: true,
+
       mensaje:
         'API de MesereArte funcionando'
     })
@@ -469,7 +531,7 @@ app.get(
 )
 
 /* =========================================================
-   AUTENTICACIÓN
+   LOGIN
 ========================================================= */
 
 app.post(
@@ -603,7 +665,8 @@ app.post(
     while (
       db.salas.some(
         (sala) =>
-          sala.codigo === codigo
+          sala.codigo ===
+          codigo
       )
     ) {
       codigo =
@@ -1185,10 +1248,6 @@ app.get(
   }
 )
 
-/* =========================================================
-   CREAR EVENTO
-========================================================= */
-
 app.post(
   '/api/eventos',
   (req, res) => {
@@ -1220,7 +1279,8 @@ app.post(
     if (
       horaInicio &&
       horaFin &&
-      horaInicio === horaFin
+      horaInicio ===
+        horaFin
     ) {
       return res
         .status(400)
@@ -1271,10 +1331,12 @@ app.post(
         ),
 
       horaInicio:
-        horaInicio || '',
+        horaInicio ||
+        '',
 
       horaFin:
-        horaFin || '',
+        horaFin ||
+        '',
 
       horario:
         horario ||
@@ -1295,8 +1357,7 @@ app.post(
 
       meserosRequeridos:
         Number(
-          req.body
-            .meserosRequeridos ||
+          req.body.meserosRequeridos ||
           0
         ),
 
@@ -1324,10 +1385,6 @@ app.post(
       )
   }
 )
-
-/* =========================================================
-   EDITAR EVENTO
-========================================================= */
 
 app.put(
   '/api/eventos/:id',
@@ -1384,10 +1441,8 @@ app.put(
 
       meserosRequeridos:
         Number(
-          req.body
-            .meserosRequeridos ??
-          eventoAnterior
-            .meserosRequeridos
+          req.body.meserosRequeridos ??
+          eventoAnterior.meserosRequeridos
         )
     }
 
@@ -1413,11 +1468,6 @@ app.put(
         `${eventoActualizado.horaInicio} - ${eventoActualizado.horaFin}`
     }
 
-    /*
-      Revisamos que no exista otro evento
-      en el mismo lugar y misma fecha.
-    */
-
     const conflictoUbicacion =
       buscarEventoMismaUbicacion(
         eventoActualizado,
@@ -1432,12 +1482,6 @@ app.put(
             `Ya existe el evento "${conflictoUbicacion.nombre}" en esa ubicación para la misma fecha.`
         })
     }
-
-    /*
-      Si el evento ya tiene personal,
-      revisamos que cambiar fecha u horario
-      no genere traslapes.
-    */
 
     const personalAsignado =
       db.asignaciones.filter(
@@ -1482,10 +1526,6 @@ app.put(
   }
 )
 
-/* =========================================================
-   ELIMINAR EVENTO
-========================================================= */
-
 app.delete(
   '/api/eventos/:id',
   (req, res) => {
@@ -1503,7 +1543,8 @@ app.delete(
     db.asignaciones =
       db.asignaciones.filter(
         (asignacion) =>
-          asignacion.eventoId !== id
+          asignacion.eventoId !==
+          id
       )
 
     db.disponibilidades =
@@ -1562,10 +1603,6 @@ app.get(
   }
 )
 
-/* =========================================================
-   GUARDAR ASIGNACIONES
-========================================================= */
-
 app.put(
   '/api/asignaciones/evento/:eventoId',
   (req, res) => {
@@ -1606,10 +1643,6 @@ app.put(
           )
         : null
 
-    /*
-      Capitán debe estar asignado.
-    */
-
     if (
       capitanId &&
       !meseroIds.includes(
@@ -1623,10 +1656,6 @@ app.put(
             'El capitán debe pertenecer al personal asignado.'
         })
     }
-
-    /*
-      Validamos cada mesero.
-    */
 
     for (
       const meseroId of
@@ -1672,10 +1701,6 @@ app.put(
           })
       }
 
-      /*
-        Restricción de traslape.
-      */
-
       const conflicto =
         buscarConflictoMesero(
           meseroId,
@@ -1692,11 +1717,6 @@ app.put(
           })
       }
     }
-
-    /*
-      Reemplazamos las asignaciones
-      actuales del evento.
-    */
 
     db.asignaciones =
       db.asignaciones.filter(
@@ -1736,11 +1756,6 @@ app.put(
       ...nuevasAsignaciones
     )
 
-    /*
-      Eliminamos disponibilidad de
-      quienes dejaron de estar asignados.
-    */
-
     db.disponibilidades =
       db.disponibilidades.filter(
         (item) =>
@@ -1751,11 +1766,6 @@ app.put(
           )
       )
 
-    /*
-      También eliminamos asistencia de
-      quien fue retirado del evento.
-    */
-
     db.asistencias =
       db.asistencias.filter(
         (item) =>
@@ -1765,11 +1775,6 @@ app.put(
             item.meseroId
           )
       )
-
-    /*
-      Los nuevos asignados comienzan
-      como Pendiente.
-    */
 
     meseroIds.forEach(
       (meseroId) => {
@@ -1929,6 +1934,7 @@ app.put(
           ),
 
         eventoId,
+
         meseroId,
 
         estado:
@@ -1948,11 +1954,6 @@ app.put(
 
     registro.fechaRespuesta =
       obtenerFechaMexico()
-
-    /*
-      Si indica No disponible,
-      avisamos al administrador.
-    */
 
     if (
       estado ===
@@ -2043,7 +2044,7 @@ app.put(
 )
 
 /* =========================================================
-   ENVIAR NOTIFICACIÓN
+   ENVIAR NOTIFICACIONES
 ========================================================= */
 
 app.post(
@@ -2281,10 +2282,6 @@ app.post(
   }
 )
 
-/* =========================================================
-   HISTORIAL DE NOTIFICACIONES ENVIADAS
-========================================================= */
-
 app.get(
   '/api/notificaciones/enviadas',
   (req, res) => {
@@ -2381,10 +2378,6 @@ app.get(
   }
 )
 
-/* =========================================================
-   CONSULTAR NOTIFICACIONES
-========================================================= */
-
 app.get(
   '/api/notificaciones',
   (req, res) => {
@@ -2422,8 +2415,7 @@ app.get(
       resultado =
         resultado.filter(
           (notificacion) =>
-            notificacion
-              .destinatario ===
+            notificacion.destinatario ===
             destinatario
         )
     }
@@ -2432,8 +2424,7 @@ app.get(
       resultado =
         resultado.filter(
           (notificacion) =>
-            notificacion
-              .destinatarioMeseroId ===
+            notificacion.destinatarioMeseroId ===
             meseroId
         )
     }
@@ -2483,7 +2474,7 @@ app.put(
 )
 
 /* =========================================================
-   ASISTENCIA
+   ASISTENCIAS
 ========================================================= */
 
 app.get(
@@ -2552,8 +2543,7 @@ app.put(
 
     const capitanMeseroId =
       Number(
-        req.body
-          .capitanMeseroId
+        req.body.capitanMeseroId
       )
 
     const estado =
@@ -2793,6 +2783,10 @@ app.get(
   }
 )
 
+/* =========================================================
+   GUARDAR / ENVIAR REPORTE DEL CAPITÁN
+========================================================= */
+
 app.put(
   '/api/reportes/evento/:eventoId',
   (req, res) => {
@@ -2803,33 +2797,34 @@ app.put(
 
     const capitanMeseroId =
       Number(
-        req.body
-          .capitanMeseroId
+        req.body.capitanMeseroId
       )
 
     const resumenServicio =
       (
-        req.body
-          .resumenServicio ||
+        req.body.resumenServicio ||
         ''
       ).trim()
 
     const incidencias =
       (
-        req.body
-          .incidencias ||
+        req.body.incidencias ||
         ''
       ).trim()
 
     const observaciones =
       (
-        req.body
-          .observaciones ||
+        req.body.observaciones ||
         ''
       ).trim()
 
     const estado =
       req.body.estado
+
+    const evaluacionesPersonal =
+      normalizarEvaluacionesPersonal(
+        req.body.evaluacionesPersonal
+      )
 
     if (
       ![
@@ -2898,6 +2893,120 @@ app.put(
         })
     }
 
+    /*
+      Validación de evaluaciones.
+    */
+
+    for (
+      const evaluacion of
+      evaluacionesPersonal
+    ) {
+      const asignado =
+        db.asignaciones.some(
+          (asignacion) =>
+            asignacion.eventoId ===
+              eventoId &&
+            asignacion.meseroId ===
+              evaluacion.meseroId
+        )
+
+      if (!asignado) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'Existe una evaluación para un mesero que no pertenece al evento.'
+          })
+      }
+
+      if (
+        evaluacion.meseroId ===
+        capitanMeseroId
+      ) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'El capitán no puede evaluarse a sí mismo.'
+          })
+      }
+
+      if (
+        estado ===
+          'Enviado' &&
+        !evaluacionValida(
+          evaluacion
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'Todas las evaluaciones deben tener calificaciones del 1 al 5.'
+          })
+      }
+    }
+
+    /*
+      Para enviar el reporte final,
+      todos los meseros presentes
+      deben estar evaluados.
+    */
+
+    if (
+      estado ===
+      'Enviado'
+    ) {
+      const presentes =
+        db.asistencias
+          .filter(
+            (asistencia) =>
+              asistencia.eventoId ===
+                eventoId &&
+              asistencia.estado ===
+                'Presente' &&
+              asistencia.meseroId !==
+                capitanMeseroId
+          )
+          .map(
+            (asistencia) =>
+              asistencia.meseroId
+          )
+
+      for (
+        const meseroId of
+        presentes
+      ) {
+        const evaluacion =
+          evaluacionesPersonal.find(
+            (item) =>
+              item.meseroId ===
+              meseroId
+          )
+
+        if (
+          !evaluacion ||
+          !evaluacionValida(
+            evaluacion
+          )
+        ) {
+          const mesero =
+            db.meseros.find(
+              (item) =>
+                item.id ===
+                meseroId
+            )
+
+          return res
+            .status(400)
+            .json({
+              mensaje:
+                `Debes evaluar a ${mesero?.nombre || 'todos los meseros presentes'} antes de enviar el reporte final.`
+            })
+        }
+      }
+    }
+
     if (
       estado ===
         'Enviado' &&
@@ -2955,6 +3064,8 @@ app.put(
 
         observaciones,
 
+        evaluacionesPersonal,
+
         estado,
 
         asistencia:
@@ -2991,6 +3102,9 @@ app.put(
 
       reporte.observaciones =
         observaciones
+
+      reporte.evaluacionesPersonal =
+        evaluacionesPersonal
 
       reporte.estado =
         estado

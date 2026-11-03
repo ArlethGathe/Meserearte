@@ -546,3 +546,127 @@
     margin: 15px 20px 0;
   }
 }
+
+/* =========================================================
+   ENCABEZADOS UNIFICADOS - MESERO
+========================================================= */
+
+/* INICIO DEL MESERO */
+
+.mesero-bienvenida h1 {
+  margin: 0 0 8px;
+
+  color: #23150e;
+
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.mesero-bienvenida p {
+  margin: 0;
+
+  color: #8a6d58;
+
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+
+/* MIS EVENTOS / DISPONIBILIDAD / PERFIL */
+
+.mesero-titulo h1 {
+  margin: 0 0 8px;
+
+  color: #23150e;
+
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.mesero-titulo p {
+  margin: 0;
+
+  color: #8a6d58;
+
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   TIPOGRAFÍA UNIFICADA CON ADMINISTRADOR
+========================================================= */
+
+.mesero-dashboard h1,
+.mesero-pagina h1,
+.mesero-bienvenida h1,
+.mesero-titulo h1 {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.mesero-dashboard h2,
+.mesero-pagina h2 {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.mesero-dashboard h3,
+.mesero-pagina h3 {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.mesero-dashboard p,
+.mesero-pagina p {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.mesero-dashboard span,
+.mesero-pagina span {
+  font-size: 14px;
+}
+
+.mesero-dashboard strong,
+.mesero-pagina strong {
+  font-size: 15px;
+}
+
+.mesero-dashboard label,
+.mesero-pagina label {
+  font-size: 14px;
+}
+
+.mesero-dashboard button,
+.mesero-pagina button {
+  font-size: 14px;
+}
+
+.mesero-dashboard input,
+.mesero-dashboard select,
+.mesero-dashboard textarea,
+.mesero-pagina input,
+.mesero-pagina select,
+.mesero-pagina textarea {
+  font-size: 15px;
+}
+
+.mesero-dashboard table th,
+.mesero-pagina table th {
+  font-size: 14px;
+}
+
+.mesero-dashboard table td,
+.mesero-pagina table td {
+  font-size: 15px;
+}
+
+.mesero-dashboard small,
+.mesero-pagina small {
+  font-size: 13px;
+}

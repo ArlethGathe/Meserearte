@@ -1,243 +1,197 @@
-.reporte-capitan {
-  margin-top: 18px;
+/* =========================================================
+   REPORTE DEL CAPITÁN
+========================================================= */
 
-  padding: 22px;
+.capitan-reporte {
+  width: 100%;
 
-  background: white;
+  box-sizing: border-box;
 
-  border: 1px solid #ead9bf;
-  border-radius: 15px;
+  margin-top: 24px;
+
+  padding: 24px;
+
+  border: 1px solid #e1cfb4;
+
+  border-radius: 16px;
+
+  background: #ffffff;
 }
 
-/* =========================================
-   HEADER
-========================================= */
+/* =========================================================
+   ENCABEZADO
+========================================================= */
 
-.reporte-header {
+.reporte-encabezado {
   display: flex;
 
-  justify-content: space-between;
   align-items: flex-start;
+
+  justify-content: space-between;
 
   gap: 20px;
 
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
-.reporte-header h2 {
+.reporte-encabezado h2 {
+  margin: 0 0 6px;
+
+  color: #23160f;
+
+  font-size: 24px;
+
+  line-height: 1.2;
+}
+
+.reporte-encabezado p {
   margin: 0;
 
-  color: #2c1b13;
+  color: #806d5d;
 
-  font-size: 20px;
-}
-
-.reporte-header p {
-  margin: 5px 0 0;
-
-  color: #8a7565;
-
-  font-size: 13px;
+  font-size: 14px;
 
   line-height: 1.5;
 }
 
-.reporte-estado {
+.reporte-enviado {
   flex-shrink: 0;
 
-  padding: 6px 11px;
+  padding: 8px 13px;
 
   border-radius: 20px;
 
-  font-size: 11px;
-  font-weight: bold;
-}
+  background: #e5f4e8;
 
-.reporte-estado.disponible {
-  background: #e2f2e6;
-  color: #347247;
-}
-
-.reporte-estado.borrador {
-  background: #fff0d3;
-  color: #92621b;
-}
-
-.reporte-estado.enviado {
-  background: #e0ecf7;
-  color: #305f89;
-}
-
-.reporte-estado.bloqueado {
-  background: #eee8e1;
-  color: #75675d;
-}
-
-/* =========================================
-   MENSAJES
-========================================= */
-
-.reporte-mensaje {
-  display: flex;
-
-  align-items: center;
-  justify-content: space-between;
-
-  gap: 20px;
-
-  margin-bottom: 18px;
-
-  padding: 12px 14px;
-
-  border-radius: 8px;
+  color: #2f7440;
 
   font-size: 13px;
+
+  font-weight: 700;
+}
+
+/* =========================================================
+   CARGANDO
+========================================================= */
+
+.reporte-cargando {
+  padding: 20px;
+
+  color: #806d5d;
+
+  text-align: center;
+}
+
+/* =========================================================
+   AVISOS Y MENSAJES
+========================================================= */
+
+.reporte-aviso,
+.reporte-mensaje {
+  margin-bottom: 20px;
+
+  padding: 13px 16px;
+
+  border-radius: 10px;
+
+  font-size: 14px;
+
+  line-height: 1.5;
+}
+
+.reporte-aviso {
+  border: 1px solid #e6c57e;
+
+  background: #fff6dc;
+
+  color: #795717;
 }
 
 .reporte-mensaje.correcto {
-  background: #e2f2e6;
-  color: #347247;
+  border: 1px solid #b9dec1;
+
+  background: #eaf6ed;
+
+  color: #2f7440;
 }
 
 .reporte-mensaje.error {
-  background: #fae4e2;
-  color: #9b3932;
+  border: 1px solid #edb8b2;
+
+  background: #fde9e7;
+
+  color: #a33026;
 }
 
-.reporte-mensaje button {
-  border: none;
-
-  background: transparent;
-
-  color: inherit;
-
-  font-size: 20px;
-
-  cursor: pointer;
-}
-
-/* =========================================
-   BLOQUEADO
-========================================= */
-
-.reporte-bloqueado {
-  margin-bottom: 18px;
-
-  padding: 15px;
-
-  background: #f7efdf;
-
-  border-left: 4px solid #bc8a3c;
-  border-radius: 8px;
-
-  color: #72573e;
-}
-
-.reporte-bloqueado strong {
-  color: #5e422d;
-}
-
-.reporte-bloqueado p {
-  margin: 5px 0 0;
-
-  font-size: 13px;
-}
-
-/* =========================================
-   ASISTENCIA
-========================================= */
+/* =========================================================
+   RESUMEN DE ASISTENCIA
+========================================================= */
 
 .reporte-asistencia {
   display: grid;
 
   grid-template-columns:
-    repeat(4, minmax(0, 1fr));
+    repeat(4, 1fr);
 
   gap: 12px;
 
-  margin-bottom: 20px;
+  margin-bottom: 26px;
 }
 
 .reporte-asistencia > div {
-  padding: 15px;
+  display: flex;
 
-  background: #faf4e9;
+  flex-direction: column;
 
-  border-left: 4px solid #725c4c;
-  border-radius: 9px;
+  gap: 5px;
+
+  padding: 16px;
+
+  border: 1px solid #e6d6bf;
+
+  border-radius: 12px;
+
+  background: #faf5ec;
 }
 
 .reporte-asistencia span {
-  display: block;
+  color: #806d5d;
 
-  margin-bottom: 5px;
-
-  color: #897565;
-
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .reporte-asistencia strong {
-  color: #2d1c13;
+  color: #23160f;
 
   font-size: 23px;
 }
 
-.reporte-presentes {
-  border-left-color: #3b7d4e !important;
-}
-
-.reporte-presentes strong {
-  color: #347247;
-}
-
-.reporte-ausentes {
-  border-left-color: #b44c42 !important;
-}
-
-.reporte-ausentes strong {
-  color: #a03b34;
-}
-
-.reporte-pendientes {
-  border-left-color: #c18a2e !important;
-}
-
-.reporte-pendientes strong {
-  color: #96651c;
-}
-
-/* =========================================
-   FORMULARIO
-========================================= */
+/* =========================================================
+   FORMULARIO DEL REPORTE
+========================================================= */
 
 .reporte-formulario {
   display: flex;
 
   flex-direction: column;
 
-  gap: 17px;
+  gap: 18px;
 }
 
-.reporte-formulario.deshabilitado {
-  opacity: 0.65;
+.reporte-campo {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 7px;
 }
 
 .reporte-campo label {
-  display: block;
+  color: #342218;
 
-  margin-bottom: 7px;
+  font-size: 14px;
 
-  color: #4c382b;
-
-  font-size: 13px;
-  font-weight: bold;
-}
-
-.reporte-campo label span {
-  margin-left: 3px;
-
-  color: #a03b34;
+  font-weight: 700;
 }
 
 .reporte-campo textarea {
@@ -245,91 +199,339 @@
 
   box-sizing: border-box;
 
-  padding: 12px 13px;
+  padding: 12px 14px;
 
-  resize: vertical;
+  border: 1px solid #d8c4a7;
 
-  background: white;
+  border-radius: 10px;
 
-  border: 1px solid #d9c6ad;
-  border-radius: 9px;
+  outline: none;
 
-  color: #3d2c22;
+  background: #ffffff;
+
+  color: #23160f;
 
   font-family: inherit;
-  font-size: 13px;
+
+  font-size: 14px;
 
   line-height: 1.5;
 
-  outline: none;
+  resize: vertical;
 }
 
 .reporte-campo textarea:focus {
-  border-color: #bc8a3c;
+  border-color: #8d654b;
 
   box-shadow:
-    0 0 0 3px
-    rgba(188, 138, 60, 0.12);
+    0 0 0 2px
+    rgba(
+      141,
+      101,
+      75,
+      0.10
+    );
 }
 
 .reporte-campo textarea:disabled {
-  background: #f5f1eb;
+  background: #f3eee8;
+
+  color: #6c625b;
 
   cursor: not-allowed;
 }
 
-.reporte-campo small {
-  display: block;
+/* =========================================================
+   EVALUACIÓN DE PERSONAL
+========================================================= */
 
-  margin-top: 5px;
+.evaluacion-personal {
+  margin-top: 30px;
 
-  color: #948173;
+  padding-top: 26px;
 
-  font-size: 11px;
+  border-top: 1px solid #eadcc9;
 }
 
-/* =========================================
+.evaluacion-titulo {
+  margin-bottom: 18px;
+}
+
+.evaluacion-titulo h3 {
+  margin: 0 0 6px;
+
+  color: #23160f;
+
+  font-size: 21px;
+}
+
+.evaluacion-titulo p {
+  margin: 0;
+
+  color: #806d5d;
+
+  font-size: 14px;
+
+  line-height: 1.5;
+}
+
+.evaluacion-vacia {
+  padding: 18px;
+
+  border: 1px solid #e4d2b9;
+
+  border-radius: 12px;
+
+  background: #faf5ec;
+
+  color: #806d5d;
+
+  font-size: 14px;
+}
+
+/* =========================================================
+   TARJETA DE MESERO
+========================================================= */
+
+.evaluacion-card {
+  margin-bottom: 18px;
+
+  padding: 20px;
+
+  border: 1px solid #e1cfb4;
+
+  border-radius: 14px;
+
+  background: #fffdf9;
+}
+
+.evaluacion-mesero {
+  display: flex;
+
+  flex-direction: column;
+
+  margin-bottom: 18px;
+}
+
+.evaluacion-mesero strong {
+  color: #23160f;
+
+  font-size: 17px;
+}
+
+.evaluacion-mesero span {
+  margin-top: 3px;
+
+  color: #8b7562;
+
+  font-size: 13px;
+}
+
+/* =========================================================
+   SELECTORES DE EVALUACIÓN
+========================================================= */
+
+.evaluacion-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 15px;
+
+  margin-bottom: 18px;
+}
+
+.evaluacion-grid > div {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 7px;
+}
+
+.evaluacion-grid label,
+.evaluacion-observacion label {
+  color: #342218;
+
+  font-size: 13px;
+
+  font-weight: 700;
+}
+
+.evaluacion-grid select {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 10px 12px;
+
+  border: 1px solid #d8c4a7;
+
+  border-radius: 9px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  color: #23160f;
+
+  font-family: inherit;
+
+  font-size: 14px;
+}
+
+.evaluacion-grid select:focus {
+  border-color: #8d654b;
+
+  box-shadow:
+    0 0 0 2px
+    rgba(
+      141,
+      101,
+      75,
+      0.10
+    );
+}
+
+.evaluacion-grid select:disabled {
+  background: #f3eee8;
+
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   INCIDENCIA
+========================================================= */
+
+.evaluacion-incidencia {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 10px;
+
+  margin: 4px 0 18px;
+
+  color: #49352a;
+
+  font-size: 14px;
+
+  line-height: 1.4;
+
+  cursor: pointer;
+}
+
+.evaluacion-incidencia input {
+  width: 17px;
+
+  height: 17px;
+
+  margin-top: 1px;
+
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   OBSERVACIÓN INDIVIDUAL
+========================================================= */
+
+.evaluacion-observacion {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 7px;
+}
+
+.evaluacion-observacion textarea {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 11px 12px;
+
+  border: 1px solid #d8c4a7;
+
+  border-radius: 9px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  color: #23160f;
+
+  font-family: inherit;
+
+  font-size: 14px;
+
+  line-height: 1.5;
+
+  resize: vertical;
+}
+
+.evaluacion-observacion textarea:focus {
+  border-color: #8d654b;
+
+  box-shadow:
+    0 0 0 2px
+    rgba(
+      141,
+      101,
+      75,
+      0.10
+    );
+}
+
+.evaluacion-observacion textarea:disabled {
+  background: #f3eee8;
+
+  cursor: not-allowed;
+}
+
+/* =========================================================
    BOTONES
-========================================= */
+========================================================= */
 
 .reporte-acciones {
   display: flex;
 
   justify-content: flex-end;
 
-  gap: 10px;
+  gap: 12px;
 
-  padding-top: 5px;
+  margin-top: 26px;
+
+  padding-top: 22px;
+
+  border-top: 1px solid #eadcc9;
 }
 
 .reporte-acciones button {
+  min-width: 150px;
+
+  padding: 11px 18px;
+
   border: none;
 
-  padding: 11px 17px;
+  border-radius: 9px;
 
-  border-radius: 8px;
+  font-family: inherit;
 
-  font-weight: bold;
+  font-size: 13px;
+
+  font-weight: 700;
 
   cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
 }
 
-.guardar-borrador {
-  background: #eee2d2;
-  color: #543d2e;
-}
-
-.guardar-borrador:hover {
-  background: #e3d2bd;
-}
-
-.enviar-reporte {
-  background: #bc8a3c;
-  color: white;
-}
-
-.enviar-reporte:hover {
-  background: #a87632;
+.reporte-acciones button:hover:not(:disabled) {
+  transform:
+    translateY(-1px);
 }
 
 .reporte-acciones button:disabled {
@@ -338,140 +540,108 @@
   cursor: not-allowed;
 }
 
-/* =========================================
-   REPORTE FINAL
-========================================= */
+.reporte-borrador {
+  background: #eadcc9;
 
-.reporte-final-aviso {
-  margin-bottom: 18px;
-
-  padding: 15px;
-
-  background: #e8f0f8;
-
-  border-left: 4px solid #4a779d;
-  border-radius: 8px;
-
-  color: #345b7c;
+  color: #3b281d;
 }
 
-.reporte-final-aviso p {
-  margin: 5px 0 0;
+.reporte-enviar {
+  background: #3b281d;
 
-  font-size: 13px;
+  color: #ffffff;
 }
 
-.reporte-final-grid {
-  display: grid;
-
-  grid-template-columns:
-    repeat(2, minmax(0, 1fr));
-
-  gap: 12px;
-
-  margin-bottom: 16px;
-}
-
-.reporte-final-grid > div {
-  padding: 13px;
-
-  background: #faf4e9;
-
-  border-radius: 9px;
-}
-
-.reporte-final-grid span,
-.reporte-final-seccion span {
-  display: block;
-
-  margin-bottom: 5px;
-
-  color: #8a7565;
-
-  font-size: 11px;
-}
-
-.reporte-final-grid strong {
-  color: #332219;
-
-  font-size: 13px;
-}
-
-.reporte-final-seccion {
-  margin-bottom: 12px;
-
-  padding: 14px;
-
-  background: #faf4e9;
-
-  border-radius: 9px;
-}
-
-.reporte-final-seccion p {
-  margin: 0;
-
-  color: #4d382b;
-
-  font-size: 13px;
-
-  line-height: 1.55;
-
-  white-space: pre-wrap;
-}
-
-/* =========================================
-   FECHA
-========================================= */
-
-.reporte-fecha-sistema {
-  margin-top: 17px;
-
-  padding-top: 13px;
-
-  border-top: 1px solid #efe3d2;
-
-  color: #978375;
-
-  font-size: 11px;
-}
-
-/* =========================================
-   CARGANDO
-========================================= */
-
-.reporte-cargando {
-  padding: 25px;
-
-  color: #806d5d;
-
-  text-align: center;
-}
-
-/* =========================================
+/* =========================================================
    RESPONSIVE
-========================================= */
+========================================================= */
 
-@media (max-width: 850px) {
+@media (
+  max-width: 850px
+) {
   .reporte-asistencia {
     grid-template-columns:
       repeat(2, 1fr);
   }
+
+  .evaluacion-grid {
+    grid-template-columns:
+      1fr;
+  }
 }
 
-@media (max-width: 650px) {
-  .reporte-header,
-  .reporte-acciones {
-    flex-direction: column;
-
-    align-items: stretch;
+@media (
+  max-width: 560px
+) {
+  .capitan-reporte {
+    padding: 18px;
   }
 
-  .reporte-asistencia,
-  .reporte-final-grid {
-    grid-template-columns: 1fr;
+  .reporte-encabezado {
+    flex-direction: column;
+  }
+
+  .reporte-asistencia {
+    grid-template-columns:
+      1fr 1fr;
+  }
+
+  .reporte-acciones {
+    flex-direction: column;
   }
 
   .reporte-acciones button {
     width: 100%;
   }
+}
+
+/* =========================================================
+   TIPOGRAFÍA UNIFICADA CON ADMINISTRADOR
+========================================================= */
+
+.capitan-reporte h1 {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.capitan-reporte h2 {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.capitan-reporte h3 {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.capitan-reporte p {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.capitan-reporte span {
+  font-size: 14px;
+}
+
+.capitan-reporte strong {
+  font-size: 15px;
+}
+
+.capitan-reporte label {
+  font-size: 14px;
+}
+
+.capitan-reporte button {
+  font-size: 14px;
+}
+
+.capitan-reporte input,
+.capitan-reporte select,
+.capitan-reporte textarea {
+  font-size: 15px;
+}
+
+.capitan-reporte small {
+  font-size: 13px;
 }

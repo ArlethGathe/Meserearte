@@ -13,6 +13,46 @@ function CapitanReporte({
   mesero
 }) {
   const [
+    cargando,
+    setCargando
+  ] = useState(true)
+
+  const [
+    guardando,
+    setGuardando
+  ] = useState(false)
+
+  const [
+    error,
+    setError
+  ] = useState('')
+
+  const [
+    mensaje,
+    setMensaje
+  ] = useState('')
+
+  const [
+    habilitado,
+    setHabilitado
+  ] = useState(false)
+
+  const [
+    reporteEnviado,
+    setReporteEnviado
+  ] = useState(false)
+
+  const [
+    resumenAsistencia,
+    setResumenAsistencia
+  ] = useState({
+    total: 0,
+    presentes: 0,
+    ausentes: 0,
+    sinRegistrar: 0
+  })
+
+  const [
     resumenServicio,
     setResumenServicio
   ] = useState('')
@@ -28,111 +68,104 @@ function CapitanReporte({
   ] = useState('')
 
   const [
-    reporte,
-    setReporte
-  ] = useState(null)
-
-  const [
-    habilitado,
-    setHabilitado
-  ] = useState(false)
-
-  const [
-    fechaActual,
-    setFechaActual
-  ] = useState('')
-
-  const [
-    resumenAsistencia,
-    setResumenAsistencia
-  ] = useState({
-    total: 0,
-    presentes: 0,
-    ausentes: 0,
-    sinRegistrar: 0
-  })
-
-  const [
-    cargando,
-    setCargando
-  ] = useState(true)
-
-  const [
-    guardando,
-    setGuardando
-  ] = useState(false)
-
-  const [
-    mensaje,
-    setMensaje
-  ] = useState('')
-
-  const [
-    error,
-    setError
-  ] = useState('')
-
-  /* ========================================
-     FECHA
-  ======================================== */
-
-  const formatearFecha = (
-    fecha
-  ) => {
-    if (!fecha) return ''
-
-    const fechaSimple =
-      fecha.includes('T')
-        ? fecha.split('T')[0]
-        : fecha
-
-    const [
-      anio,
-      mes,
-      dia
-    ] = fechaSimple.split('-')
-
-    return `${dia}/${mes}/${anio}`
-  }
+    evaluaciones,
+    setEvaluaciones
+  ] = useState([])
 
   /* ========================================
      CARGAR REPORTE
   ======================================== */
 
+  useEffect(
+    () => {
+      if (
+        !evento?.id ||
+        !mesero?.id
+      ) {
+        return
+      }
+
+      cargarReporte()
+    },
+    [
+      evento?.id,
+      mesero?.id
+    ]
+  )
+
   const cargarReporte =
     async () => {
-      if (!evento) return
-
       try {
         setCargando(true)
+
         setError('')
         setMensaje('')
 
-        const respuesta =
-          await fetch(
-            `${API_URL}/reportes/evento/${evento.id}`
-          )
+        const [
+          respuestaReporte,
+          respuestaAsignaciones,
+          respuestaMeseros,
+          respuestaAsistencias
+        ] =
+          await Promise.all([
+            fetch(
+              `${API_URL}/reportes/evento/${evento.id}`
+            ),
 
-        const resultado =
-          await respuesta.json()
+            fetch(
+              `${API_URL}/asignaciones/evento/${evento.id}`
+            ),
 
-        if (!respuesta.ok) {
+            fetch(
+              `${API_URL}/meseros`
+            ),
+
+            fetch(
+              `${API_URL}/asistencias/evento/${evento.id}`
+            )
+          ])
+
+        if (
+          !respuestaReporte.ok
+        ) {
+          const datos =
+            await respuestaReporte.json()
+
           throw new Error(
-            resultado.mensaje ||
+            datos.mensaje ||
             'No se pudo cargar el reporte.'
           )
         }
 
-        setHabilitado(
-          resultado.habilitado
-        )
+        if (
+          !respuestaAsignaciones.ok ||
+          !respuestaMeseros.ok ||
+          !respuestaAsistencias.ok
+        ) {
+          throw new Error(
+            'No se pudo cargar la información del personal.'
+          )
+        }
 
-        setFechaActual(
-          resultado.fechaActual
+        const datosReporte =
+          await respuestaReporte.json()
+
+        const asignaciones =
+          await respuestaAsignaciones.json()
+
+        const meseros =
+          await respuestaMeseros.json()
+
+        const datosAsistencia =
+          await respuestaAsistencias.json()
+
+        setHabilitado(
+          datosReporte.habilitado
         )
 
         setResumenAsistencia(
-          resultado.resumenAsistencia || {
+          datosReporte.resumenAsistencia ||
+          {
             total: 0,
             presentes: 0,
             ausentes: 0,
@@ -140,62 +173,208 @@ function CapitanReporte({
           }
         )
 
-        if (resultado.reporte) {
-          setReporte(
-            resultado.reporte
-          )
+        const reporte =
+          datosReporte.reporte
 
+        if (reporte) {
           setResumenServicio(
-            resultado.reporte
-              .resumenServicio || ''
+            reporte.resumenServicio ||
+            ''
           )
 
           setIncidencias(
-            resultado.reporte
-              .incidencias || ''
+            reporte.incidencias ||
+            ''
           )
 
           setObservaciones(
-            resultado.reporte
-              .observaciones || ''
+            reporte.observaciones ||
+            ''
+          )
+
+          setReporteEnviado(
+            reporte.estado ===
+            'Enviado'
           )
         } else {
-          setReporte(null)
           setResumenServicio('')
           setIncidencias('')
           setObservaciones('')
+
+          setReporteEnviado(
+            false
+          )
         }
+
+        /*
+          Solo se evalúan meseros
+          registrados como presentes.
+
+          El capitán no se evalúa
+          a sí mismo.
+        */
+
+        const presentes =
+          datosAsistencia
+            .asistencias
+            ?.filter(
+              (asistencia) =>
+                asistencia.estado ===
+                'Presente'
+            )
+            .map(
+              (asistencia) =>
+                asistencia.meseroId
+            ) || []
+
+        const personalEvaluable =
+          asignaciones
+            .filter(
+              (asignacion) =>
+                asignacion.meseroId !==
+                  mesero.id &&
+                presentes.includes(
+                  asignacion.meseroId
+                )
+            )
+            .map(
+              (asignacion) => {
+                const datosMesero =
+                  meseros.find(
+                    (item) =>
+                      item.id ===
+                      asignacion.meseroId
+                  )
+
+                const evaluacionAnterior =
+                  reporte
+                    ?.evaluacionesPersonal
+                    ?.find(
+                      (evaluacion) =>
+                        evaluacion.meseroId ===
+                        asignacion.meseroId
+                    )
+
+                return {
+                  meseroId:
+                    asignacion.meseroId,
+
+                  nombre:
+                    datosMesero
+                      ? `${datosMesero.nombre} ${datosMesero.apellidos}`
+                      : 'Mesero',
+
+                  desempeno:
+                    evaluacionAnterior
+                      ?.desempeno ??
+                    '',
+
+                  puntualidad:
+                    evaluacionAnterior
+                      ?.puntualidad ??
+                    '',
+
+                  actitud:
+                    evaluacionAnterior
+                      ?.actitud ??
+                    '',
+
+                  incidencia:
+                    evaluacionAnterior
+                      ?.incidencia ??
+                    false,
+
+                  observacion:
+                    evaluacionAnterior
+                      ?.observacion ||
+                    ''
+                }
+              }
+            )
+
+        setEvaluaciones(
+          personalEvaluable
+        )
 
       } catch (error) {
         setError(
           error.message
         )
+
       } finally {
         setCargando(false)
       }
     }
 
-  useEffect(() => {
-    cargarReporte()
-  }, [evento?.id])
+  /* ========================================
+     CAMBIAR EVALUACIÓN
+  ======================================== */
+
+  const cambiarEvaluacion = (
+    meseroId,
+    campo,
+    valor
+  ) => {
+    setMensaje('')
+    setError('')
+
+    setEvaluaciones(
+      (anteriores) =>
+        anteriores.map(
+          (evaluacion) =>
+            evaluacion.meseroId ===
+            meseroId
+              ? {
+                  ...evaluacion,
+
+                  [campo]:
+                    valor
+                }
+              : evaluacion
+        )
+    )
+  }
 
   /* ========================================
-     GUARDAR
+     EVALUACIONES COMPLETAS
+  ======================================== */
+
+  const evaluacionesCompletas =
+    () => {
+      return evaluaciones.every(
+        (evaluacion) =>
+          evaluacion.desempeno !==
+            '' &&
+          evaluacion.puntualidad !==
+            '' &&
+          evaluacion.actitud !==
+            ''
+      )
+    }
+
+  /* ========================================
+     GUARDAR REPORTE
   ======================================== */
 
   const guardarReporte =
-    async (
-      estado
-    ) => {
+    async (estado) => {
       if (
-        !evento ||
-        !mesero
+        reporteEnviado
       ) {
         return
       }
 
+      if (!habilitado) {
+        setError(
+          'El reporte todavía no está disponible.'
+        )
+
+        return
+      }
+
       if (
-        estado === 'Enviado' &&
+        estado ===
+          'Enviado' &&
         !resumenServicio.trim()
       ) {
         setError(
@@ -206,23 +385,22 @@ function CapitanReporte({
       }
 
       if (
-        estado === 'Enviado'
+        estado ===
+          'Enviado' &&
+        !evaluacionesCompletas()
       ) {
-        const confirmar =
-          window.confirm(
-            'El reporte quedará cerrado y ya no podrá modificarse. ¿Deseas enviarlo definitivamente?'
-          )
+        setError(
+          'Debes evaluar a todos los meseros presentes antes de enviar el reporte final.'
+        )
 
-        if (!confirmar) {
-          return
-        }
+        return
       }
 
       try {
         setGuardando(true)
 
-        setMensaje('')
         setError('')
+        setMensaje('')
 
         const respuesta =
           await fetch(
@@ -241,48 +419,60 @@ function CapitanReporte({
                   capitanMeseroId:
                     mesero.id,
 
-                  resumenServicio:
-                    resumenServicio.trim(),
+                  resumenServicio,
 
-                  incidencias:
-                    incidencias.trim(),
+                  incidencias,
 
-                  observaciones:
-                    observaciones.trim(),
+                  observaciones,
+
+                  evaluacionesPersonal:
+                    evaluaciones.map(
+                      (evaluacion) => ({
+                        meseroId:
+                          evaluacion.meseroId,
+
+                        desempeno:
+                          evaluacion.desempeno,
+
+                        puntualidad:
+                          evaluacion.puntualidad,
+
+                        actitud:
+                          evaluacion.actitud,
+
+                        incidencia:
+                          evaluacion.incidencia,
+
+                        observacion:
+                          evaluacion.observacion
+                      })
+                    ),
 
                   estado
                 })
             }
           )
 
-        const resultado =
+        const datos =
           await respuesta.json()
 
         if (!respuesta.ok) {
           throw new Error(
-            resultado.mensaje ||
+            datos.mensaje ||
             'No se pudo guardar el reporte.'
           )
         }
 
-        setReporte(
-          resultado.reporte
-        )
-
-        setResumenAsistencia(
-          resultado.resumenAsistencia
+        setMensaje(
+          datos.mensaje
         )
 
         if (
           estado ===
           'Enviado'
         ) {
-          setMensaje(
-            'Reporte final enviado correctamente.'
-          )
-        } else {
-          setMensaje(
-            'Borrador guardado correctamente.'
+          setReporteEnviado(
+            true
           )
         }
 
@@ -290,6 +480,7 @@ function CapitanReporte({
         setError(
           error.message
         )
+
       } finally {
         setGuardando(false)
       }
@@ -301,28 +492,26 @@ function CapitanReporte({
 
   if (cargando) {
     return (
-      <section className="reporte-capitan">
+      <section className="capitan-reporte">
 
         <div className="reporte-cargando">
-          Cargando reporte del evento...
+          Cargando reporte...
         </div>
 
       </section>
     )
   }
 
-  const reporteEnviado =
-    reporte?.estado ===
-    'Enviado'
-
   /* ========================================
      COMPONENTE
   ======================================== */
 
   return (
-    <section className="reporte-capitan">
+    <section className="capitan-reporte">
 
-      <div className="reporte-header">
+      {/* ENCABEZADO */}
+
+      <div className="reporte-encabezado">
 
         <div>
 
@@ -331,57 +520,44 @@ function CapitanReporte({
           </h2>
 
           <p>
-            Registra el resultado general
-            del servicio, incidencias y
-            observaciones del evento.
+            Registra el resultado del servicio
+            y evalúa el desempeño del personal.
           </p>
 
         </div>
 
-        {reporteEnviado ? (
+        {reporteEnviado && (
 
-          <span className="reporte-estado enviado">
+          <span className="reporte-enviado">
+
             Reporte enviado
-          </span>
 
-        ) : reporte?.estado ===
-          'Borrador' ? (
-
-          <span className="reporte-estado borrador">
-            Borrador guardado
-          </span>
-
-        ) : habilitado ? (
-
-          <span className="reporte-estado disponible">
-            Disponible
-          </span>
-
-        ) : (
-
-          <span className="reporte-estado bloqueado">
-            No disponible
           </span>
 
         )}
 
       </div>
 
+      {/* AVISO */}
+
+      {!habilitado && (
+
+        <div className="reporte-aviso">
+
+          El reporte estará disponible
+          a partir del día del evento.
+
+        </div>
+
+      )}
+
+      {/* MENSAJES */}
+
       {mensaje && (
 
         <div className="reporte-mensaje correcto">
 
-          <span>
-            {mensaje}
-          </span>
-
-          <button
-            onClick={() =>
-              setMensaje('')
-            }
-          >
-            ×
-          </button>
+          {mensaje}
 
         </div>
 
@@ -391,60 +567,20 @@ function CapitanReporte({
 
         <div className="reporte-mensaje error">
 
-          <span>
-            {error}
-          </span>
-
-          <button
-            onClick={() =>
-              setError('')
-            }
-          >
-            ×
-          </button>
+          {error}
 
         </div>
 
       )}
 
-      {/* ===================================
-          BLOQUEADO
-      =================================== */}
-
-      {!habilitado &&
-        !reporteEnviado && (
-
-        <div className="reporte-bloqueado">
-
-          <strong>
-            Reporte todavía no disponible
-          </strong>
-
-          <p>
-            Podrás comenzar a elaborar
-            el reporte a partir del{' '}
-
-            <strong>
-              {formatearFecha(
-                evento.fecha
-              )}
-            </strong>.
-          </p>
-
-        </div>
-
-      )}
-
-      {/* ===================================
-          RESUMEN DE ASISTENCIA
-      =================================== */}
+      {/* ASISTENCIA */}
 
       <div className="reporte-asistencia">
 
         <div>
 
           <span>
-            Personal asignado
+            Asignados
           </span>
 
           <strong>
@@ -455,7 +591,7 @@ function CapitanReporte({
 
         </div>
 
-        <div className="reporte-presentes">
+        <div>
 
           <span>
             Presentes
@@ -463,14 +599,13 @@ function CapitanReporte({
 
           <strong>
             {
-              resumenAsistencia
-                .presentes
+              resumenAsistencia.presentes
             }
           </strong>
 
         </div>
 
-        <div className="reporte-ausentes">
+        <div>
 
           <span>
             Ausentes
@@ -478,14 +613,13 @@ function CapitanReporte({
 
           <strong>
             {
-              resumenAsistencia
-                .ausentes
+              resumenAsistencia.ausentes
             }
           </strong>
 
         </div>
 
-        <div className="reporte-pendientes">
+        <div>
 
           <span>
             Sin registrar
@@ -493,8 +627,7 @@ function CapitanReporte({
 
           <strong>
             {
-              resumenAsistencia
-                .sinRegistrar
+              resumenAsistencia.sinRegistrar
             }
           </strong>
 
@@ -502,274 +635,407 @@ function CapitanReporte({
 
       </div>
 
-      {/* ===================================
-          REPORTE YA ENVIADO
-      =================================== */}
+      {/* REPORTE GENERAL */}
 
-      {reporteEnviado ? (
+      <div className="reporte-formulario">
 
-        <div className="reporte-final">
+        <div className="reporte-campo">
 
-          <div className="reporte-final-aviso">
+          <label>
+            Resumen del servicio *
+          </label>
 
-            <strong>
-              Reporte final enviado
-            </strong>
-
-            <p>
-              Este reporte ya forma parte
-              del historial del evento y
-              no puede modificarse.
-            </p>
-
-          </div>
-
-          <div className="reporte-final-grid">
-
-            <div>
-
-              <span>
-                Evento
-              </span>
-
-              <strong>
-                {evento.nombre}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                Fecha del evento
-              </span>
-
-              <strong>
-                {formatearFecha(
-                  evento.fecha
-                )}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                Capitán
-              </span>
-
-              <strong>
-                {mesero.nombre}{' '}
-                {mesero.apellidos}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                Fecha de envío
-              </span>
-
-              <strong>
-                {formatearFecha(
-                  reporte.fechaEnvio
-                )}
-              </strong>
-
-            </div>
-
-          </div>
-
-          <div className="reporte-final-seccion">
-
-            <span>
-              Resumen del servicio
-            </span>
-
-            <p>
-              {
-                reporte.resumenServicio
-              }
-            </p>
-
-          </div>
-
-          <div className="reporte-final-seccion">
-
-            <span>
-              Incidencias
-            </span>
-
-            <p>
-              {reporte.incidencias ||
-                'No se registraron incidencias.'}
-            </p>
-
-          </div>
-
-          <div className="reporte-final-seccion">
-
-            <span>
-              Observaciones
-            </span>
-
-            <p>
-              {reporte.observaciones ||
-                'Sin observaciones adicionales.'}
-            </p>
-
-          </div>
+          <textarea
+            rows="5"
+            value={
+              resumenServicio
+            }
+            disabled={
+              !habilitado ||
+              reporteEnviado
+            }
+            onChange={(e) =>
+              setResumenServicio(
+                e.target.value
+              )
+            }
+            placeholder="Describe brevemente cómo se desarrolló el servicio..."
+          />
 
         </div>
 
-      ) : (
+        <div className="reporte-campo">
 
-        /* =================================
-           FORMULARIO
-        ================================= */
+          <label>
+            Incidencias generales
+          </label>
 
-        <div
-          className={
-            habilitado
-              ? 'reporte-formulario'
-              : 'reporte-formulario deshabilitado'
-          }
-        >
-
-          <div className="reporte-campo">
-
-            <label>
-              Resumen del servicio
-              <span>
-                *
-              </span>
-            </label>
-
-            <textarea
-              value={
-                resumenServicio
-              }
-              disabled={
-                !habilitado
-              }
-              onChange={(e) =>
-                setResumenServicio(
-                  e.target.value
-                )
-              }
-              placeholder="Describe de manera general cómo se desarrolló el servicio..."
-              rows="5"
-            />
-
-            <small>
-              Este campo será obligatorio
-              para enviar el reporte final.
-            </small>
-
-          </div>
-
-          <div className="reporte-campo">
-
-            <label>
-              Incidencias
-            </label>
-
-            <textarea
-              value={
-                incidencias
-              }
-              disabled={
-                !habilitado
-              }
-              onChange={(e) =>
-                setIncidencias(
-                  e.target.value
-                )
-              }
-              placeholder="Registra retrasos, ausencias, problemas con el servicio o cualquier situación importante..."
-              rows="4"
-            />
-
-          </div>
-
-          <div className="reporte-campo">
-
-            <label>
-              Observaciones generales
-            </label>
-
-            <textarea
-              value={
-                observaciones
-              }
-              disabled={
-                !habilitado
-              }
-              onChange={(e) =>
-                setObservaciones(
-                  e.target.value
-                )
-              }
-              placeholder="Agrega comentarios adicionales que puedan ser útiles para el administrador..."
-              rows="4"
-            />
-
-          </div>
-
-          <div className="reporte-acciones">
-
-            <button
-              type="button"
-              className="guardar-borrador"
-              disabled={
-                !habilitado ||
-                guardando
-              }
-              onClick={() =>
-                guardarReporte(
-                  'Borrador'
-                )
-              }
-            >
-              {guardando
-                ? 'Guardando...'
-                : 'Guardar borrador'}
-            </button>
-
-            <button
-              type="button"
-              className="enviar-reporte"
-              disabled={
-                !habilitado ||
-                guardando
-              }
-              onClick={() =>
-                guardarReporte(
-                  'Enviado'
-                )
-              }
-            >
-              Enviar reporte final
-            </button>
-
-          </div>
+          <textarea
+            rows="4"
+            value={
+              incidencias
+            }
+            disabled={
+              !habilitado ||
+              reporteEnviado
+            }
+            onChange={(e) =>
+              setIncidencias(
+                e.target.value
+              )
+            }
+            placeholder="Registra retrasos, problemas, cambios o situaciones ocurridas..."
+          />
 
         </div>
 
-      )}
+        <div className="reporte-campo">
 
-      {fechaActual && (
+          <label>
+            Observaciones
+          </label>
 
-        <div className="reporte-fecha-sistema">
+          <textarea
+            rows="4"
+            value={
+              observaciones
+            }
+            disabled={
+              !habilitado ||
+              reporteEnviado
+            }
+            onChange={(e) =>
+              setObservaciones(
+                e.target.value
+              )
+            }
+            placeholder="Agrega cualquier comentario adicional..."
+          />
 
-          Fecha actual del sistema:{' '}
+        </div>
 
-          <strong>
-            {formatearFecha(
-              fechaActual
-            )}
-          </strong>
+      </div>
+
+      {/* EVALUACIÓN DE PERSONAL */}
+
+      <div className="evaluacion-personal">
+
+        <div className="evaluacion-titulo">
+
+          <h3>
+            Evaluación del personal
+          </h3>
+
+          <p>
+            Evalúa a los meseros registrados
+            como presentes. La escala va
+            de 1 a 5.
+          </p>
+
+        </div>
+
+        {evaluaciones.length ===
+        0 ? (
+
+          <div className="evaluacion-vacia">
+
+            No hay meseros presentes
+            para evaluar.
+
+          </div>
+
+        ) : (
+
+          evaluaciones.map(
+            (evaluacion) => (
+
+              <div
+                className="evaluacion-card"
+                key={
+                  evaluacion.meseroId
+                }
+              >
+
+                <div className="evaluacion-mesero">
+
+                  <strong>
+                    {
+                      evaluacion.nombre
+                    }
+                  </strong>
+
+                  <span>
+                    Mesero
+                  </span>
+
+                </div>
+
+                <div className="evaluacion-grid">
+
+                  {/* DESEMPEÑO */}
+
+                  <div>
+
+                    <label>
+                      Desempeño *
+                    </label>
+
+                    <select
+                      value={
+                        evaluacion.desempeno
+                      }
+                      disabled={
+                        reporteEnviado
+                      }
+                      onChange={(e) =>
+                        cambiarEvaluacion(
+                          evaluacion.meseroId,
+                          'desempeno',
+                          e.target.value
+                        )
+                      }
+                    >
+
+                      <option value="">
+                        Selecciona
+                      </option>
+
+                      <option value="1">
+                        1 - Deficiente
+                      </option>
+
+                      <option value="2">
+                        2 - Bajo
+                      </option>
+
+                      <option value="3">
+                        3 - Adecuado
+                      </option>
+
+                      <option value="4">
+                        4 - Muy bueno
+                      </option>
+
+                      <option value="5">
+                        5 - Excelente
+                      </option>
+
+                    </select>
+
+                  </div>
+
+                  {/* PUNTUALIDAD */}
+
+                  <div>
+
+                    <label>
+                      Puntualidad *
+                    </label>
+
+                    <select
+                      value={
+                        evaluacion.puntualidad
+                      }
+                      disabled={
+                        reporteEnviado
+                      }
+                      onChange={(e) =>
+                        cambiarEvaluacion(
+                          evaluacion.meseroId,
+                          'puntualidad',
+                          e.target.value
+                        )
+                      }
+                    >
+
+                      <option value="">
+                        Selecciona
+                      </option>
+
+                      <option value="1">
+                        1 - Deficiente
+                      </option>
+
+                      <option value="2">
+                        2 - Baja
+                      </option>
+
+                      <option value="3">
+                        3 - Adecuada
+                      </option>
+
+                      <option value="4">
+                        4 - Muy buena
+                      </option>
+
+                      <option value="5">
+                        5 - Excelente
+                      </option>
+
+                    </select>
+
+                  </div>
+
+                  {/* ACTITUD */}
+
+                  <div>
+
+                    <label>
+                      Actitud y servicio *
+                    </label>
+
+                    <select
+                      value={
+                        evaluacion.actitud
+                      }
+                      disabled={
+                        reporteEnviado
+                      }
+                      onChange={(e) =>
+                        cambiarEvaluacion(
+                          evaluacion.meseroId,
+                          'actitud',
+                          e.target.value
+                        )
+                      }
+                    >
+
+                      <option value="">
+                        Selecciona
+                      </option>
+
+                      <option value="1">
+                        1 - Deficiente
+                      </option>
+
+                      <option value="2">
+                        2 - Baja
+                      </option>
+
+                      <option value="3">
+                        3 - Adecuada
+                      </option>
+
+                      <option value="4">
+                        4 - Muy buena
+                      </option>
+
+                      <option value="5">
+                        5 - Excelente
+                      </option>
+
+                    </select>
+
+                  </div>
+
+                </div>
+
+                {/* INCIDENCIA */}
+
+                <label className="evaluacion-incidencia">
+
+                  <input
+                    type="checkbox"
+                    checked={
+                      evaluacion.incidencia
+                    }
+                    disabled={
+                      reporteEnviado
+                    }
+                    onChange={(e) =>
+                      cambiarEvaluacion(
+                        evaluacion.meseroId,
+                        'incidencia',
+                        e.target.checked
+                      )
+                    }
+                  />
+
+                  <span>
+                    Se presentó una incidencia
+                    relacionada con este mesero
+                  </span>
+
+                </label>
+
+                {/* OBSERVACIÓN */}
+
+                <div className="evaluacion-observacion">
+
+                  <label>
+                    Observación individual
+                  </label>
+
+                  <textarea
+                    rows="3"
+                    value={
+                      evaluacion.observacion
+                    }
+                    disabled={
+                      reporteEnviado
+                    }
+                    onChange={(e) =>
+                      cambiarEvaluacion(
+                        evaluacion.meseroId,
+                        'observacion',
+                        e.target.value
+                      )
+                    }
+                    placeholder="Comentario opcional sobre su participación..."
+                  />
+
+                </div>
+
+              </div>
+
+            )
+          )
+
+        )}
+
+      </div>
+
+      {/* BOTONES */}
+
+      {!reporteEnviado && (
+
+        <div className="reporte-acciones">
+
+          <button
+            type="button"
+            className="reporte-borrador"
+            disabled={
+              !habilitado ||
+              guardando
+            }
+            onClick={() =>
+              guardarReporte(
+                'Borrador'
+              )
+            }
+          >
+            {guardando
+              ? 'Guardando...'
+              : 'Guardar borrador'}
+          </button>
+
+          <button
+            type="button"
+            className="reporte-enviar"
+            disabled={
+              !habilitado ||
+              guardando
+            }
+            onClick={() =>
+              guardarReporte(
+                'Enviado'
+              )
+            }
+          >
+            {guardando
+              ? 'Guardando...'
+              : 'Enviar reporte final'}
+          </button>
 
         </div>
 

@@ -810,3 +810,58 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================================
+   TIPOGRAFÍA UNIFICADA CON ADMINISTRADOR
+========================================================= */
+
+.capitan-panel h1 {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.capitan-panel h2 {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.capitan-panel h3 {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.capitan-panel p {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.capitan-panel span {
+  font-size: 14px;
+}
+
+.capitan-panel strong {
+  font-size: 15px;
+}
+
+.capitan-panel label {
+  font-size: 14px;
+}
+
+.capitan-panel button {
+  font-size: 14px;
+}
+
+.capitan-panel input,
+.capitan-panel select,
+.capitan-panel textarea {
+  font-size: 15px;
+}
+
+.capitan-panel table th {
+  font-size: 14px;
+}
+
+.capitan-panel table td {
+  font-size: 15px;
+}
