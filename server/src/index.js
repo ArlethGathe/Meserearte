@@ -3276,6 +3276,9 @@ app.put(
     const cliente =
       await pool.connect()
 
+    let transaccionIniciada =
+      false
+
     try {
       const eventoId =
         numero(
@@ -3291,6 +3294,18 @@ app.put(
         req.body.estado
 
       if (
+        !eventoId ||
+        !meseroId
+      ) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'Evento y mesero son obligatorios.'
+          })
+      }
+
+      if (
         ![
           'Confirmado',
           'No disponible'
@@ -3304,6 +3319,10 @@ app.put(
           })
       }
 
+      /* ========================================
+         COMPROBAR ASIGNACIÓN
+      ======================================== */
+
       const asignacion =
         await cliente.query(
           `
@@ -3314,6 +3333,7 @@ app.put(
             evento_id = $1
 
             AND
+
             mesero_id = $2
           `,
           [
@@ -3323,7 +3343,8 @@ app.put(
         )
 
       if (
-        asignacion.rowCount === 0
+        asignacion.rowCount ===
+        0
       ) {
         return res
           .status(400)
@@ -3333,12 +3354,26 @@ app.put(
           })
       }
 
+      /* ========================================
+         DISPONIBILIDAD ACTUAL
+      ======================================== */
+
       const actual =
         await cliente.query(
           `
           SELECT
             id,
-            estado
+
+            evento_id
+              AS "eventoId",
+
+            mesero_id
+              AS "meseroId",
+
+            estado,
+
+            fecha_respuesta
+              AS "fechaRespuesta"
 
           FROM disponibilidades
 
@@ -3346,6 +3381,7 @@ app.put(
             evento_id = $1
 
             AND
+
             mesero_id = $2
           `,
           [
@@ -3353,6 +3389,102 @@ app.put(
             meseroId
           ]
         )
+
+      /* ========================================
+         CREAR ALERTA AUTOMÁTICA
+      ======================================== */
+
+      const asegurarAlertaNoDisponible =
+        async () => {
+          const evento =
+            await obtenerEvento(
+              eventoId,
+              cliente
+            )
+
+          const mesero =
+            await obtenerMesero(
+              meseroId,
+              cliente
+            )
+
+          if (
+            !evento ||
+            !mesero
+          ) {
+            return
+          }
+
+          const mensajeAlerta =
+            `${mesero.nombre} ${mesero.apellidos} indicó que no está disponible para ${evento.nombre}.`
+
+          /*
+            Sólo crea la alerta si todavía
+            no existe una para este mesero
+            y este evento.
+          */
+
+          await cliente.query(
+            `
+            INSERT INTO notificaciones (
+              tipo,
+              titulo,
+              mensaje,
+              sala_id,
+              evento_id,
+              mesero_id,
+              destinatario,
+              modo_destinatario,
+              emisor,
+              automatica
+            )
+
+            SELECT
+              'Disponibilidad',
+              'Mesero no disponible',
+              $1,
+              $2,
+              $3,
+              $4,
+              'Administrador',
+              'Administrador',
+              'Sistema',
+              TRUE
+
+            WHERE NOT EXISTS (
+              SELECT 1
+
+              FROM notificaciones
+
+              WHERE
+                automatica = TRUE
+
+                AND tipo =
+                  'Disponibilidad'
+
+                AND titulo =
+                  'Mesero no disponible'
+
+                AND evento_id = $3
+
+                AND mesero_id = $4
+
+                AND destinatario =
+                  'Administrador'
+            )
+            `,
+            [
+              mensajeAlerta,
+              evento.salaId,
+              eventoId,
+              meseroId
+            ]
+          )
+        }
+
+      /* ========================================
+         RESPUESTA YA DEFINITIVA
+      ======================================== */
 
       if (
         actual.rows[0] &&
@@ -3363,10 +3495,40 @@ app.put(
           actual.rows[0].estado
         )
       ) {
+        /*
+          Si ya estaba en el mismo estado,
+          devolvemos la respuesta existente.
+
+          PERO si era "No disponible",
+          comprobamos primero que la alerta
+          del administrador sí exista.
+        */
+
         if (
           actual.rows[0].estado ===
           estado
         ) {
+          if (
+            estado ===
+            'No disponible'
+          ) {
+            await cliente.query(
+              'BEGIN'
+            )
+
+            transaccionIniciada =
+              true
+
+            await asegurarAlertaNoDisponible()
+
+            await cliente.query(
+              'COMMIT'
+            )
+
+            transaccionIniciada =
+              false
+          }
+
           return res.json(
             actual.rows[0]
           )
@@ -3380,9 +3542,16 @@ app.put(
           })
       }
 
+      /* ========================================
+         GUARDAR DISPONIBILIDAD
+      ======================================== */
+
       await cliente.query(
         'BEGIN'
       )
+
+      transaccionIniciada =
+        true
 
       const resultado =
         await cliente.query(
@@ -3393,6 +3562,7 @@ app.put(
             estado,
             fecha_respuesta
           )
+
           VALUES (
             $1,
             $2,
@@ -3433,71 +3603,45 @@ app.put(
           ]
         )
 
+      /* ========================================
+         ALERTA PARA ADMINISTRADOR
+      ======================================== */
+
       if (
         estado ===
         'No disponible'
       ) {
-        const evento =
-          await obtenerEvento(
-            eventoId,
-            cliente
-          )
-
-        const mesero =
-          await obtenerMesero(
-            meseroId,
-            cliente
-          )
-
-        await cliente.query(
-          `
-          INSERT INTO notificaciones (
-            tipo,
-            titulo,
-            mensaje,
-            sala_id,
-            evento_id,
-            mesero_id,
-            destinatario,
-            modo_destinatario,
-            emisor,
-            automatica
-          )
-          VALUES (
-            'Disponibilidad',
-            'Mesero no disponible',
-            $1,
-            $2,
-            $3,
-            $4,
-            'Administrador',
-            'Administrador',
-            'Sistema',
-            TRUE
-          )
-          `,
-          [
-            `${mesero.nombre} ${mesero.apellidos} indicó que no está disponible para ${evento.nombre}.`,
-
-            evento.salaId,
-            eventoId,
-            meseroId
-          ]
-        )
+        await asegurarAlertaNoDisponible()
       }
 
       await cliente.query(
         'COMMIT'
       )
 
+      transaccionIniciada =
+        false
+
       res.json(
         resultado.rows[0]
       )
 
     } catch (error) {
-      await cliente.query(
-        'ROLLBACK'
-      )
+      if (
+        transaccionIniciada
+      ) {
+        try {
+          await cliente.query(
+            'ROLLBACK'
+          )
+        } catch (
+          rollbackError
+        ) {
+          console.error(
+            'Error al revertir disponibilidad:',
+            rollbackError
+          )
+        }
+      }
 
       console.error(
         'Error disponibilidad:',
@@ -3516,7 +3660,6 @@ app.put(
     }
   }
 )
-
 
 /* =========================================================
    NOTIFICACIONES

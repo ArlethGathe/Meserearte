@@ -670,3 +670,116 @@
 .mesero-pagina small {
   font-size: 13px;
 }
+
+/* =========================================
+   NOTIFICACIONES DEL MESERO EN TIEMPO REAL
+========================================= */
+
+.mesero-menu button {
+  position: relative;
+}
+
+.mesero-menu button .mesero-notificaciones-contador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 22px;
+  height: 22px;
+
+  margin-left: auto;
+  padding: 0 6px;
+
+  border-radius: 999px;
+
+  background: #d7193f;
+  color: #ffffff;
+
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mesero-notificacion-emergente {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+
+  margin-bottom: 20px;
+  padding: 16px 18px;
+
+  border: 1px solid #e2c7a4;
+  border-radius: 14px;
+
+  background: #fff8ec;
+
+  box-shadow:
+    0 8px 22px rgba(67, 30, 19, 0.08);
+}
+
+.mesero-notificacion-emergente-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mesero-notificacion-emergente-texto strong {
+  color: #23150e;
+
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.mesero-notificacion-emergente-texto span {
+  color: #725744;
+
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.mesero-notificacion-emergente-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  flex-shrink: 0;
+}
+
+.mesero-notificacion-emergente-acciones button {
+  border: 0;
+  border-radius: 9px;
+
+  padding: 8px 12px;
+
+  background: #6f3a2f;
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.mesero-notificacion-emergente-acciones button:last-child {
+  min-width: 34px;
+  padding: 8px;
+
+  background: #eee2d3;
+  color: #5a392e;
+}
+
+.mesero-notificacion-emergente-acciones button:hover {
+  opacity: 0.88;
+}
+
+@media (max-width: 700px) {
+  .mesero-notificacion-emergente {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mesero-notificacion-emergente-acciones {
+    width: 100%;
+  }
+}

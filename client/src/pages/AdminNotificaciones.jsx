@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState
 } from 'react'
 
@@ -18,7 +19,8 @@ function AdminNotificaciones({
   const {
     salas,
     eventos,
-    meseros
+    meseros,
+    asignaciones
   } = useMesereArte()
 
   const [
@@ -70,27 +72,16 @@ function AdminNotificaciones({
     formulario,
     setFormulario
   ] = useState({
-    tipo:
-      'Aviso',
-
-    titulo:
-      '',
-
-    mensaje:
-      '',
-
-    modoDestinatario:
-      'Todos',
-
-    eventoId:
-      '',
-
-    meseroId:
-      ''
+    tipo: 'Aviso',
+    titulo: '',
+    mensaje: '',
+    modoDestinatario: 'Todos',
+    eventoId: '',
+    meseroId: ''
   })
 
   /* ========================================
-     DATOS FILTRADOS
+     DATOS DE LA SALA
   ======================================== */
 
   const salaNumero =
@@ -112,13 +103,112 @@ function AdminNotificaciones({
           'Activo'
     )
 
+  const asignacionesEvento =
+    formulario.eventoId
+      ? asignaciones.filter(
+          (asignacion) =>
+            asignacion.eventoId ===
+            Number(
+              formulario.eventoId
+            )
+        )
+      : []
+
+  const cantidadPersonalEvento =
+    asignacionesEvento.length
+
   /* ========================================
-     CARGAR
+     AGRUPAR HISTORIAL
+  ======================================== */
+
+  const construirHistorial =
+    (notificaciones) => {
+      const grupos =
+        new Map()
+
+      notificaciones
+        .filter(
+          (item) =>
+            item.envioId &&
+            item.emisor ===
+              'Administrador'
+        )
+        .forEach(
+          (item) => {
+            if (
+              !grupos.has(
+                item.envioId
+              )
+            ) {
+              grupos.set(
+                item.envioId,
+                {
+                  envioId:
+                    item.envioId,
+
+                  tipo:
+                    item.tipo,
+
+                  titulo:
+                    item.titulo,
+
+                  mensaje:
+                    item.mensaje,
+
+                  salaId:
+                    item.salaId,
+
+                  eventoId:
+                    item.eventoId,
+
+                  modoDestinatario:
+                    item.modoDestinatario,
+
+                  fecha:
+                    item.fecha,
+
+                  enviados:
+                    0,
+
+                  leidos:
+                    0
+                }
+              )
+            }
+
+            const grupo =
+              grupos.get(
+                item.envioId
+              )
+
+            grupo.enviados += 1
+
+            if (item.leida) {
+              grupo.leidos += 1
+            }
+          }
+        )
+
+      return Array
+        .from(
+          grupos.values()
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.fecha) -
+            new Date(a.fecha)
+        )
+    }
+
+  /* ========================================
+     CARGAR DATOS
   ======================================== */
 
   const cargarDatos =
     async () => {
       if (!salaNumero) {
+        setAlertas([])
+        setHistorial([])
         return
       }
 
@@ -126,46 +216,49 @@ function AdminNotificaciones({
         setCargando(true)
         setError('')
 
-        const [
-          respuestaAlertas,
-          respuestaHistorial
-        ] =
-          await Promise.all([
-            fetch(
-              `${API_URL}/notificaciones?salaId=${salaNumero}&destinatario=Administrador`
-            ),
+        const respuesta =
+          await fetch(
+            `${API_URL}/notificaciones`
+          )
 
-            fetch(
-              `${API_URL}/notificaciones/enviadas?salaId=${salaNumero}`
-            )
-          ])
+        const datos =
+          await respuesta.json()
 
-        const datosAlertas =
-          await respuestaAlertas.json()
-
-        const datosHistorial =
-          await respuestaHistorial.json()
-
-        if (!respuestaAlertas.ok) {
+        if (!respuesta.ok) {
           throw new Error(
-            datosAlertas.mensaje ||
-            'No se pudieron cargar las alertas.'
+            datos.mensaje ||
+            'No se pudieron cargar las notificaciones.'
           )
         }
 
-        if (!respuestaHistorial.ok) {
-          throw new Error(
-            datosHistorial.mensaje ||
-            'No se pudo cargar el historial.'
+        const datosSala =
+          datos.filter(
+            (item) =>
+              Number(
+                item.salaId
+              ) ===
+              salaNumero
           )
-        }
+
+        const alertasAdministrador =
+          datosSala.filter(
+            (item) =>
+              String(
+                item.destinatario ||
+                ''
+              )
+                .toLowerCase() ===
+              'administrador'
+          )
 
         setAlertas(
-          datosAlertas
+          alertasAdministrador
         )
 
         setHistorial(
-          datosHistorial
+          construirHistorial(
+            datosSala
+          )
         )
 
       } catch (error) {
@@ -196,37 +289,104 @@ function AdminNotificaciones({
   )
 
   /* ========================================
-     CAMBIAR FORM
+     FORMULARIO
   ======================================== */
 
   const cambiarCampo =
-    (campo, valor) => {
+    (
+      campo,
+      valor
+    ) => {
       setFormulario(
         (anterior) => ({
           ...anterior,
-
           [campo]:
             valor
         })
       )
     }
 
-  const cambiarModo =
-    (modo) => {
+  /*
+    Si se selecciona un evento,
+    automáticamente el destinatario
+    será el personal asignado.
+  */
+
+  const cambiarEventoRelacionado =
+    (eventoId) => {
       setFormulario(
         (anterior) => ({
           ...anterior,
 
-          modoDestinatario:
-            modo,
+          eventoId,
 
-          eventoId:
-            '',
+          modoDestinatario:
+            eventoId
+              ? 'Evento'
+              : anterior
+                  .modoDestinatario ===
+                'Evento'
+                ? 'Todos'
+                : anterior
+                    .modoDestinatario,
 
           meseroId:
-            ''
+            eventoId
+              ? ''
+              : anterior.meseroId
         })
       )
+
+      setMensajeSistema('')
+      setError('')
+    }
+
+  const cambiarModo =
+    (modo) => {
+      setFormulario(
+        (anterior) => {
+          if (
+            modo ===
+            'Todos'
+          ) {
+            return {
+              ...anterior,
+              modoDestinatario:
+                'Todos',
+              eventoId:
+                '',
+              meseroId:
+                ''
+            }
+          }
+
+          if (
+            modo ===
+            'Individual'
+          ) {
+            return {
+              ...anterior,
+              modoDestinatario:
+                'Individual',
+              eventoId:
+                '',
+              meseroId:
+                ''
+            }
+          }
+
+          return {
+            ...anterior,
+            modoDestinatario:
+              'Evento',
+            meseroId:
+              ''
+          }
+        }
+      )
+
+      setMensajeSistema('')
+      setError('')
     }
 
   /* ========================================
@@ -241,8 +401,12 @@ function AdminNotificaciones({
       setError('')
 
       if (
-        !formulario.titulo.trim() ||
-        !formulario.mensaje.trim()
+        !formulario
+          .titulo
+          .trim() ||
+        !formulario
+          .mensaje
+          .trim()
       ) {
         setError(
           'Escribe el título y el mensaje.'
@@ -259,6 +423,20 @@ function AdminNotificaciones({
       ) {
         setError(
           'Selecciona el evento.'
+        )
+
+        return
+      }
+
+      if (
+        formulario
+          .modoDestinatario ===
+          'Evento' &&
+        cantidadPersonalEvento ===
+          0
+      ) {
+        setError(
+          'El evento no tiene meseros asignados.'
         )
 
         return
@@ -298,25 +476,39 @@ function AdminNotificaciones({
                     formulario.tipo,
 
                   titulo:
-                    formulario.titulo,
+                    formulario
+                      .titulo
+                      .trim(),
 
                   mensaje:
-                    formulario.mensaje,
+                    formulario
+                      .mensaje
+                      .trim(),
 
                   salaId:
                     salaNumero,
 
                   eventoId:
-                    formulario.eventoId ||
-                    null,
+                    formulario
+                      .eventoId
+                      ? Number(
+                          formulario
+                            .eventoId
+                        )
+                      : null,
 
                   modoDestinatario:
                     formulario
                       .modoDestinatario,
 
                   meseroId:
-                    formulario.meseroId ||
-                    null
+                    formulario
+                      .meseroId
+                      ? Number(
+                          formulario
+                            .meseroId
+                        )
+                      : null
                 })
             }
           )
@@ -331,8 +523,13 @@ function AdminNotificaciones({
           )
         }
 
+        const enviados =
+          resultado.enviados ??
+          resultado.total ??
+          0
+
         setMensajeSistema(
-          `Notificación enviada correctamente a ${resultado.enviados} destinatario(s).`
+          `Notificación enviada correctamente a ${enviados} destinatario(s).`
         )
 
         setFormulario({
@@ -371,7 +568,7 @@ function AdminNotificaciones({
     }
 
   /* ========================================
-     LEÍDA
+     MARCAR ALERTA COMO LEÍDA
   ======================================== */
 
   const marcarComoLeida =
@@ -391,7 +588,8 @@ function AdminNotificaciones({
 
         if (!respuesta.ok) {
           throw new Error(
-            resultado.mensaje
+            resultado.mensaje ||
+            'No se pudo actualizar la notificación.'
           )
         }
 
@@ -400,7 +598,10 @@ function AdminNotificaciones({
             anteriores.map(
               (item) =>
                 item.id === id
-                  ? resultado
+                  ? {
+                      ...item,
+                      leida: true
+                    }
                   : item
             )
         )
@@ -413,12 +614,14 @@ function AdminNotificaciones({
     }
 
   /* ========================================
-     FECHA
+     UTILIDADES
   ======================================== */
 
   const formatearFecha =
     (fecha) => {
-      if (!fecha) return ''
+      if (!fecha) {
+        return ''
+      }
 
       return new Date(
         fecha
@@ -440,7 +643,7 @@ function AdminNotificaciones({
         eventos.find(
           (evento) =>
             evento.id ===
-            eventoId
+            Number(eventoId)
         )
 
       return evento
@@ -453,6 +656,49 @@ function AdminNotificaciones({
       (item) =>
         !item.leida
     ).length
+
+  const textoDestinatarios =
+    useMemo(
+      () => {
+        if (
+          formulario
+            .modoDestinatario ===
+          'Evento'
+        ) {
+          if (
+            !formulario.eventoId
+          ) {
+            return 'Selecciona un evento.'
+          }
+
+          return `${cantidadPersonalEvento} mesero(s) asignado(s) recibirán esta notificación.`
+        }
+
+        if (
+          formulario
+            .modoDestinatario ===
+          'Individual'
+        ) {
+          return formulario.meseroId
+            ? 'La notificación se enviará únicamente al mesero seleccionado.'
+            : 'Selecciona un mesero.'
+        }
+
+        return `${meserosSala.length} mesero(s) activos de la sala recibirán esta notificación.`
+      },
+      [
+        formulario
+          .modoDestinatario,
+        formulario.eventoId,
+        formulario.meseroId,
+        cantidadPersonalEvento,
+        meserosSala.length
+      ]
+    )
+
+  /* ========================================
+     COMPONENTE
+  ======================================== */
 
   return (
     <div className="notificaciones-pagina">
@@ -484,8 +730,6 @@ function AdminNotificaciones({
 
       </div>
 
-      {/* SALA */}
-
       <section className="notificacion-selector-sala">
 
         <label>
@@ -493,11 +737,33 @@ function AdminNotificaciones({
         </label>
 
         <select
-          value={salaId}
+          value={
+            salaId
+          }
           onChange={(e) => {
             setSalaId(
               e.target.value
             )
+
+            setFormulario({
+              tipo:
+                'Aviso',
+
+              titulo:
+                '',
+
+              mensaje:
+                '',
+
+              modoDestinatario:
+                'Todos',
+
+              eventoId:
+                '',
+
+              meseroId:
+                ''
+            })
 
             setMensajeSistema('')
             setError('')
@@ -512,8 +778,12 @@ function AdminNotificaciones({
             (sala) => (
 
               <option
-                key={sala.id}
-                value={sala.id}
+                key={
+                  sala.id
+                }
+                value={
+                  sala.id
+                }
               >
                 {sala.nombre}
               </option>
@@ -524,8 +794,6 @@ function AdminNotificaciones({
         </select>
 
       </section>
-
-      {/* MENSAJES */}
 
       {mensajeSistema && (
 
@@ -546,8 +814,6 @@ function AdminNotificaciones({
         </div>
 
       )}
-
-      {/* RESUMEN */}
 
       <div className="notificaciones-resumen">
 
@@ -588,8 +854,6 @@ function AdminNotificaciones({
         </div>
 
       </div>
-
-      {/* TABS */}
 
       <div className="notificaciones-tabs">
 
@@ -671,7 +935,9 @@ function AdminNotificaciones({
           ) : (
 
             alertas.map(
-              (notificacion) => (
+              (
+                notificacion
+              ) => (
 
                 <div
                   key={
@@ -726,10 +992,28 @@ function AdminNotificaciones({
                     }
                   </p>
 
+                  {notificacion.eventoId && (
+
+                    <div className="notificacion-evento-relacionado">
+
+                      Evento:{' '}
+
+                      <strong>
+                        {obtenerEvento(
+                          notificacion
+                            .eventoId
+                        )}
+                      </strong>
+
+                    </div>
+
+                  )}
+
                   <div className="notificacion-pie">
 
                     <span>
                       Generada por:{' '}
+
                       <strong>
                         {
                           notificacion.emisor
@@ -740,6 +1024,7 @@ function AdminNotificaciones({
                     {!notificacion.leida && (
 
                       <button
+                        type="button"
                         onClick={() =>
                           marcarComoLeida(
                             notificacion.id
@@ -765,7 +1050,7 @@ function AdminNotificaciones({
       )}
 
       {/* ===================================
-          ENVIAR
+          ENVIAR AVISO
       =================================== */}
 
       {pestaña ===
@@ -830,11 +1115,11 @@ function AdminNotificaciones({
 
               <select
                 value={
-                  formulario.eventoId
+                  formulario
+                    .eventoId
                 }
                 onChange={(e) =>
-                  cambiarCampo(
-                    'eventoId',
+                  cambiarEventoRelacionado(
                     e.target.value
                   )
                 }
@@ -979,7 +1264,9 @@ function AdminNotificaciones({
 
             {formulario
               .modoDestinatario ===
-              'Evento' && (
+              'Evento' &&
+              !formulario
+                .eventoId && (
 
               <div className="selector-destinatario">
 
@@ -988,12 +1275,9 @@ function AdminNotificaciones({
                 </label>
 
                 <select
-                  value={
-                    formulario.eventoId
-                  }
+                  value=""
                   onChange={(e) =>
-                    cambiarCampo(
-                      'eventoId',
+                    cambiarEventoRelacionado(
                       e.target.value
                     )
                   }
@@ -1040,7 +1324,8 @@ function AdminNotificaciones({
 
                 <select
                   value={
-                    formulario.meseroId
+                    formulario
+                      .meseroId
                   }
                   onChange={(e) =>
                     cambiarCampo(
@@ -1081,6 +1366,10 @@ function AdminNotificaciones({
               </div>
 
             )}
+
+            <p>
+              {textoDestinatarios}
+            </p>
 
           </div>
 

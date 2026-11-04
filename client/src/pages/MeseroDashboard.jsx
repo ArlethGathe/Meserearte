@@ -1,5 +1,8 @@
-
-import { useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 
 import './MeseroDashboard.css'
 
@@ -10,6 +13,9 @@ import MeseroNotificaciones from './MeseroNotificaciones.jsx'
 import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
+
+const API_URL =
+  'http://localhost:3001/api'
 
 function MeseroDashboard({
   usuario,
@@ -44,6 +50,22 @@ function MeseroDashboard({
     setError
   ] = useState('')
 
+  const [
+    notificacionesMesero,
+    setNotificacionesMesero
+  ] = useState([])
+
+  const [
+    avisoNotificacion,
+    setAvisoNotificacion
+  ] = useState(null)
+
+  const idsNotificacionesRef =
+    useRef(new Set())
+
+  const primeraCargaNotificacionesRef =
+    useRef(true)
+
   /* ========================================
      MESERO ACTUAL
   ======================================== */
@@ -56,6 +78,194 @@ function MeseroDashboard({
         usuario.correo
           .toLowerCase()
     )
+
+  /* ========================================
+     NOTIFICACIONES EN TIEMPO REAL
+  ======================================== */
+
+  useEffect(
+    () => {
+      if (!meseroActual?.id) {
+        setNotificacionesMesero([])
+        return undefined
+      }
+
+      let activo = true
+
+      idsNotificacionesRef.current =
+        new Set()
+
+      primeraCargaNotificacionesRef.current =
+        true
+
+      const cargarNotificaciones =
+        async () => {
+          try {
+            const respuesta =
+              await fetch(
+                `${API_URL}/notificaciones/mesero/${meseroActual.id}`
+              )
+
+            const datos =
+              await respuesta.json()
+
+            if (!respuesta.ok) {
+              throw new Error(
+                datos.mensaje ||
+                'No se pudieron consultar las notificaciones.'
+              )
+            }
+
+            if (!activo) {
+              return
+            }
+
+            setNotificacionesMesero(
+              datos
+            )
+
+            const idsActuales =
+              new Set(
+                datos.map(
+                  (item) =>
+                    item.id
+                )
+              )
+
+            if (
+              primeraCargaNotificacionesRef
+                .current
+            ) {
+              idsNotificacionesRef.current =
+                idsActuales
+
+              primeraCargaNotificacionesRef.current =
+                false
+
+              return
+            }
+
+            const nuevas =
+              datos.filter(
+                (item) =>
+                  !idsNotificacionesRef
+                    .current
+                    .has(item.id)
+              )
+
+            idsNotificacionesRef.current =
+              idsActuales
+
+            const nuevaNoLeida =
+              nuevas.find(
+                (item) =>
+                  !item.leida
+              )
+
+            if (!nuevaNoLeida) {
+              return
+            }
+
+            setAvisoNotificacion(
+              nuevaNoLeida
+            )
+
+            if (
+              typeof window !==
+                'undefined' &&
+              'Notification' in window &&
+              Notification.permission ===
+                'granted'
+            ) {
+              const aviso =
+                new Notification(
+                  `MesereArte · ${nuevaNoLeida.titulo}`,
+                  {
+                    body:
+                      nuevaNoLeida.mensaje,
+
+                    tag:
+                      `meserearte-${nuevaNoLeida.id}`
+                  }
+                )
+
+              aviso.onclick =
+                () => {
+                  window.focus()
+
+                  setSeccion(
+                    'notificaciones'
+                  )
+
+                  setAvisoNotificacion(
+                    null
+                  )
+
+                  aviso.close()
+                }
+            }
+
+          } catch (error) {
+            console.error(
+              'Error consultando notificaciones del mesero:',
+              error
+            )
+          }
+        }
+
+      cargarNotificaciones()
+
+      const intervalo =
+        setInterval(
+          cargarNotificaciones,
+          5000
+        )
+
+      return () => {
+        activo = false
+
+        clearInterval(
+          intervalo
+        )
+      }
+    },
+    [meseroActual?.id]
+  )
+
+  const notificacionesNoLeidas =
+    notificacionesMesero.filter(
+      (item) =>
+        !item.leida
+    ).length
+
+  const abrirNotificaciones =
+    async () => {
+      setSeccion(
+        'notificaciones'
+      )
+
+      setAvisoNotificacion(
+        null
+      )
+
+      if (
+        typeof window !==
+          'undefined' &&
+        'Notification' in window &&
+        Notification.permission ===
+          'default'
+      ) {
+        try {
+          await Notification
+            .requestPermission()
+        } catch (error) {
+          console.error(
+            'No fue posible solicitar permiso de notificaciones:',
+            error
+          )
+        }
+      }
+    }
 
   /* ========================================
      SALA
@@ -330,13 +540,25 @@ function MeseroDashboard({
                 ? 'activo'
                 : ''
             }
-            onClick={() =>
-              setSeccion(
-                'notificaciones'
-              )
+            onClick={
+              abrirNotificaciones
             }
           >
-            Notificaciones
+            <span>
+              Notificaciones
+            </span>
+
+            {notificacionesNoLeidas >
+              0 && (
+
+              <span className="mesero-notificaciones-contador">
+                {notificacionesNoLeidas >
+                99
+                  ? '99+'
+                  : notificacionesNoLeidas}
+              </span>
+
+            )}
           </button>
 
           {/* SOLO APARECE SI ES CAPITÁN */}
@@ -395,6 +617,53 @@ function MeseroDashboard({
       =================================== */}
 
       <main className="mesero-main">
+
+        {avisoNotificacion &&
+          seccion !==
+            'notificaciones' && (
+
+          <div className="mesero-notificacion-emergente">
+
+            <div className="mesero-notificacion-emergente-texto">
+
+              <strong>
+                {avisoNotificacion.titulo}
+              </strong>
+
+              <span>
+                {avisoNotificacion.mensaje}
+              </span>
+
+            </div>
+
+            <div className="mesero-notificacion-emergente-acciones">
+
+              <button
+                type="button"
+                onClick={
+                  abrirNotificaciones
+                }
+              >
+                Ver
+              </button>
+
+              <button
+                type="button"
+                aria-label="Cerrar aviso"
+                onClick={() =>
+                  setAvisoNotificacion(
+                    null
+                  )
+                }
+              >
+                ×
+              </button>
+
+            </div>
+
+          </div>
+
+        )}
 
         {mensaje && (
 
@@ -1114,8 +1383,8 @@ function MeseroDashboard({
           'notificaciones' && (
             
           <MeseroNotificaciones
-           usuario={usuario}
-           />
+            usuario={usuario}
+          />
           
         )}
 

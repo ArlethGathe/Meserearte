@@ -35,46 +35,86 @@ function MeseroNotificaciones({
     setError
   ] = useState('')
 
+  /* ========================================
+     MESERO ACTUAL
+  ======================================== */
+
   const meseroActual =
     meseros.find(
       (mesero) =>
         mesero.correo
-          .toLowerCase() ===
+          ?.toLowerCase() ===
         usuario.correo
-          .toLowerCase()
+          ?.toLowerCase()
     )
 
   /* ========================================
-     CARGAR
+     CARGAR NOTIFICACIONES
   ======================================== */
 
   const cargarNotificaciones =
     async () => {
-      if (!meseroActual) {
+      if (!meseroActual?.id) {
+        setNotificaciones([])
+        setCargando(false)
         return
       }
 
       try {
-        setCargando(true)
         setError('')
 
         const respuesta =
           await fetch(
-            `${API_URL}/notificaciones?destinatario=Mesero&meseroId=${meseroActual.id}`
+            `${API_URL}/notificaciones/mesero/${meseroActual.id}`
           )
 
-        const resultado =
+        const datos =
           await respuesta.json()
 
         if (!respuesta.ok) {
           throw new Error(
-            resultado.mensaje ||
-            'No se pudieron cargar las notificaciones.'
+            datos.mensaje ||
+            'No fue posible consultar las notificaciones.'
           )
         }
 
+        /*
+          Protección adicional:
+          si por algún error existieran
+          dos registros del mismo envío
+          para el mismo mesero,
+          solamente mostramos uno.
+        */
+
+        const claves =
+          new Set()
+
+        const unicas =
+          datos.filter(
+            (item) => {
+              const clave =
+                item.envioId
+                  ? `envio-${item.envioId}`
+                  : `notificacion-${item.id}`
+
+              if (
+                claves.has(
+                  clave
+                )
+              ) {
+                return false
+              }
+
+              claves.add(
+                clave
+              )
+
+              return true
+            }
+          )
+
         setNotificaciones(
-          resultado
+          unicas
         )
 
       } catch (error) {
@@ -88,6 +128,8 @@ function MeseroNotificaciones({
 
   useEffect(
     () => {
+      setCargando(true)
+
       cargarNotificaciones()
 
       const intervalo =
@@ -105,12 +147,14 @@ function MeseroNotificaciones({
   )
 
   /* ========================================
-     LEÍDA
+     MARCAR COMO LEÍDA
   ======================================== */
 
   const marcarComoLeida =
     async (id) => {
       try {
+        setError('')
+
         const respuesta =
           await fetch(
             `${API_URL}/notificaciones/${id}/leida`,
@@ -125,7 +169,8 @@ function MeseroNotificaciones({
 
         if (!respuesta.ok) {
           throw new Error(
-            resultado.mensaje
+            resultado.mensaje ||
+            'No fue posible marcar la notificación como leída.'
           )
         }
 
@@ -134,7 +179,10 @@ function MeseroNotificaciones({
             anteriores.map(
               (item) =>
                 item.id === id
-                  ? resultado
+                  ? {
+                      ...item,
+                      leida: true
+                    }
                   : item
             )
         )
@@ -145,6 +193,10 @@ function MeseroNotificaciones({
         )
       }
     }
+
+  /* ========================================
+     UTILIDADES
+  ======================================== */
 
   const formatearFecha =
     (fecha) => {
@@ -175,20 +227,24 @@ function MeseroNotificaciones({
       return eventos.find(
         (evento) =>
           evento.id ===
-          eventoId
+          Number(eventoId)
       )
     }
 
   const noLeidas =
     notificaciones.filter(
-      (notificacion) =>
-        !notificacion.leida
+      (item) =>
+        !item.leida
     ).length
 
-  return (
-    <div className="mesero-notificaciones">
+  /* ========================================
+     COMPONENTE
+  ======================================== */
 
-      <div className="mesero-notificaciones-header">
+  return (
+    <div className="mesero-notificaciones notificaciones-pagina">
+
+      <div className="mesero-notificaciones-header notificaciones-encabezado">
 
         <div>
 
@@ -205,6 +261,7 @@ function MeseroNotificaciones({
 
         <button
           type="button"
+          className="actualizar-notificaciones"
           onClick={
             cargarNotificaciones
           }
@@ -214,7 +271,17 @@ function MeseroNotificaciones({
 
       </div>
 
-      <div className="mesero-notificaciones-resumen">
+      {error && (
+
+        <div className="notificaciones-error">
+
+          {error}
+
+        </div>
+
+      )}
+
+      <div className="mesero-notificaciones-resumen notificaciones-resumen">
 
         <div>
 
@@ -237,78 +304,75 @@ function MeseroNotificaciones({
           </span>
 
           <strong>
-            {noLeidas}
+            {
+              noLeidas
+            }
           </strong>
 
         </div>
 
       </div>
 
-      {error && (
+      <div className="mesero-notificaciones-lista notificaciones-lista">
 
-        <div className="mesero-notificacion-error">
+        {cargando ? (
 
-          {error}
+          <div className="notificaciones-vacio">
 
-        </div>
+            Cargando notificaciones...
 
-      )}
+          </div>
 
-      {cargando ? (
+        ) : notificaciones.length ===
+          0 ? (
 
-        <div className="mesero-notificacion-vacio">
+          <div className="notificaciones-vacio">
 
-          Cargando notificaciones...
+            No tienes notificaciones.
 
-        </div>
+          </div>
 
-      ) : notificaciones.length ===
-        0 ? (
+        ) : (
 
-        <div className="mesero-notificacion-vacio">
-
-          No tienes notificaciones
-          nuevas.
-
-        </div>
-
-      ) : (
-
-        <div className="mesero-notificacion-lista">
-
-          {notificaciones.map(
+          notificaciones.map(
             (notificacion) => {
               const evento =
                 obtenerEvento(
-                  notificacion.eventoId
+                  notificacion
+                    .eventoId
                 )
 
               return (
 
-                <article
+                <div
                   key={
                     notificacion.id
                   }
                   className={
-                    notificacion.leida
-                      ? 'mesero-notificacion-card leida'
-                      : 'mesero-notificacion-card nueva'
+                    `mesero-notificacion-card notificacion-card ${
+                      notificacion.leida
+                        ? 'leida'
+                        : 'nueva'
+                    }`
                   }
                 >
 
-                  <div className="mesero-notificacion-superior">
+                  <div className="notificacion-superior">
 
                     <div>
 
-                      <span className="mesero-notificacion-tipo">
+                      <span className="notificacion-tipo">
+
                         {
-                          notificacion.tipo
+                          notificacion.tipo ||
+                          'Aviso'
                         }
+
                       </span>
 
                       {!notificacion.leida && (
 
-                        <span className="mesero-notificacion-nueva">
+                        <span className="notificacion-nueva">
                           Nueva
                         </span>
 
@@ -316,7 +380,7 @@ function MeseroNotificaciones({
 
                     </div>
 
-                    <span className="mesero-notificacion-fecha">
+                    <span className="notificacion-fecha">
 
                       {formatearFecha(
                         notificacion.fecha
@@ -340,7 +404,7 @@ function MeseroNotificaciones({
 
                   {evento && (
 
-                    <div className="mesero-notificacion-evento">
+                    <div className="notificacion-evento-relacionado">
 
                       <span>
                         Evento relacionado
@@ -356,14 +420,15 @@ function MeseroNotificaciones({
 
                   )}
 
-                  <div className="mesero-notificacion-pie">
+                  <div className="notificacion-pie">
 
                     <span>
                       Enviado por:{' '}
 
                       <strong>
                         {
-                          notificacion.emisor
+                          notificacion.emisor ||
+                          'Administrador'
                         }
                       </strong>
                     </span>
@@ -385,15 +450,15 @@ function MeseroNotificaciones({
 
                   </div>
 
-                </article>
+                </div>
 
               )
             }
-          )}
+          )
 
-        </div>
+        )}
 
-      )}
+      </div>
 
     </div>
   )
