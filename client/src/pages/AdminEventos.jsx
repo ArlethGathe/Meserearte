@@ -1,3 +1,4 @@
+
 import {
   useMemo,
   useState
@@ -16,6 +17,7 @@ const formularioVacio = {
   fecha: '',
   horaInicio: '',
   horaFin: '',
+  lugar: '',
   ubicacion: '',
   invitados: '',
   meserosRequeridos: '',
@@ -247,6 +249,11 @@ function AdminEventos() {
                 ?.toLowerCase() ||
               ''
 
+            const lugar =
+              evento.lugar
+                ?.toLowerCase() ||
+              ''
+
             const ubicacion =
               evento.ubicacion
                 ?.toLowerCase() ||
@@ -257,6 +264,9 @@ function AdminEventos() {
                 texto
               ) ||
               tipo.includes(
+                texto
+              ) ||
+              lugar.includes(
                 texto
               ) ||
               ubicacion.includes(
@@ -366,6 +376,10 @@ function AdminEventos() {
         evento.horaFin ||
         horas.horaFin,
 
+      lugar:
+        evento.lugar ||
+        '',
+
       ubicacion:
         evento.ubicacion ||
         '',
@@ -434,12 +448,31 @@ function AdminEventos() {
         !formulario.fecha ||
         !formulario.horaInicio ||
         !formulario.horaFin ||
+        !formulario.lugar.trim() ||
         !formulario.ubicacion.trim()
       ) {
         setError(
           'Completa todos los campos obligatorios.'
         )
 
+        return
+      }
+
+      try {
+        const url = new URL(
+          formulario.ubicacion.trim()
+        )
+
+        if (
+          url.protocol !== 'https:' &&
+          url.protocol !== 'http:'
+        ) {
+          throw new Error()
+        }
+      } catch {
+        setError(
+          'La ubicación debe ser un enlace válido de Google Maps.'
+        )
         return
       }
 
@@ -498,6 +531,10 @@ function AdminEventos() {
 
         horario:
           `${formulario.horaInicio} - ${formulario.horaFin}`,
+
+        lugar:
+          formulario.lugar
+            .trim(),
 
         ubicacion:
           formulario.ubicacion
@@ -672,7 +709,7 @@ function AdminEventos() {
 
           <input
             type="text"
-            placeholder="Buscar evento, tipo, ubicación o sala..."
+            placeholder="Buscar evento, tipo, lugar o sala..."
             value={
               busqueda
             }
@@ -710,7 +747,7 @@ function AdminEventos() {
                 </th>
 
                 <th>
-                  Ubicación
+                  Lugar
                 </th>
 
                 <th>
@@ -790,7 +827,8 @@ function AdminEventos() {
 
                       <td>
                         {
-                          evento.ubicacion
+                          evento.lugar ||
+                          'Sin especificar'
                         }
                       </td>
 
@@ -1117,6 +1155,28 @@ function AdminEventos() {
 
                 </div>
 
+                {/* LUGAR */}
+
+                <div className="campo-completo">
+
+                  <label>
+                    Lugar *
+                  </label>
+
+                  <input
+                    type="text"
+                    name="lugar"
+                    value={
+                      formulario.lugar
+                    }
+                    onChange={
+                      manejarCambio
+                    }
+                    placeholder="Ejemplo: Jardín Los Encinos"
+                  />
+
+                </div>
+
                 {/* UBICACIÓN */}
 
                 <div className="campo-completo">
@@ -1126,7 +1186,7 @@ function AdminEventos() {
                   </label>
 
                   <input
-                    type="text"
+                    type="url"
                     name="ubicacion"
                     value={
                       formulario.ubicacion
@@ -1134,7 +1194,7 @@ function AdminEventos() {
                     onChange={
                       manejarCambio
                     }
-                    placeholder="Salón, jardín o dirección"
+                    placeholder="Pega el link de Google Maps"
                   />
 
                 </div>
@@ -1370,12 +1430,36 @@ function AdminEventos() {
               <p>
 
                 <strong>
+                  Lugar:
+                </strong>{' '}
+
+                {eventoDetalle.lugar ||
+                  'Sin especificar'}
+
+              </p>
+
+              <p>
+
+                <strong>
                   Ubicación:
                 </strong>{' '}
 
-                {
-                  eventoDetalle.ubicacion
-                }
+                {eventoDetalle.ubicacion
+                  ?.startsWith('http') ? (
+
+                  <a
+                    href={
+                      eventoDetalle.ubicacion
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Abrir en Google Maps
+                  </a>
+
+                ) : (
+                  'Sin enlace registrado'
+                )}
 
               </p>
 

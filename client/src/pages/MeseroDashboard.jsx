@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 
 import './MeseroDashboard.css'
@@ -648,10 +649,22 @@ function MeseroDashboard({
                           </p>
 
                           <small>
-                            {
-                              evento.ubicacion
-                            }
+                            {evento.lugar ||
+                              'Lugar sin especificar'}
                           </small>
+
+                          {evento.ubicacion
+                            ?.startsWith('http') && (
+
+                            <a
+                              href={evento.ubicacion}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Abrir en Google Maps
+                            </a>
+
+                          )}
 
                         </div>
 
@@ -797,13 +810,37 @@ function MeseroDashboard({
                         <div>
 
                           <span>
+                            Lugar
+                          </span>
+
+                          <strong>
+                            {evento.lugar ||
+                              'Sin especificar'}
+                          </strong>
+
+                        </div>
+
+                        <div>
+
+                          <span>
                             Ubicación
                           </span>
 
                           <strong>
-                            {
-                              evento.ubicacion
-                            }
+                            {evento.ubicacion
+                              ?.startsWith('http') ? (
+
+                              <a
+                                href={evento.ubicacion}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Abrir en Google Maps
+                              </a>
+
+                            ) : (
+                              'Sin enlace registrado'
+                            )}
                           </strong>
 
                         </div>
@@ -953,10 +990,22 @@ function MeseroDashboard({
                           </p>
 
                           <span>
-                            {
-                              evento.ubicacion
-                            }
+                            {evento.lugar ||
+                              'Lugar sin especificar'}
                           </span>
+
+                          {evento.ubicacion
+                            ?.startsWith('http') && (
+
+                            <a
+                              href={evento.ubicacion}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Abrir en Google Maps
+                            </a>
+
+                          )}
 
                         </div>
 
