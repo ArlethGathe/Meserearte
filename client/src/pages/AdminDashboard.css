@@ -537,3 +537,38 @@
   font-weight: 400;
   line-height: 1.5;
 }
+
+/* ========================================
+   NOTIFICACIONES - CONTADOR
+======================================== */
+
+.admin-menu .admin-menu-notificaciones {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+}
+
+.admin-notificaciones-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 22px;
+  height: 22px;
+
+  padding: 0 6px;
+  margin-left: 12px;
+
+  border-radius: 50px;
+
+  background-color: #e53935;
+  color: #ffffff;
+
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+
+  flex-shrink: 0;
+}

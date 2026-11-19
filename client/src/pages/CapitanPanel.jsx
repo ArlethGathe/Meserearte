@@ -15,6 +15,31 @@ import {
 const API_URL =
   'http://localhost:3001/api'
 
+function fechaHoyMexico() {
+  const partes =
+    new Intl.DateTimeFormat(
+      'en-US',
+      {
+        timeZone:
+          'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }
+    ).formatToParts(
+      new Date()
+    )
+
+  const obtener =
+    (tipo) =>
+      partes.find(
+        (parte) =>
+          parte.type === tipo
+      )?.value
+
+  return `${obtener('year')}-${obtener('month')}-${obtener('day')}`
+}
+
 function CapitanPanel({
   mesero,
   eventos
@@ -43,9 +68,9 @@ function CapitanPanel({
   ] = useState([])
 
   const [
-    asistenciaHabilitada,
-    setAsistenciaHabilitada
-  ] = useState(false)
+    versionAsistencia,
+    setVersionAsistencia
+  ] = useState(0)
 
   const [
     cargandoAsistencia,
@@ -78,6 +103,13 @@ function CapitanPanel({
         Number(
           eventoSeleccionado
         )
+    )
+
+  const asistenciaHabilitada =
+    Boolean(
+      eventoActual?.fecha &&
+      eventoActual.fecha ===
+        fechaHoyMexico()
     )
 
   const salaActual =
@@ -174,6 +206,12 @@ function CapitanPanel({
           )
       : []
 
+  const equipoConfirmado =
+  equipoEvento.filter(
+    (integrante) =>
+      integrante.disponibilidad ===
+      'Confirmado'
+  )
   /* ========================================
      ASISTENCIA
   ======================================== */
@@ -207,12 +245,12 @@ function CapitanPanel({
         }
 
         setAsistencias(
-          resultado.asistencias ||
-          []
-        )
-
-        setAsistenciaHabilitada(
-          resultado.habilitado
+          Array.isArray(resultado)
+            ? resultado
+            : (
+                resultado.asistencias ||
+                []
+              )
         )
 
       } catch (error) {
@@ -230,7 +268,10 @@ function CapitanPanel({
     () => {
       cargarAsistencias()
     },
-    [eventoSeleccionado]
+    [
+      eventoActual?.id,
+      eventoActual?.fecha
+    ]
   )
 
   const obtenerAsistencia = (
@@ -243,9 +284,15 @@ function CapitanPanel({
           meseroId
       )
 
-    return registro
-      ? registro.estado
-      : 'Pendiente'
+    if (
+      !registro ||
+      registro.estado ===
+        'Sin registrar'
+    ) {
+      return 'Pendiente'
+    }
+
+    return registro.estado
   }
 
   const registrarAsistencia =
@@ -319,7 +366,10 @@ function CapitanPanel({
                 (item) =>
                   item.meseroId ===
                   meseroId
-                    ? resultado
+                    ? {
+                        ...item,
+                        ...resultado
+                      }
                     : item
               )
             }
@@ -331,11 +381,38 @@ function CapitanPanel({
           }
         )
 
-        setMensaje(
-          estado === 'Presente'
-            ? 'Asistencia registrada como presente.'
-            : 'Asistencia registrada como ausente.'
+        setVersionAsistencia(
+          (anterior) =>
+            anterior + 1
         )
+
+        let mensajeAsistencia =
+  'Asistencia registrada.'
+
+if (
+  estado === 'Presente'
+) {
+  mensajeAsistencia =
+    'Asistencia registrada como presente.'
+}
+
+if (
+  estado === 'Retardo'
+) {
+  mensajeAsistencia =
+    'Asistencia registrada con retardo.'
+}
+
+if (
+  estado === 'Ausente'
+) {
+  mensajeAsistencia =
+    'Asistencia registrada como ausente.'
+}
+
+setMensaje(
+  mensajeAsistencia
+)
 
       } catch (error) {
         setError(
@@ -373,26 +450,46 @@ function CapitanPanel({
         'No disponible'
     ).length
 
-  const presentes =
-    equipoEvento.filter(
-      (integrante) =>
+const presentes =
+  equipoEvento.filter(
+    (integrante) =>
+      obtenerAsistencia(
+        integrante.id
+      ) === 'Presente'
+  ).length
+
+const retardos =
+  equipoEvento.filter(
+    (integrante) =>
+      obtenerAsistencia(
+        integrante.id
+      ) === 'Retardo'
+  ).length
+
+const ausentes =
+  equipoEvento.filter(
+    (integrante) =>
+      obtenerAsistencia(
+        integrante.id
+      ) === 'Ausente'
+  ).length
+
+const asistenciaPendiente =
+  equipoEvento.filter(
+    (integrante) =>
+      integrante.disponibilidad ===
+        'Confirmado' &&
+
+      ![
+        'Presente',
+        'Retardo',
+        'Ausente'
+      ].includes(
         obtenerAsistencia(
           integrante.id
-        ) === 'Presente'
-    ).length
-
-  const ausentes =
-    equipoEvento.filter(
-      (integrante) =>
-        obtenerAsistencia(
-          integrante.id
-        ) === 'Ausente'
-    ).length
-
-  const asistenciaPendiente =
-    equipoEvento.length -
-    presentes -
-    ausentes
+        )
+      )
+  ).length
 
   /* ========================================
      FECHA
@@ -621,16 +718,47 @@ function CapitanPanel({
               <div>
 
                 <span>
-                  Ubicación
+                  Lugar
                 </span>
 
                 <strong>
-                  {
-                    eventoActual.ubicacion
-                  }
+                    {
+                     eventoActual.lugar ||
+                     'Sin especificar'
+                    }
                 </strong>
 
               </div>
+              <div>
+
+  <span>
+    Ubicación
+  </span>
+
+  <strong>
+    {
+      eventoActual.direccion ||
+      'Dirección sin especificar'
+    }
+  </strong>
+
+  {eventoActual.ubicacion
+    ?.startsWith('http') && (
+
+    <a
+      className="capitan-mapa-link"
+      href={
+        eventoActual.ubicacion
+      }
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Abrir en Google Maps
+    </a>
+
+  )}
+
+</div>
 
               <div>
 
@@ -828,7 +956,7 @@ function CapitanPanel({
                       </th>
 
                       <th>
-                        Estado
+                        Teléfono
                       </th>
 
                     </tr>
@@ -903,15 +1031,16 @@ function CapitanPanel({
 
                           </td>
 
-                          <td>
+                           <td>
 
-                            <span className="capitan-estado-activo">
-                              {
-                                integrante.estado
-                              }
-                            </span>
+                                 <span className="capitan-telefono">
+                                     {
+                                         integrante.telefono ||
+                                           'Sin registrar'
+                                      }
+                                 </span>
 
-                          </td>
+                           </td>
 
                         </tr>
 
@@ -1077,7 +1206,7 @@ function CapitanPanel({
 
                     <tbody>
 
-                      {equipoEvento.map(
+                      {equipoConfirmado.map(
                         (integrante) => {
                           const estado =
                             obtenerAsistencia(
@@ -1171,6 +1300,29 @@ function CapitanPanel({
                                     </button>
 
                                     <button
+                                     type="button"
+                                     className={
+                                       estado ===
+                                              'Retardo'
+                                      ? 'asistencia-retardo seleccionado'
+                                      : 'asistencia-retardo'
+                                     }
+                                      disabled={
+                                      procesandoMesero ===
+                                     integrante.id
+                                  }
+                                     onClick={() =>
+                                     registrarAsistencia(
+                                     integrante.id,
+                                     'Retardo'
+                                   )
+                                  }
+  >
+                                 Retardo
+                                  </button>
+
+
+                                    <button
                                       type="button"
                                       className={
                                         estado ===
@@ -1233,6 +1385,9 @@ function CapitanPanel({
             }
             mesero={
               mesero
+            }
+            actualizacionAsistencia={
+              versionAsistencia
             }
           />
 

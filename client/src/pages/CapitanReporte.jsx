@@ -8,9 +8,35 @@ import './CapitanReporte.css'
 const API_URL =
   'http://localhost:3001/api'
 
+function fechaHoyMexico() {
+  const partes =
+    new Intl.DateTimeFormat(
+      'en-US',
+      {
+        timeZone:
+          'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }
+    ).formatToParts(
+      new Date()
+    )
+
+  const obtener =
+    (tipo) =>
+      partes.find(
+        (parte) =>
+          parte.type === tipo
+      )?.value
+
+  return `${obtener('year')}-${obtener('month')}-${obtener('day')}`
+}
+
 function CapitanReporte({
   evento,
-  mesero
+  mesero,
+  actualizacionAsistencia = 0
 }) {
   const [
     cargando,
@@ -89,404 +115,591 @@ function CapitanReporte({
     },
     [
       evento?.id,
-      mesero?.id
+      evento?.fecha,
+      mesero?.id,
+      actualizacionAsistencia
     ]
   )
 
   const cargarReporte =
-    async () => {
-      try {
-        setCargando(true)
+  async () => {
+    try {
+      setCargando(true)
 
-        setError('')
-        setMensaje('')
+      setError('')
+      setMensaje('')
 
-        const [
-          respuestaReporte,
-          respuestaAsignaciones,
-          respuestaMeseros,
-          respuestaAsistencias
-        ] =
-          await Promise.all([
-            fetch(
-              `${API_URL}/reportes/evento/${evento.id}`
-            ),
+      const [
+        respuestaReporte,
+        respuestaAsignaciones,
+        respuestaMeseros,
+        respuestaAsistencias
+      ] =
+        await Promise.all([
+          fetch(
+            `${API_URL}/reportes/evento/${evento.id}`
+          ),
 
-            fetch(
-              `${API_URL}/asignaciones/evento/${evento.id}`
-            ),
+          fetch(
+            `${API_URL}/asignaciones`
+          ),
 
-            fetch(
-              `${API_URL}/meseros`
-            ),
+          fetch(
+            `${API_URL}/meseros`
+          ),
 
-            fetch(
-              `${API_URL}/asistencias/evento/${evento.id}`
-            )
-          ])
-
-        if (
-          !respuestaReporte.ok
-        ) {
-          const datos =
-            await respuestaReporte.json()
-
-          throw new Error(
-            datos.mensaje ||
-            'No se pudo cargar el reporte.'
+          fetch(
+            `${API_URL}/asistencias/evento/${evento.id}`
           )
-        }
+        ])
 
-        if (
-          !respuestaAsignaciones.ok ||
-          !respuestaMeseros.ok ||
-          !respuestaAsistencias.ok
-        ) {
-          throw new Error(
-            'No se pudo cargar la información del personal.'
-          )
-        }
+      /*
+        Que no exista todavía un reporte
+        NO es un error.
 
-        const datosReporte =
+        404 significa simplemente que
+        todavía no se ha creado.
+      */
+
+      let reporte = null
+
+      if (
+        respuestaReporte.ok
+      ) {
+        reporte =
           await respuestaReporte.json()
 
-        const asignaciones =
-          await respuestaAsignaciones.json()
+      } else if (
+        respuestaReporte.status !==
+        404
+      ) {
+        const datosError =
+          await respuestaReporte.json()
 
-        const meseros =
-          await respuestaMeseros.json()
-
-        const datosAsistencia =
-          await respuestaAsistencias.json()
-
-        setHabilitado(
-          datosReporte.habilitado
+        throw new Error(
+          datosError.mensaje ||
+          'No se pudo cargar el reporte.'
         )
+      }
 
-        setResumenAsistencia(
-          datosReporte.resumenAsistencia ||
-          {
-            total: 0,
-            presentes: 0,
-            ausentes: 0,
-            sinRegistrar: 0
-          }
+      if (
+        !respuestaAsignaciones.ok ||
+        !respuestaMeseros.ok ||
+        !respuestaAsistencias.ok
+      ) {
+        throw new Error(
+          'No se pudo cargar la información del personal.'
         )
+      }
 
-        const reporte =
-          datosReporte.reporte
+      const todasAsignaciones =
+        await respuestaAsignaciones.json()
 
-        if (reporte) {
-          setResumenServicio(
-            reporte.resumenServicio ||
-            ''
-          )
+      const meseros =
+        await respuestaMeseros.json()
 
-          setIncidencias(
-            reporte.incidencias ||
-            ''
-          )
+      const datosAsistencia =
+        await respuestaAsistencias.json()
 
-          setObservaciones(
-            reporte.observaciones ||
-            ''
-          )
+      /*
+        /api/asignaciones devuelve todas
+        las asignaciones.
 
-          setReporteEnviado(
-            reporte.estado ===
-            'Enviado'
-          )
-        } else {
-          setResumenServicio('')
-          setIncidencias('')
-          setObservaciones('')
+        Aquí conservamos solamente las
+        correspondientes al evento actual.
+      */
 
-          setReporteEnviado(
-            false
-          )
-        }
-
-        /*
-          Solo se evalúan meseros
-          registrados como presentes.
-
-          El capitán no se evalúa
-          a sí mismo.
-        */
-
-        const presentes =
-          datosAsistencia
-            .asistencias
-            ?.filter(
-              (asistencia) =>
-                asistencia.estado ===
-                'Presente'
+      const asignaciones =
+        todasAsignaciones.filter(
+          (asignacion) =>
+            Number(
+              asignacion.eventoId
+            ) ===
+            Number(
+              evento.id
             )
-            .map(
-              (asistencia) =>
-                asistencia.meseroId
-            ) || []
+        )
 
-        const personalEvaluable =
-          asignaciones
-            .filter(
-              (asignacion) =>
-                asignacion.meseroId !==
-                  mesero.id &&
-                presentes.includes(
+      /*
+        Determinar si el reporte ya puede
+        elaborarse.
+
+        La regla es:
+        desde el día del evento en adelante.
+      */
+
+      const fechaEvento =
+  String(
+    evento.fecha ||
+    ''
+  ).slice(
+    0,
+    10
+  )
+
+const hoy =
+  fechaHoyMexico()
+
+const puedeReportar =
+  Boolean(
+    fechaEvento &&
+    fechaEvento <= hoy
+  )
+
+setHabilitado(
+  puedeReportar
+)
+      /*
+        RESUMEN DE ASISTENCIA
+
+        El backend devuelve directamente
+        un arreglo.
+      */
+
+      const asistencias =
+        Array.isArray(
+          datosAsistencia
+        )
+          ? datosAsistencia
+          : []
+
+      const presentes =
+        asistencias.filter(
+          (asistencia) =>
+            asistencia.estado ===
+            'Presente'
+        )
+
+      const ausentes =
+        asistencias.filter(
+          (asistencia) =>
+            asistencia.estado ===
+            'Ausente'
+        )
+
+      const sinRegistrar =
+        asistencias.filter(
+          (asistencia) =>
+            asistencia.estado ===
+            'Sin registrar'
+        )
+
+      setResumenAsistencia({
+        total:
+          asistencias.length,
+
+        presentes:
+          presentes.length,
+
+        ausentes:
+          ausentes.length,
+
+        sinRegistrar:
+          sinRegistrar.length
+      })
+
+      /*
+        Si existe un reporte previo,
+        cargamos sus datos.
+      */
+
+      if (reporte) {
+        setResumenServicio(
+          reporte.resumenServicio ||
+          ''
+        )
+
+        setIncidencias(
+          reporte.incidencias ||
+          ''
+        )
+
+        setObservaciones(
+          reporte.observaciones ||
+          ''
+        )
+
+        setReporteEnviado(
+          reporte.estado ===
+          'Enviado'
+        )
+
+      } else {
+        setResumenServicio('')
+        setIncidencias('')
+        setObservaciones('')
+
+        setReporteEnviado(
+          false
+        )
+      }
+
+      /*
+        Solamente se evalúan meseros
+        presentes.
+
+        El capitán no se evalúa
+        a sí mismo.
+      */
+
+      const presentesIds =
+        presentes.map(
+          (asistencia) =>
+            Number(
+              asistencia.meseroId
+            )
+        )
+
+      const personalEvaluable =
+        asignaciones
+          .filter(
+            (asignacion) =>
+              Number(
+                asignacion.meseroId
+              ) !==
+                Number(
+                  mesero.id
+                ) &&
+
+              presentesIds.includes(
+                Number(
                   asignacion.meseroId
                 )
-            )
-            .map(
-              (asignacion) => {
-                const datosMesero =
-                  meseros.find(
-                    (item) =>
-                      item.id ===
+              )
+          )
+          .map(
+            (asignacion) => {
+              const datosMesero =
+                meseros.find(
+                  (item) =>
+                    Number(
+                      item.id
+                    ) ===
+                    Number(
                       asignacion.meseroId
+                    )
+                )
+
+              const evaluacionAnterior =
+                reporte
+                  ?.evaluacionesPersonal
+                  ?.find(
+                    (evaluacion) =>
+                      Number(
+                        evaluacion.meseroId
+                      ) ===
+                      Number(
+                        asignacion.meseroId
+                      )
                   )
 
-                const evaluacionAnterior =
-                  reporte
-                    ?.evaluacionesPersonal
-                    ?.find(
-                      (evaluacion) =>
-                        evaluacion.meseroId ===
-                        asignacion.meseroId
-                    )
+              return {
+                meseroId:
+                  Number(
+                    asignacion.meseroId
+                  ),
 
-                return {
-                  meseroId:
-                    asignacion.meseroId,
+                nombre:
+                  datosMesero
+                    ? `${datosMesero.nombre} ${datosMesero.apellidos}`
+                    : 'Mesero',
 
-                  nombre:
-                    datosMesero
-                      ? `${datosMesero.nombre} ${datosMesero.apellidos}`
-                      : 'Mesero',
+                desempeno:
+                  evaluacionAnterior
+                    ?.desempeno ??
+                  '',
 
-                  desempeno:
-                    evaluacionAnterior
-                      ?.desempeno ??
-                    '',
+                puntualidad:
+                  evaluacionAnterior
+                    ?.puntualidad ??
+                  '',
 
-                  puntualidad:
-                    evaluacionAnterior
-                      ?.puntualidad ??
-                    '',
+                actitud:
+                  evaluacionAnterior
+                    ?.actitud ??
+                  '',
 
-                  actitud:
-                    evaluacionAnterior
-                      ?.actitud ??
-                    '',
+                incidencia:
+                  evaluacionAnterior
+                    ?.incidencia ??
+                  false,
 
-                  incidencia:
-                    evaluacionAnterior
-                      ?.incidencia ??
-                    false,
-
-                  observacion:
-                    evaluacionAnterior
-                      ?.observacion ||
-                    ''
-                }
+                observacion:
+                  evaluacionAnterior
+                    ?.observacion ||
+                  ''
               }
-            )
+            }
+          )
 
-        setEvaluaciones(
-          personalEvaluable
-        )
+      setEvaluaciones(
+        personalEvaluable
+      )
 
-      } catch (error) {
-        setError(
-          error.message
-        )
+    } catch (error) {
+      console.error(
+        'Error cargar reporte:',
+        error
+      )
 
-      } finally {
-        setCargando(false)
-      }
+      setError(
+        error.message
+      )
+
+    } finally {
+      setCargando(
+        false
+      )
     }
+  }
 
   /* ========================================
-     CAMBIAR EVALUACIÓN
-  ======================================== */
+   CAMBIAR EVALUACIÓN
+======================================== */
 
-  const cambiarEvaluacion = (
-    meseroId,
-    campo,
-    valor
-  ) => {
-    setMensaje('')
-    setError('')
+const cambiarEvaluacion = (
+  meseroId,
+  campo,
+  valor
+) => {
+  setMensaje('')
+  setError('')
 
-    setEvaluaciones(
-      (anteriores) =>
-        anteriores.map(
-          (evaluacion) =>
-            evaluacion.meseroId ===
+  setEvaluaciones(
+    (anteriores) =>
+      anteriores.map(
+        (evaluacion) =>
+          Number(
+            evaluacion.meseroId
+          ) ===
+          Number(
             meseroId
-              ? {
-                  ...evaluacion,
+          )
+            ? {
+                ...evaluacion,
 
-                  [campo]:
-                    valor
-                }
-              : evaluacion
-        )
+                [campo]:
+                  campo === 'incidencia'
+                    ? Boolean(valor)
+                    : String(valor)
+              }
+            : evaluacion
+      )
+  )
+}
+
+
+/* ========================================
+   EVALUACIONES COMPLETAS
+======================================== */
+
+const evaluacionesCompletas =
+  () => {
+    return evaluaciones.every(
+      (evaluacion) =>
+        String(
+          evaluacion.desempeno ??
+          ''
+        ) !== '' &&
+
+        String(
+          evaluacion.puntualidad ??
+          ''
+        ) !== '' &&
+
+        String(
+          evaluacion.actitud ??
+          ''
+        ) !== ''
     )
   }
 
   /* ========================================
-     EVALUACIONES COMPLETAS
-  ======================================== */
-
-  const evaluacionesCompletas =
-    () => {
-      return evaluaciones.every(
-        (evaluacion) =>
-          evaluacion.desempeno !==
-            '' &&
-          evaluacion.puntualidad !==
-            '' &&
-          evaluacion.actitud !==
-            ''
-      )
-    }
-
-  /* ========================================
      GUARDAR REPORTE
   ======================================== */
-
-  const guardarReporte =
-    async (estado) => {
-      if (
-        reporteEnviado
-      ) {
-        return
-      }
-
-      if (!habilitado) {
-        setError(
-          'El reporte todavía no está disponible.'
-        )
-
-        return
-      }
-
-      if (
-        estado ===
-          'Enviado' &&
-        !resumenServicio.trim()
-      ) {
-        setError(
-          'Escribe el resumen del servicio antes de enviar el reporte final.'
-        )
-
-        return
-      }
-
-      if (
-        estado ===
-          'Enviado' &&
-        !evaluacionesCompletas()
-      ) {
-        setError(
-          'Debes evaluar a todos los meseros presentes antes de enviar el reporte final.'
-        )
-
-        return
-      }
-
-      try {
-        setGuardando(true)
-
-        setError('')
-        setMensaje('')
-
-        const respuesta =
-          await fetch(
-            `${API_URL}/reportes/evento/${evento.id}`,
-            {
-              method:
-                'PUT',
-
-              headers: {
-                'Content-Type':
-                  'application/json'
-              },
-
-              body:
-                JSON.stringify({
-                  capitanMeseroId:
-                    mesero.id,
-
-                  resumenServicio,
-
-                  incidencias,
-
-                  observaciones,
-
-                  evaluacionesPersonal:
-                    evaluaciones.map(
-                      (evaluacion) => ({
-                        meseroId:
-                          evaluacion.meseroId,
-
-                        desempeno:
-                          evaluacion.desempeno,
-
-                        puntualidad:
-                          evaluacion.puntualidad,
-
-                        actitud:
-                          evaluacion.actitud,
-
-                        incidencia:
-                          evaluacion.incidencia,
-
-                        observacion:
-                          evaluacion.observacion
-                      })
-                    ),
-
-                  estado
-                })
-            }
-          )
-
-        const datos =
-          await respuesta.json()
-
-        if (!respuesta.ok) {
-          throw new Error(
-            datos.mensaje ||
-            'No se pudo guardar el reporte.'
-          )
-        }
-
-        setMensaje(
-          datos.mensaje
-        )
-
-        if (
-          estado ===
-          'Enviado'
-        ) {
-          setReporteEnviado(
-            true
-          )
-        }
-
-      } catch (error) {
-        setError(
-          error.message
-        )
-
-      } finally {
-        setGuardando(false)
-      }
+const guardarReporte =
+  async (estado) => {
+    if (reporteEnviado) {
+      setError(
+        'El reporte ya fue enviado y no puede modificarse.'
+      )
+      return
     }
 
-  /* ========================================
+    if (!habilitado) {
+      setError(
+        'El reporte todavía no está disponible.'
+      )
+      return
+    }
+
+    if (
+      estado === 'Enviado' &&
+      !resumenServicio.trim()
+    ) {
+      setError(
+        'Escribe el resumen del servicio antes de enviar el reporte final.'
+      )
+      return
+    }
+
+    if (
+      estado === 'Enviado' &&
+      !evaluacionesCompletas()
+    ) {
+      setError(
+        'Debes evaluar a todos los meseros presentes antes de enviar el reporte final.'
+      )
+      return
+    }
+
+    try {
+      setGuardando(true)
+      setError('')
+      setMensaje('')
+
+      const respuesta =
+        await fetch(
+          `${API_URL}/reportes/evento/${evento.id}`,
+          {
+            method: 'PUT',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify({
+                eventoId:
+                  Number(evento.id),
+
+                capitanMeseroId:
+                  Number(mesero.id),
+
+                resumenServicio:
+                  resumenServicio.trim(),
+
+                incidencias:
+                  incidencias.trim(),
+
+                observaciones:
+                  observaciones.trim(),
+
+                evaluacionesPersonal:
+                  evaluaciones.map(
+                    (evaluacion) => ({
+                      meseroId:
+                        Number(
+                          evaluacion.meseroId
+                        ),
+
+                      desempeno:
+                        evaluacion.desempeno === ''
+                          ? null
+                          : Number(
+                              evaluacion.desempeno
+                            ),
+
+                      puntualidad:
+                        evaluacion.puntualidad === ''
+                          ? null
+                          : Number(
+                              evaluacion.puntualidad
+                            ),
+
+                      actitud:
+                        evaluacion.actitud === ''
+                          ? null
+                          : Number(
+                              evaluacion.actitud
+                            ),
+
+                      incidencia:
+                        Boolean(
+                          evaluacion.incidencia
+                        ),
+
+                      observacion:
+                        (
+                          evaluacion.observacion ||
+                          ''
+                        ).trim()
+                    })
+                  ),
+
+                estado
+              })
+          }
+        )
+
+      const datos =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          datos.mensaje ||
+          'No se pudo guardar el reporte.'
+        )
+      }
+
+      /*
+        El backend devuelve directamente
+        el reporte guardado.
+      */
+
+      setResumenServicio(
+        datos.resumenServicio ??
+        resumenServicio
+      )
+
+      setIncidencias(
+        datos.incidencias ??
+        incidencias
+      )
+
+      setObservaciones(
+        datos.observaciones ??
+        observaciones
+      )
+
+      if (
+        datos.estado === 'Enviado' ||
+        estado === 'Enviado'
+      ) {
+        setReporteEnviado(
+          true
+        )
+
+        setMensaje(
+          'Reporte enviado correctamente.'
+        )
+
+      } else {
+        setReporteEnviado(
+          false
+        )
+
+        setMensaje(
+          'Borrador guardado correctamente.'
+        )
+      }
+
+    } catch (error) {
+      console.error(
+        'Error guardar reporte:',
+        error
+      )
+
+      setError(
+        error.message ||
+        'No se pudo guardar el reporte.'
+      )
+
+    } finally {
+      setGuardando(false)
+    }
+  }  /* ========================================
      CARGANDO
   ======================================== */
 
@@ -772,8 +985,6 @@ function CapitanReporte({
 
                 <div className="evaluacion-grid">
 
-                  {/* DESEMPEÑO */}
-
                   <div>
 
                     <label>
@@ -824,8 +1035,6 @@ function CapitanReporte({
 
                   </div>
 
-                  {/* PUNTUALIDAD */}
-
                   <div>
 
                     <label>
@@ -875,8 +1084,6 @@ function CapitanReporte({
                     </select>
 
                   </div>
-
-                  {/* ACTITUD */}
 
                   <div>
 
@@ -930,8 +1137,6 @@ function CapitanReporte({
 
                 </div>
 
-                {/* INCIDENCIA */}
-
                 <label className="evaluacion-incidencia">
 
                   <input
@@ -957,8 +1162,6 @@ function CapitanReporte({
                   </span>
 
                 </label>
-
-                {/* OBSERVACIÓN */}
 
                 <div className="evaluacion-observacion">
 
@@ -995,8 +1198,6 @@ function CapitanReporte({
 
       </div>
 
-      {/* BOTONES */}
-
       {!reporteEnviado && (
 
         <div className="reporte-acciones">
@@ -1023,7 +1224,6 @@ function CapitanReporte({
             type="button"
             className="reporte-enviar"
             disabled={
-              !habilitado ||
               guardando
             }
             onClick={() =>

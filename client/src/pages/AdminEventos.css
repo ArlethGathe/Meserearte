@@ -712,3 +712,73 @@ input[type="date"] {
   line-height: 1.5;
   color: #8a6d58;
 }
+
+.ubicacion-autocomplete {
+  position: relative;
+}
+
+.ubicacion-sugerencias {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+
+  margin-top: 4px;
+
+  max-height: 260px;
+  overflow-y: auto;
+
+  box-shadow:
+    0 8px 24px
+    rgba(0, 0, 0, 0.12);
+}
+
+.ubicacion-sugerencia {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  padding: 12px 14px;
+
+  border: none;
+  border-bottom:
+    1px solid #eee;
+
+  background: #fff;
+  cursor: pointer;
+
+  text-align: left;
+}
+
+.ubicacion-sugerencia:last-child {
+  border-bottom: none;
+}
+
+.ubicacion-sugerencia:hover {
+  background: #f7f7f7;
+}
+
+.ubicacion-sugerencia strong {
+  margin-bottom: 3px;
+}
+
+.ubicacion-sugerencia span {
+  font-size: 0.84rem;
+  opacity: 0.75;
+}
+
+.ubicacion-buscando,
+.ubicacion-confirmada {
+  display: block;
+  margin-top: 6px;
+}
+
+.ubicacion-confirmada {
+  font-weight: 600;
+}

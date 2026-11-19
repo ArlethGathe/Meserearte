@@ -1,4 +1,3 @@
-
 import express from 'express'
 import cors from 'cors'
 import { pool, probarConexion } from './db.js'
@@ -44,36 +43,29 @@ function normalizarCorreo(correo = '') {
     .toLowerCase()
 }
 
-function esEnlaceGoogleMaps(valor = '') {
-  try {
-    const url = new URL(
-      String(valor).trim()
-    )
+function crearEnlaceGoogleMaps(
+  latitud,
+  longitud
+) {
+  const lat =
+    Number(latitud)
 
-    if (
-      url.protocol !== 'https:' &&
-      url.protocol !== 'http:'
-    ) {
-      return false
-    }
+  const lon =
+    Number(longitud)
 
-    const host =
-      url.hostname
-        .toLowerCase()
-
-    return (
-      host === 'maps.app.goo.gl' ||
-      host === 'goo.gl' ||
-      host === 'share.google' ||
-      host === 'maps.google.com' ||
-      host.endsWith('.google.com') ||
-      host.endsWith('.google.com.mx') ||
-      host === 'google.com' ||
-      host === 'google.com.mx'
-    )
-  } catch {
-    return false
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lon)
+  ) {
+    return ''
   }
+
+  return (
+    'https://www.google.com/maps/search/?api=1&query=' +
+    encodeURIComponent(
+      `${lat},${lon}`
+    )
+  )
 }
 
 function numero(valor) {
@@ -223,16 +215,6 @@ function eventoAIntervalo(evento) {
       horaFin,
       minutoFin
     )
-
-  /*
-    Ejemplo:
-    19:00 -> 01:00
-
-    Se interpreta internamente como
-    término durante la madrugada.
-    La interfaz NO necesita mostrar
-    "+1 día".
-  */
 
   if (finMs < inicioMs) {
     finMs +=
@@ -401,6 +383,9 @@ async function obtenerEvento(
         ) AS horario,
 
         e.lugar,
+        e.direccion,
+        e.latitud,
+        e.longitud,
         e.ubicacion,
         e.invitados,
 
@@ -505,10 +490,6 @@ async function buscarConflictoMesero({
 
 /* =========================================================
    DATOS DEMO INICIALES
-
-   Se conservan para que puedas seguir
-   entrando a la aplicación mientras
-   migramos.
 ========================================================= */
 
 async function inicializarDatosDemo() {
@@ -788,12 +769,6 @@ app.post(
       res.json({
         ok: true,
         usuario,
-
-        /*
-          Se incluyen también
-          las propiedades arriba
-          por compatibilidad.
-        */
         ...usuario
       })
 
@@ -1031,7 +1006,6 @@ app.post(
   }
 )
 
-
 /* =========================================================
    REGISTRO MESERO
 ========================================================= */
@@ -1072,6 +1046,7 @@ app.post(
         !nombre ||
         !apellidos ||
         !correo ||
+        !telefono ||
         !password ||
         !codigoSala
       ) {
@@ -1083,6 +1058,22 @@ app.post(
               'Completa todos los campos obligatorios.'
           })
       }
+      const telefonoLimpio =
+  String(telefono)
+    .replace(/\D/g, '')
+
+          if (
+               telefonoLimpio.length < 10
+              ) {
+                 return res
+                 .status(400)
+                 .json({
+                 ok: false,
+                 mensaje:
+                'Ingresa un número de teléfono válido de al menos 10 dígitos.'
+                 })
+}
+
 
       await cliente.query(
         'BEGIN'
@@ -1221,8 +1212,7 @@ app.post(
 
             sala.id,
 
-            telefono ??
-              ''
+            telefonoLimpio
           ]
         )
 
@@ -1783,15 +1773,6 @@ app.post(
         'BEGIN'
       )
 
-      /*
-        Mientras terminamos seguridad,
-        conserva el comportamiento
-        actual sin bcrypt.
-
-        Si AdminUsuarios no envía
-        contraseña se crea una temporal.
-      */
-
       const password =
         String(
           req.body.password ??
@@ -1950,7 +1931,7 @@ app.put(
               'La sala seleccionada no existe.'
           })
       }
-
+      
       await cliente.query(
         'BEGIN'
       )
@@ -1984,7 +1965,27 @@ app.put(
           actual.usuarioId
         ]
       )
+      
+      const telefonoActualizado =
+          req.body.telefono !==
+          undefined
+           ? String(
+        req.body.telefono
+        ).replace(/\D/g, '')
+        : actual.telefono
 
+      if (
+           !telefonoActualizado ||
+           telefonoActualizado.length < 10
+         ) {
+             return res
+             .status(400)
+             .json({
+                    mensaje:
+            'Ingresa un número de teléfono válido de al menos 10 dígitos.'
+             })
+           }
+           
       await cliente.query(
         `
         UPDATE meseros
@@ -1998,8 +1999,7 @@ app.put(
         [
           salaId,
 
-          req.body.telefono ??
-            actual.telefono,
+          telefonoActualizado,
 
           req.body.estado ??
             actual.estado,
@@ -2052,7 +2052,6 @@ app.put(
     }
   }
 )
-
 
 app.delete(
   '/api/meseros/:id',
@@ -2185,9 +2184,11 @@ app.get(
             ) AS horario,
 
             e.lugar,
+            e.direccion,
+            e.latitud,
+            e.longitud,
             e.ubicacion,
             e.invitados,
-
             e.meseros_requeridos
               AS "meserosRequeridos",
 
@@ -2259,50 +2260,72 @@ app.post(
         )
 
       const lugar =
-        req.body.lugar
-          ?.trim()
+  req.body.lugar
+    ?.trim()
 
-      const ubicacion =
-        req.body.ubicacion
-          ?.trim()
+const direccion =
+  req.body.direccion
+    ?.trim()
 
-      if (
-        !salaId ||
-        !nombre ||
-        !fecha ||
-        !horaInicio ||
-        !horaFin ||
-        !lugar ||
-        !ubicacion
-      ) {
-        return res
-          .status(400)
-          .json({
-            mensaje:
-              'Completa los datos obligatorios del evento.'
-          })
-      }
+const latitud =
+  numero(
+    req.body.latitud
+  )
 
-      if (!esEnlaceGoogleMaps(ubicacion)) {
-        return res
-          .status(400)
-          .json({
-            mensaje:
-              'La ubicación debe ser un enlace válido de Google Maps.'
-          })
-      }
+const longitud =
+  numero(
+    req.body.longitud
+  )
 
-      if (
-        horaInicio ===
-        horaFin
-      ) {
-        return res
-          .status(400)
-          .json({
-            mensaje:
-              'La hora de inicio y término no pueden ser iguales.'
-          })
-      }
+const ubicacion =
+  crearEnlaceGoogleMaps(
+    latitud,
+    longitud
+  )
+if (
+  !salaId ||
+  !nombre ||
+  !fecha ||
+  !horaInicio ||
+  !horaFin ||
+  !lugar ||
+  !direccion ||
+  latitud === null ||
+  longitud === null
+) {
+  return res
+    .status(400)
+    .json({
+      mensaje:
+        'Completa los datos obligatorios del evento.'
+    })
+}
+
+if (
+  latitud < -90 ||
+  latitud > 90 ||
+  longitud < -180 ||
+  longitud > 180
+) {
+  return res
+    .status(400)
+    .json({
+      mensaje:
+        'Las coordenadas de la ubicación no son válidas.'
+    })
+}
+
+if (
+  horaInicio ===
+  horaFin
+) {
+  return res
+    .status(400)
+    .json({
+      mensaje:
+        'La hora de inicio y término no pueden ser iguales.'
+    })
+}
 
       const mismoLugar =
         await pool.query(
@@ -2340,72 +2363,80 @@ app.post(
           })
       }
 
-      const resultado =
-        await pool.query(
-          `
-          INSERT INTO eventos (
-            sala_id,
-            nombre,
-            tipo,
-            fecha,
-            hora_inicio,
-            hora_fin,
-            lugar,
-            ubicacion,
-            invitados,
-            meseros_requeridos,
-            uniforme,
-            observaciones,
-            estado
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6,
-            $7,
-            $8,
-            $9,
-            $10,
-            $11,
-            $12,
-            $13
-          )
-          RETURNING id
-          `,
-          [
-            salaId,
-            nombre,
-            tipo,
-            fecha,
-            horaInicio,
-            horaFin,
-            lugar,
-            ubicacion,
+     const resultado =
+  await pool.query(
+    `
+    INSERT INTO eventos (
+      sala_id,
+      nombre,
+      tipo,
+      fecha,
+      hora_inicio,
+      hora_fin,
+      lugar,
+      direccion,
+      latitud,
+      longitud,
+      ubicacion,
+      invitados,
+      meseros_requeridos,
+      uniforme,
+      observaciones,
+      estado
+    )
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      $7,
+      $8,
+      $9,
+      $10,
+      $11,
+      $12,
+      $13,
+      $14,
+      $15,
+      $16
+    )
+    RETURNING id
+    `,
+    [
+      salaId,
+      nombre,
+      tipo,
+      fecha,
+      horaInicio,
+      horaFin,
+      lugar,
+      direccion,
+      latitud,
+      longitud,
+      ubicacion,
 
-            Number(
-              req.body.invitados ??
-              0
-            ),
+      Number(
+        req.body.invitados ??
+        0
+      ),
 
-            Number(
-              req.body.meserosRequeridos ??
-              0
-            ),
+      Number(
+        req.body.meserosRequeridos ??
+        0
+      ),
 
-            req.body.uniforme ??
-              '',
+      req.body.uniforme ??
+        '',
 
-            req.body.observaciones ??
-              '',
+      req.body.observaciones ??
+        '',
 
-            req.body.estado ??
-              'Pendiente'
-          ]
-        )
-
+      req.body.estado ??
+        'Pendiente'
+    ]
+  )
       res
         .status(201)
         .json(
@@ -2505,12 +2536,28 @@ app.put(
           ),
 
         lugar:
-          req.body.lugar ??
-          actual.lugar,
+            req.body.lugar ??
+            actual.lugar,
 
-        ubicacion:
-          req.body.ubicacion ??
-          actual.ubicacion,
+        direccion:
+            req.body.direccion ??
+            actual.direccion,
+
+        latitud:
+            req.body.latitud !==
+    undefined
+           ? numero(
+            req.body.latitud
+            )
+            : actual.latitud,
+
+        longitud:
+            req.body.longitud !==
+            undefined
+               ? numero(
+        req.body.longitud
+      )
+    : actual.longitud,
 
         invitados:
           Number(
@@ -2538,28 +2585,50 @@ app.put(
           req.body.estado ??
           actual.estado
       }
+      propuesto.ubicacion =
+             crearEnlaceGoogleMaps(
+                 propuesto.latitud,
+                 propuesto.longitud
+  )
 
-      if (
-        !String(propuesto.lugar ?? '').trim() ||
-        !String(propuesto.ubicacion ?? '').trim()
-      ) {
-        return res
-          .status(400)
-          .json({
-            mensaje:
-              'Lugar y ubicación son obligatorios.'
-          })
-      }
+ if (
+  !String(
+    propuesto.lugar ??
+    ''
+  ).trim() ||
 
-      if (!esEnlaceGoogleMaps(propuesto.ubicacion)) {
-        return res
-          .status(400)
-          .json({
-            mensaje:
-              'La ubicación debe ser un enlace válido de Google Maps.'
-          })
-      }
+  !String(
+    propuesto.direccion ??
+    ''
+  ).trim() ||
 
+  propuesto.latitud ===
+    null ||
+
+  propuesto.longitud ===
+    null
+) {
+  return res
+    .status(400)
+    .json({
+      mensaje:
+        'Lugar y ubicación son obligatorios.'
+    })
+}
+
+if (
+  propuesto.latitud < -90 ||
+  propuesto.latitud > 90 ||
+  propuesto.longitud < -180 ||
+  propuesto.longitud > 180
+) {
+  return res
+    .status(400)
+    .json({
+      mensaje:
+        'Las coordenadas de la ubicación no son válidas.'
+    })
+}
       if (
         propuesto.horaInicio ===
         propuesto.horaFin
@@ -2778,7 +2847,6 @@ app.delete(
   }
 )
 
-
 /* =========================================================
    ASIGNACIONES
 ========================================================= */
@@ -2883,6 +2951,24 @@ app.put(
               req.body.capitanId
             )
           : null
+
+      /*
+        REGLA DE NEGOCIO:
+        Si existe personal asignado,
+        debe existir un capitán.
+      */
+
+      if (
+        meseroIds.length > 0 &&
+        !capitanId
+      ) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'El evento debe tener un capitán para guardar personal asignado.'
+          })
+      }
 
       if (
         capitanId &&
@@ -3026,12 +3112,6 @@ app.put(
           (id) =>
             !meseroIds.includes(id)
         )
-
-      /*
-        Primero quitamos el rol capitán
-        para no chocar con el índice
-        único al cambiar de capitán.
-      */
 
       await cliente.query(
         `
@@ -3319,22 +3399,22 @@ app.put(
           })
       }
 
-      /* ========================================
-         COMPROBAR ASIGNACIÓN
-      ======================================== */
-
       const asignacion =
         await cliente.query(
           `
-          SELECT id
+          SELECT
+            id,
+            rol
+
           FROM asignaciones
 
           WHERE
             evento_id = $1
 
             AND
-
             mesero_id = $2
+
+          LIMIT 1
           `,
           [
             eventoId,
@@ -3353,10 +3433,6 @@ app.put(
               'El mesero no está asignado a este evento.'
           })
       }
-
-      /* ========================================
-         DISPONIBILIDAD ACTUAL
-      ======================================== */
 
       const actual =
         await cliente.query(
@@ -3381,7 +3457,6 @@ app.put(
             evento_id = $1
 
             AND
-
             mesero_id = $2
           `,
           [
@@ -3389,10 +3464,6 @@ app.put(
             meseroId
           ]
         )
-
-      /* ========================================
-         CREAR ALERTA AUTOMÁTICA
-      ======================================== */
 
       const asegurarAlertaNoDisponible =
         async () => {
@@ -3415,14 +3486,20 @@ app.put(
             return
           }
 
-          const mensajeAlerta =
-            `${mesero.nombre} ${mesero.apellidos} indicó que no está disponible para ${evento.nombre}.`
+          const esCapitan =
+            asignacion.rows[0]
+              ?.rol ===
+            'Capitán'
 
-          /*
-            Sólo crea la alerta si todavía
-            no existe una para este mesero
-            y este evento.
-          */
+          const tituloAlerta =
+            esCapitan
+              ? 'Capitán no disponible'
+              : 'Mesero no disponible'
+
+          const mensajeAlerta =
+            esCapitan
+              ? `${mesero.nombre} ${mesero.apellidos}, capitán del evento "${evento.nombre}", indicó que no está disponible. Debes seleccionar un nuevo capitán y actualizar las asignaciones del evento.`
+              : `${mesero.nombre} ${mesero.apellidos} indicó que no está disponible para el evento "${evento.nombre}".`
 
           await cliente.query(
             `
@@ -3441,11 +3518,11 @@ app.put(
 
             SELECT
               'Disponibilidad',
-              'Mesero no disponible',
               $1,
               $2,
               $3,
               $4,
+              $5,
               'Administrador',
               'Administrador',
               'Sistema',
@@ -3462,18 +3539,16 @@ app.put(
                 AND tipo =
                   'Disponibilidad'
 
-                AND titulo =
-                  'Mesero no disponible'
+                AND evento_id = $4
 
-                AND evento_id = $3
-
-                AND mesero_id = $4
+                AND mesero_id = $5
 
                 AND destinatario =
                   'Administrador'
             )
             `,
             [
+              tituloAlerta,
               mensajeAlerta,
               evento.salaId,
               eventoId,
@@ -3481,10 +3556,6 @@ app.put(
             ]
           )
         }
-
-      /* ========================================
-         RESPUESTA YA DEFINITIVA
-      ======================================== */
 
       if (
         actual.rows[0] &&
@@ -3495,15 +3566,6 @@ app.put(
           actual.rows[0].estado
         )
       ) {
-        /*
-          Si ya estaba en el mismo estado,
-          devolvemos la respuesta existente.
-
-          PERO si era "No disponible",
-          comprobamos primero que la alerta
-          del administrador sí exista.
-        */
-
         if (
           actual.rows[0].estado ===
           estado
@@ -3541,10 +3603,6 @@ app.put(
               'Tu respuesta ya fue registrada y no puede modificarse.'
           })
       }
-
-      /* ========================================
-         GUARDAR DISPONIBILIDAD
-      ======================================== */
 
       await cliente.query(
         'BEGIN'
@@ -3603,10 +3661,6 @@ app.put(
           ]
         )
 
-      /* ========================================
-         ALERTA PARA ADMINISTRADOR
-      ======================================== */
-
       if (
         estado ===
         'No disponible'
@@ -3660,12 +3714,14 @@ app.put(
     }
   }
 )
-
 /* =========================================================
    NOTIFICACIONES
 ========================================================= */
 
-async function consultarNotificaciones() {
+async function consultarNotificaciones({
+  salaId = null,
+  destinatario = null
+} = {}) {
   const resultado =
     await pool.query(
       `
@@ -3703,10 +3759,34 @@ async function consultarNotificaciones() {
 
       FROM notificaciones n
 
+      WHERE
+        (
+          $1::INTEGER IS NULL
+          OR
+          n.sala_id = $1
+        )
+
+        AND
+        (
+          $2::TEXT IS NULL
+          OR
+          LOWER(
+            COALESCE(
+              n.destinatario,
+              ''
+            )
+          ) =
+          LOWER($2)
+        )
+
       ORDER BY
         n.fecha DESC,
         n.id DESC
-      `
+      `,
+      [
+        salaId,
+        destinatario
+      ]
     )
 
   return resultado.rows
@@ -3720,8 +3800,23 @@ app.get(
     res
   ) => {
     try {
+      const salaId =
+        numero(
+          req.query.salaId
+        )
+
+      const destinatario =
+        req.query.destinatario
+          ? String(
+              req.query.destinatario
+            ).trim()
+          : null
+
       res.json(
-        await consultarNotificaciones()
+        await consultarNotificaciones({
+          salaId,
+          destinatario
+        })
       )
 
     } catch (error) {
@@ -3735,6 +3830,99 @@ app.get(
         .json({
           mensaje:
             'No fue posible consultar notificaciones.'
+        })
+    }
+  }
+)
+
+
+app.get(
+  '/api/notificaciones/enviadas',
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const salaId =
+        numero(
+          req.query.salaId
+        )
+
+      const resultado =
+        await pool.query(
+          `
+          SELECT
+            n.envio_id
+              AS "envioId",
+
+            MAX(n.tipo)
+              AS tipo,
+
+            MAX(n.titulo)
+              AS titulo,
+
+            MAX(n.mensaje)
+              AS mensaje,
+
+            MAX(n.sala_id)
+              AS "salaId",
+
+            MAX(n.evento_id)
+              AS "eventoId",
+
+            MAX(n.modo_destinatario)
+              AS "modoDestinatario",
+
+            MAX(n.fecha)
+              AS fecha,
+
+            COUNT(*)::INTEGER
+              AS enviados,
+
+            COUNT(*) FILTER (
+              WHERE n.leida = TRUE
+            )::INTEGER
+              AS leidos
+
+          FROM notificaciones n
+
+          WHERE
+            n.envio_id IS NOT NULL
+
+            AND
+            n.automatica = FALSE
+
+            AND
+            (
+              $1::INTEGER IS NULL
+              OR
+              n.sala_id = $1
+            )
+
+          GROUP BY
+            n.envio_id
+
+          ORDER BY
+            MAX(n.fecha) DESC
+          `,
+          [salaId]
+        )
+
+      res.json(
+        resultado.rows
+      )
+
+    } catch (error) {
+      console.error(
+        'Error historial de notificaciones:',
+        error
+      )
+
+      res
+        .status(500)
+        .json({
+          mensaje:
+            'No fue posible consultar el historial de notificaciones.'
         })
     }
   }
@@ -4044,7 +4232,11 @@ async function enviarNotificacion(
       .json({
         ok: true,
         envioId,
+
         total:
+          creadas.length,
+
+        enviados:
           creadas.length
       })
 
@@ -4143,7 +4335,6 @@ app.put(
   '/api/notificaciones/:id/marcar-leida',
   marcarNotificacionLeida
 )
-
 
 /* =========================================================
    ASISTENCIAS
@@ -4265,6 +4456,7 @@ app.put(
       if (
         ![
           'Presente',
+          'Retardo',
           'Ausente'
         ].includes(estado)
       ) {
@@ -4362,22 +4554,42 @@ app.put(
       }
 
       const asignado =
-        await pool.query(
-          `
-          SELECT id
-          FROM asignaciones
+  await pool.query(
+    `
+    SELECT
+      a.id,
 
-          WHERE
-            evento_id = $1
+      COALESCE(
+        d.estado,
+        'Pendiente'
+      ) AS disponibilidad
 
-            AND
-            mesero_id = $2
-          `,
-          [
-            eventoId,
-            meseroId
-          ]
-        )
+    FROM asignaciones a
+
+    LEFT JOIN disponibilidades d
+      ON
+        d.evento_id =
+          a.evento_id
+
+        AND
+
+        d.mesero_id =
+          a.mesero_id
+
+    WHERE
+      a.evento_id = $1
+
+      AND
+
+      a.mesero_id = $2
+
+    LIMIT 1
+    `,
+    [
+      eventoId,
+      meseroId
+    ]
+  )
 
       if (
         asignado.rowCount === 0
@@ -4388,7 +4600,51 @@ app.put(
             mensaje:
               'El mesero no está asignado a este evento.'
           })
-      }
+        }
+      if (
+  asignado.rows[0]
+    .disponibilidad !==
+  'Confirmado'
+) {
+  return res
+    .status(409)
+    .json({
+      mensaje:
+        'Sólo se puede registrar asistencia del personal que confirmó su participación.'
+    })
+}
+
+      const disponibilidad =
+            await pool.query(
+    `
+            SELECT estado
+            FROM disponibilidades
+
+            WHERE
+            evento_id = $1
+            AND
+            mesero_id = $2
+
+           LIMIT 1
+           `,
+        [
+           eventoId,
+           meseroId
+        ]
+  )
+
+if (
+  disponibilidad.rows[0]
+    ?.estado !==
+  'Confirmado'
+) {
+  return res
+    .status(400)
+    .json({
+      mensaje:
+        'Sólo se puede registrar asistencia del personal que confirmó su asistencia.'
+    })
+}
 
       const resultado =
         await pool.query(
@@ -4460,6 +4716,345 @@ app.put(
   }
 )
 
+/* =========================================================
+   HISTORIAL DE MESEROS
+========================================================= */
+
+app.get(
+  '/api/meseros/:id/historial',
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const meseroId =
+        numero(
+          req.params.id
+        )
+
+      if (!meseroId) {
+        return res
+          .status(400)
+          .json({
+            mensaje:
+              'El mesero indicado no es válido.'
+          })
+      }
+
+      /*
+        DATOS GENERALES DEL MESERO
+      */
+
+      const resultadoMesero =
+        await pool.query(
+          `
+          SELECT
+            m.id,
+
+            m.sala_id
+              AS "salaId",
+
+            m.telefono,
+            m.estado,
+
+            u.nombre,
+            u.apellidos,
+            u.correo
+
+          FROM meseros m
+
+          INNER JOIN usuarios u
+            ON u.id =
+               m.usuario_id
+
+          WHERE
+            m.id = $1
+
+          LIMIT 1
+          `,
+          [
+            meseroId
+          ]
+        )
+
+      const mesero =
+        resultadoMesero
+          .rows[0]
+
+      if (!mesero) {
+        return res
+          .status(404)
+          .json({
+            mensaje:
+              'Mesero no encontrado.'
+          })
+      }
+
+      /*
+        HISTORIAL DE EVENTOS
+
+        Se incluyen:
+        - evento
+        - rol
+        - asistencia
+        - evaluación final
+        - incidencia individual
+        - observación individual
+      */
+
+      const resultadoHistorial =
+        await pool.query(
+          `
+          SELECT
+            e.id
+              AS "eventoId",
+
+            e.nombre
+              AS "eventoNombre",
+
+            e.tipo
+              AS "eventoTipo",
+
+            TO_CHAR(
+              e.fecha,
+              'YYYY-MM-DD'
+            ) AS fecha,
+
+            TO_CHAR(
+              e.hora_inicio,
+              'HH24:MI'
+            ) AS "horaInicio",
+
+            TO_CHAR(
+              e.hora_fin,
+              'HH24:MI'
+            ) AS "horaFin",
+
+            e.lugar,
+
+            a.rol,
+
+            COALESCE(
+              asi.estado,
+              'Sin registrar'
+            ) AS asistencia,
+
+            r.estado
+              AS "reporteEstado",
+
+            ev.desempeno,
+            ev.puntualidad,
+            ev.actitud,
+
+            COALESCE(
+              ev.incidencia,
+              FALSE
+            ) AS incidencia,
+
+            COALESCE(
+              ev.observacion,
+              ''
+            ) AS observacion
+
+          FROM asignaciones a
+
+          INNER JOIN eventos e
+            ON e.id =
+               a.evento_id
+
+          LEFT JOIN asistencias asi
+            ON
+              asi.evento_id =
+                a.evento_id
+
+              AND
+
+              asi.mesero_id =
+                a.mesero_id
+
+          LEFT JOIN reportes r
+            ON r.evento_id =
+               a.evento_id
+
+          LEFT JOIN evaluaciones_meseros ev
+            ON
+              ev.evento_id =
+                a.evento_id
+
+              AND
+
+              ev.mesero_id =
+                a.mesero_id
+
+              AND
+
+              r.estado =
+                'Enviado'
+
+          WHERE
+            a.mesero_id = $1
+
+          ORDER BY
+            e.fecha DESC,
+            e.hora_inicio DESC
+          `,
+          [
+            meseroId
+          ]
+        )
+
+      const historial =
+        resultadoHistorial.rows
+
+      /*
+        RESUMEN DEL HISTORIAL
+      */
+
+      const eventosParticipados =
+        historial.length
+
+      const comoCapitan =
+        historial.filter(
+          (registro) =>
+            registro.rol ===
+            'Capitán'
+        ).length
+
+      const comoMesero =
+        historial.filter(
+          (registro) =>
+            registro.rol ===
+            'Mesero'
+        ).length
+
+      const presentes =
+        historial.filter(
+          (registro) =>
+            registro.asistencia ===
+            'Presente'
+        ).length
+
+      const ausentes =
+        historial.filter(
+          (registro) =>
+            registro.asistencia ===
+            'Ausente'
+        ).length
+
+      const sinRegistrar =
+        historial.filter(
+          (registro) =>
+            registro.asistencia ===
+            'Sin registrar'
+        ).length
+
+      const incidencias =
+        historial.filter(
+          (registro) =>
+            registro.incidencia ===
+            true
+        ).length
+
+      /*
+        PROMEDIOS
+
+        El capitán no se evalúa
+        a sí mismo, por lo que esos
+        eventos simplemente no entran
+        al promedio.
+      */
+
+      const obtenerPromedio =
+        (campo) => {
+          const valores =
+            historial
+              .map(
+                (registro) =>
+                  Number(
+                    registro[campo]
+                  )
+              )
+              .filter(
+                (valor) =>
+                  Number.isFinite(
+                    valor
+                  ) &&
+                  valor >= 1 &&
+                  valor <= 5
+              )
+
+          if (
+            valores.length ===
+            0
+          ) {
+            return null
+          }
+
+          const suma =
+            valores.reduce(
+              (
+                acumulado,
+                valor
+              ) =>
+                acumulado +
+                valor,
+              0
+            )
+
+          return Number(
+            (
+              suma /
+              valores.length
+            ).toFixed(2)
+          )
+        }
+
+      res.json({
+        mesero,
+
+        resumen: {
+          eventosParticipados,
+          comoCapitan,
+          comoMesero,
+          presentes,
+          ausentes,
+          sinRegistrar,
+          incidencias,
+
+          promedioDesempeno:
+            obtenerPromedio(
+              'desempeno'
+            ),
+
+          promedioPuntualidad:
+            obtenerPromedio(
+              'puntualidad'
+            ),
+
+          promedioActitud:
+            obtenerPromedio(
+              'actitud'
+            )
+        },
+
+        historial
+      })
+
+    } catch (error) {
+      console.error(
+        'Error historial mesero:',
+        error
+      )
+
+      res
+        .status(500)
+        .json({
+          mensaje:
+            'No fue posible consultar el historial del mesero.'
+        })
+    }
+  }
+)
 
 /* =========================================================
    REPORTES
@@ -4861,13 +5456,6 @@ async function guardarReporte(
       req.body.evaluaciones ??
       []
 
-    /*
-      Para enviar definitivamente,
-      todos los meseros presentes
-      que NO sean capitán deben
-      tener evaluación completa.
-    */
-
     if (
       estado ===
       'Enviado'
@@ -4955,94 +5543,95 @@ async function guardarReporte(
       'BEGIN'
     )
 
-    const reporteResultado =
-      await cliente.query(
-        `
-        INSERT INTO reportes (
-          evento_id,
-          sala_id,
-          capitan_mesero_id,
-          resumen_servicio,
-          incidencias,
-          observaciones,
-          estado,
-          fecha_actualizacion,
-          fecha_envio
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          $7,
-          NOW(),
+const reporteResultado =
+  await cliente.query(
+    `
+    INSERT INTO reportes (
+      evento_id,
+      sala_id,
+      capitan_mesero_id,
+      resumen_servicio,
+      incidencias,
+      observaciones,
+      estado,
+      fecha_actualizacion,
+      fecha_envio
+    )
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      $7,
+      NOW(),
 
-          CASE
-            WHEN $7 =
+      CASE
+        WHEN $8::BOOLEAN
+        THEN NOW()
+        ELSE NULL
+      END
+    )
+
+    ON CONFLICT (
+      evento_id
+    )
+
+    DO UPDATE SET
+      sala_id =
+        EXCLUDED.sala_id,
+
+      capitan_mesero_id =
+        EXCLUDED.capitan_mesero_id,
+
+      resumen_servicio =
+        EXCLUDED.resumen_servicio,
+
+      incidencias =
+        EXCLUDED.incidencias,
+
+      observaciones =
+        EXCLUDED.observaciones,
+
+      estado =
+        EXCLUDED.estado,
+
+      fecha_actualizacion =
+        NOW(),
+
+      fecha_envio =
+        CASE
+          WHEN
+            EXCLUDED.estado =
               'Enviado'
-            THEN NOW()
-            ELSE NULL
-          END
-        )
+          THEN NOW()
+          ELSE
+            reportes.fecha_envio
+        END
 
-        ON CONFLICT (
-          evento_id
-        )
+    RETURNING id
+    `,
+    [
+      eventoId,
+      evento.salaId,
+      capitanAsignado,
 
-        DO UPDATE SET
-          sala_id =
-            EXCLUDED.sala_id,
+      req.body.resumenServicio ??
+      req.body.resumen ??
+      '',
 
-          capitan_mesero_id =
-            EXCLUDED.capitan_mesero_id,
+      req.body.incidencias ??
+      '',
 
-          resumen_servicio =
-            EXCLUDED.resumen_servicio,
+      req.body.observaciones ??
+      '',
 
-          incidencias =
-            EXCLUDED.incidencias,
+      estado,
 
-          observaciones =
-            EXCLUDED.observaciones,
-
-          estado =
-            EXCLUDED.estado,
-
-          fecha_actualizacion =
-            NOW(),
-
-          fecha_envio =
-            CASE
-              WHEN
-                EXCLUDED.estado =
-                  'Enviado'
-              THEN NOW()
-              ELSE
-                reportes.fecha_envio
-            END
-
-        RETURNING id
-        `,
-        [
-          eventoId,
-          evento.salaId,
-          capitanAsignado,
-
-          req.body.resumenServicio ??
-          req.body.resumen ??
-          '',
-
-          req.body.incidencias ??
-          '',
-
-          req.body.observaciones ??
-          '',
-
-          estado
-        ]
-      )
+      estado === 'Enviado'
+    ]
+  )
 
     const reporteId =
       reporteResultado
@@ -5180,9 +5769,19 @@ async function guardarReporte(
     )
 
   } catch (error) {
-    await cliente.query(
-      'ROLLBACK'
-    )
+
+    try {
+      await cliente.query(
+        'ROLLBACK'
+      )
+    } catch (
+      rollbackError
+    ) {
+      console.error(
+        'Error rollback:',
+        rollbackError
+      )
+    }
 
     console.error(
       'Error guardar reporte:',
@@ -5193,14 +5792,22 @@ async function guardarReporte(
       .status(500)
       .json({
         mensaje:
-          'No fue posible guardar el reporte.'
+          error.message ||
+          'No fue posible guardar el reporte.',
+
+        codigo:
+          error.code ||
+          null,
+
+        detalle:
+          error.detail ||
+          null
       })
 
   } finally {
     cliente.release()
   }
 }
-
 
 app.post(
   '/api/reportes',

@@ -86,6 +86,58 @@ function AdminNotificaciones({
 
   const salaNumero =
     Number(salaId)
+    useEffect(
+  () => {
+    if (
+      salaId ||
+      salas.length === 0
+    ) {
+      return
+    }
+
+    const salaDelAdministrador =
+      salas.find(
+        (sala) =>
+          Number(
+            sala.administradorId
+          ) ===
+          Number(
+            usuario?.id
+          )
+      )
+
+    if (salaDelAdministrador) {
+      setSalaId(
+        String(
+          salaDelAdministrador.id
+        )
+      )
+
+      return
+    }
+
+    /*
+      Respaldo para el caso actual
+      donde sólo exista una sala.
+    */
+
+    if (
+      salas.length ===
+      1
+    ) {
+      setSalaId(
+        String(
+          salas[0].id
+        )
+      )
+    }
+  },
+  [
+    salas,
+    salaId,
+    usuario?.id
+  ]
+)
 
   const eventosSala =
     eventos.filter(

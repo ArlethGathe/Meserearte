@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState
@@ -15,14 +16,24 @@ export function MesereArteProvider({
   children
 }) {
 
-  const [salas, setSalas] =
-    useState([])
+  /* ========================================
+     ESTADOS GENERALES
+  ======================================== */
 
-  const [meseros, setMeseros] =
-    useState([])
+  const [
+    salas,
+    setSalas
+  ] = useState([])
 
-  const [eventos, setEventos] =
-    useState([])
+  const [
+    meseros,
+    setMeseros
+  ] = useState([])
+
+  const [
+    eventos,
+    setEventos
+  ] = useState([])
 
   const [
     asignaciones,
@@ -34,122 +45,306 @@ export function MesereArteProvider({
     setDisponibilidades
   ] = useState([])
 
-  const [cargando, setCargando] =
-    useState(true)
+  const [
+    cargando,
+    setCargando
+  ] = useState(true)
 
-  const [error, setError] =
-    useState('')
+  const [
+    error,
+    setError
+  ] = useState('')
 
   /* ========================================
-     CARGAR DATOS
+     CARGAR DATOS GENERALES
   ======================================== */
 
-  const cargarDatos = async () => {
-    try {
-      setCargando(true)
-      setError('')
+  const cargarDatos =
+    useCallback(
+      async (
+        silencioso = false
+      ) => {
 
-      const [
-        respuestaSalas,
-        respuestaMeseros,
-        respuestaEventos,
-        respuestaAsignaciones,
-        respuestaDisponibilidades
-      ] = await Promise.all([
-        fetch(
-          `${API_URL}/salas`
-        ),
+        try {
 
-        fetch(
-          `${API_URL}/meseros`
-        ),
+          /*
+            Cuando es una sincronización
+            automática no mostramos
+            "cargando" para evitar que
+            la interfaz parpadee.
+          */
 
-        fetch(
-          `${API_URL}/eventos`
-        ),
+          if (!silencioso) {
+            setCargando(true)
+            setError('')
+          }
 
-        fetch(
-          `${API_URL}/asignaciones`
-        ),
+          const [
+            respuestaSalas,
+            respuestaMeseros,
+            respuestaEventos,
+            respuestaAsignaciones,
+            respuestaDisponibilidades
+          ] = await Promise.all([
+            fetch(
+              `${API_URL}/salas`
+            ),
 
-        fetch(
-          `${API_URL}/disponibilidades`
+            fetch(
+              `${API_URL}/meseros`
+            ),
+
+            fetch(
+              `${API_URL}/eventos`
+            ),
+
+            fetch(
+              `${API_URL}/asignaciones`
+            ),
+
+            fetch(
+              `${API_URL}/disponibilidades`
+            )
+          ])
+
+          if (
+            !respuestaSalas.ok ||
+            !respuestaMeseros.ok ||
+            !respuestaEventos.ok ||
+            !respuestaAsignaciones.ok ||
+            !respuestaDisponibilidades.ok
+          ) {
+            throw new Error(
+              'No fue posible obtener los datos del servidor.'
+            )
+          }
+
+          const [
+            datosSalas,
+            datosMeseros,
+            datosEventos,
+            datosAsignaciones,
+            datosDisponibilidades
+          ] = await Promise.all([
+            respuestaSalas.json(),
+            respuestaMeseros.json(),
+            respuestaEventos.json(),
+            respuestaAsignaciones.json(),
+            respuestaDisponibilidades.json()
+          ])
+
+          /*
+            Importante:
+            solamente actualizamos los estados
+            DESPUÉS de que todas las consultas
+            terminaron correctamente.
+
+            Así una falla temporal no deja
+            vacía la aplicación.
+          */
+
+          setSalas(
+            Array.isArray(
+              datosSalas
+            )
+              ? datosSalas
+              : []
+          )
+
+          setMeseros(
+            Array.isArray(
+              datosMeseros
+            )
+              ? datosMeseros
+              : []
+          )
+
+          setEventos(
+            Array.isArray(
+              datosEventos
+            )
+              ? datosEventos
+              : []
+          )
+
+          setAsignaciones(
+            Array.isArray(
+              datosAsignaciones
+            )
+              ? datosAsignaciones
+              : []
+          )
+
+          setDisponibilidades(
+            Array.isArray(
+              datosDisponibilidades
+            )
+              ? datosDisponibilidades
+              : []
+          )
+
+          /*
+            Si la sincronización fue
+            correcta quitamos cualquier
+            error anterior.
+          */
+
+          setError('')
+
+          return {
+            salas:
+              datosSalas,
+
+            meseros:
+              datosMeseros,
+
+            eventos:
+              datosEventos,
+
+            asignaciones:
+              datosAsignaciones,
+
+            disponibilidades:
+              datosDisponibilidades
+          }
+
+        } catch (error) {
+
+          console.error(
+            'Error al cargar datos de MesereArte:',
+            error
+          )
+
+          /*
+            En actualizaciones automáticas
+            NO borramos la información
+            ni bloqueamos la aplicación.
+          */
+
+          if (!silencioso) {
+            setError(
+              'No se pudo conectar con la API de MesereArte.'
+            )
+          }
+
+          return null
+
+        } finally {
+
+          if (!silencioso) {
+            setCargando(false)
+          }
+
+        }
+      },
+      []
+    )
+
+  /* ========================================
+     SINCRONIZACIÓN AUTOMÁTICA
+  ======================================== */
+
+  useEffect(
+    () => {
+
+      /*
+        Primera carga.
+      */
+
+      cargarDatos(false)
+
+      /*
+        Sincronización automática.
+
+        Esto permite que un cambio realizado
+        por el administrador aparezca en la
+        sesión del mesero/capitán.
+      */
+
+      const intervalo =
+        setInterval(
+          () => {
+            cargarDatos(true)
+          },
+          5000
         )
-      ])
 
-      if (
-        !respuestaSalas.ok ||
-        !respuestaMeseros.ok ||
-        !respuestaEventos.ok ||
-        !respuestaAsignaciones.ok ||
-        !respuestaDisponibilidades.ok
-      ) {
-        throw new Error(
-          'No fue posible obtener los datos del servidor.'
+      /*
+        También sincronizamos cuando el
+        usuario vuelve a esta ventana.
+      */
+
+      const sincronizarAlVolver =
+        () => {
+          cargarDatos(true)
+        }
+
+      /*
+        Y cuando vuelve a una pestaña
+        que estaba en segundo plano.
+      */
+
+      const sincronizarVisibilidad =
+        () => {
+
+          if (
+            document.visibilityState ===
+            'visible'
+          ) {
+            cargarDatos(true)
+          }
+
+        }
+
+      window.addEventListener(
+        'focus',
+        sincronizarAlVolver
+      )
+
+      document.addEventListener(
+        'visibilitychange',
+        sincronizarVisibilidad
+      )
+
+      return () => {
+
+        clearInterval(
+          intervalo
         )
+
+        window.removeEventListener(
+          'focus',
+          sincronizarAlVolver
+        )
+
+        document.removeEventListener(
+          'visibilitychange',
+          sincronizarVisibilidad
+        )
+
       }
 
-      const [
-        datosSalas,
-        datosMeseros,
-        datosEventos,
-        datosAsignaciones,
-        datosDisponibilidades
-      ] = await Promise.all([
-        respuestaSalas.json(),
-        respuestaMeseros.json(),
-        respuestaEventos.json(),
-        respuestaAsignaciones.json(),
-        respuestaDisponibilidades.json()
-      ])
-
-      setSalas(
-        datosSalas
-      )
-
-      setMeseros(
-        datosMeseros
-      )
-
-      setEventos(
-        datosEventos
-      )
-
-      setAsignaciones(
-        datosAsignaciones
-      )
-
-      setDisponibilidades(
-        datosDisponibilidades
-      )
-
-    } catch (error) {
-      console.error(error)
-
-      setError(
-        'No se pudo conectar con la API de MesereArte.'
-      )
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  useEffect(() => {
-    cargarDatos()
-  }, [])
+    },
+    [
+      cargarDatos
+    ]
+  )
 
   /* ========================================
      SALAS
   ======================================== */
 
   const crearSalaAPI =
-    async (datos) => {
+    async (
+      datos
+    ) => {
 
       const respuesta =
         await fetch(
           `${API_URL}/salas`,
           {
-            method: 'POST',
+            method:
+              'POST',
 
             headers: {
               'Content-Type':
@@ -193,7 +388,8 @@ export function MesereArteProvider({
         await fetch(
           `${API_URL}/salas/${id}`,
           {
-            method: 'PUT',
+            method:
+              'PUT',
 
             headers: {
               'Content-Type':
@@ -231,13 +427,16 @@ export function MesereArteProvider({
     }
 
   const eliminarSalaAPI =
-    async (id) => {
+    async (
+      id
+    ) => {
 
       const respuesta =
         await fetch(
           `${API_URL}/salas/${id}`,
           {
-            method: 'DELETE'
+            method:
+              'DELETE'
           }
         )
 
@@ -258,6 +457,8 @@ export function MesereArteProvider({
               sala.id !== id
           )
       )
+
+      return resultado
     }
 
   /* ========================================
@@ -265,13 +466,16 @@ export function MesereArteProvider({
   ======================================== */
 
   const crearMeseroAPI =
-    async (datos) => {
+    async (
+      datos
+    ) => {
 
       const respuesta =
         await fetch(
           `${API_URL}/meseros`,
           {
-            method: 'POST',
+            method:
+              'POST',
 
             headers: {
               'Content-Type':
@@ -315,7 +519,8 @@ export function MesereArteProvider({
         await fetch(
           `${API_URL}/meseros/${id}`,
           {
-            method: 'PUT',
+            method:
+              'PUT',
 
             headers: {
               'Content-Type':
@@ -353,13 +558,16 @@ export function MesereArteProvider({
     }
 
   const eliminarMeseroAPI =
-    async (id) => {
+    async (
+      id
+    ) => {
 
       const respuesta =
         await fetch(
           `${API_URL}/meseros/${id}`,
           {
-            method: 'DELETE'
+            method:
+              'DELETE'
           }
         )
 
@@ -398,6 +606,8 @@ export function MesereArteProvider({
               id
           )
       )
+
+      return resultado
     }
 
   /* ========================================
@@ -405,13 +615,16 @@ export function MesereArteProvider({
   ======================================== */
 
   const crearEventoAPI =
-    async (datos) => {
+    async (
+      datos
+    ) => {
 
       const respuesta =
         await fetch(
           `${API_URL}/eventos`,
           {
-            method: 'POST',
+            method:
+              'POST',
 
             headers: {
               'Content-Type':
@@ -455,7 +668,8 @@ export function MesereArteProvider({
         await fetch(
           `${API_URL}/eventos/${id}`,
           {
-            method: 'PUT',
+            method:
+              'PUT',
 
             headers: {
               'Content-Type':
@@ -479,6 +693,11 @@ export function MesereArteProvider({
         )
       }
 
+      /*
+        La sesión del administrador se
+        actualiza inmediatamente.
+      */
+
       setEventos(
         (anteriores) =>
           anteriores.map(
@@ -493,13 +712,16 @@ export function MesereArteProvider({
     }
 
   const eliminarEventoAPI =
-    async (id) => {
+    async (
+      id
+    ) => {
 
       const respuesta =
         await fetch(
           `${API_URL}/eventos/${id}`,
           {
-            method: 'DELETE'
+            method:
+              'DELETE'
           }
         )
 
@@ -538,6 +760,8 @@ export function MesereArteProvider({
               id
           )
       )
+
+      return resultado
     }
 
   /* ========================================
@@ -555,7 +779,8 @@ export function MesereArteProvider({
         await fetch(
           `${API_URL}/asignaciones/evento/${eventoId}`,
           {
-            method: 'PUT',
+            method:
+              'PUT',
 
             headers: {
               'Content-Type':
@@ -599,12 +824,16 @@ export function MesereArteProvider({
       )
 
       /*
-        Recargamos datos porque
-        el backend también crea
-        disponibilidades pendientes.
+        El backend también crea o modifica
+        disponibilidades.
+
+        Recargamos silenciosamente para
+        mantener todo sincronizado.
       */
 
-      await cargarDatos()
+      await cargarDatos(
+        true
+      )
 
       return resultado
     }
@@ -624,7 +853,8 @@ export function MesereArteProvider({
         await fetch(
           `${API_URL}/disponibilidades`,
           {
-            method: 'PUT',
+            method:
+              'PUT',
 
             headers: {
               'Content-Type':
@@ -652,6 +882,7 @@ export function MesereArteProvider({
 
       setDisponibilidades(
         (anteriores) => {
+
           const existe =
             anteriores.some(
               (item) =>
@@ -662,15 +893,20 @@ export function MesereArteProvider({
             )
 
           if (existe) {
+
             return anteriores.map(
               (item) =>
                 item.eventoId ===
                   resultado.eventoId &&
                 item.meseroId ===
                   resultado.meseroId
-                  ? resultado
+                  ? {
+                      ...item,
+                      ...resultado
+                    }
                   : item
             )
+
           }
 
           return [
@@ -681,6 +917,17 @@ export function MesereArteProvider({
       )
 
       return resultado
+    }
+
+  /* ========================================
+     REFRESCAR MANUALMENTE
+  ======================================== */
+
+  const refrescarDatosAPI =
+    async () => {
+      return await cargarDatos(
+        true
+      )
     }
 
   /* ========================================
@@ -709,6 +956,7 @@ export function MesereArteProvider({
         error,
 
         cargarDatos,
+        refrescarDatosAPI,
 
         crearSalaAPI,
         actualizarSalaAPI,
@@ -732,16 +980,23 @@ export function MesereArteProvider({
   )
 }
 
+/* ========================================
+   HOOK
+======================================== */
+
 export function useMesereArte() {
+
   const contexto =
     useContext(
       MesereArteContext
     )
 
   if (!contexto) {
+
     throw new Error(
       'useMesereArte debe utilizarse dentro de MesereArteProvider'
     )
+
   }
 
   return contexto

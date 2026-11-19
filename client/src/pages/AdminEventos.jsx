@@ -1,5 +1,5 @@
-
 import {
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -18,7 +18,9 @@ const formularioVacio = {
   horaInicio: '',
   horaFin: '',
   lugar: '',
-  ubicacion: '',
+  direccion: '',
+  latitud: '',
+  longitud: '',
   invitados: '',
   meserosRequeridos: '',
   uniforme: '',
@@ -77,7 +79,217 @@ function AdminEventos() {
     setError
   ] = useState('')
 
-  /* ========================================
+  const [
+  sugerenciasUbicacion,
+  setSugerenciasUbicacion
+] = useState([])
+
+const [
+  buscandoUbicacion,
+  setBuscandoUbicacion
+] = useState(false)
+
+const [
+  ubicacionSeleccionada,
+  setUbicacionSeleccionada
+] = useState(false)
+
+const GEOAPIFY_API_KEY =
+  import.meta.env
+    .VITE_GEOAPIFY_API_KEY
+
+useEffect(() => {
+  const texto =
+    formulario.direccion
+      .trim()
+
+  if (
+    !mostrarFormulario ||
+    ubicacionSeleccionada ||
+    texto.length < 3
+  ) {
+    setSugerenciasUbicacion([])
+    return
+  }
+
+  if (!GEOAPIFY_API_KEY) {
+    return
+  }
+
+  const controlador =
+    new AbortController()
+
+  const temporizador =
+    setTimeout(
+      async () => {
+        try {
+          setBuscandoUbicacion(true)
+
+const parametrosGenerales =
+  new URLSearchParams({
+    text: texto,
+    format: 'json',
+    filter:
+      'countrycode:mx',
+
+    // Prioriza CDMX y zona metropolitana,
+    // pero NO excluye otros lugares de México.
+    bias:
+      'proximity:-99.1332,19.4326',
+
+    lang: 'es',
+    limit: '10',
+
+    apiKey:
+      GEOAPIFY_API_KEY
+  })
+
+const parametrosLugares =
+  new URLSearchParams({
+    text: texto,
+    type: 'amenity',
+    format: 'json',
+    filter:
+      'countrycode:mx',
+
+    bias:
+      'proximity:-99.1332,19.4326',
+
+    lang: 'es',
+    limit: '10',
+
+    apiKey:
+      GEOAPIFY_API_KEY
+  })
+
+const [
+  respuestaGeneral,
+  respuestaLugares
+] =
+  await Promise.all([
+    fetch(
+      `https://api.geoapify.com/v1/geocode/autocomplete?${parametrosGenerales}`,
+      {
+        signal:
+          controlador.signal
+      }
+    ),
+
+    fetch(
+      `https://api.geoapify.com/v1/geocode/autocomplete?${parametrosLugares}`,
+      {
+        signal:
+          controlador.signal
+      }
+    )
+  ])
+
+if (
+  !respuestaGeneral.ok ||
+  !respuestaLugares.ok
+) {
+  throw new Error(
+    'No fue posible consultar ubicaciones.'
+  )
+}
+
+const [
+  datosGenerales,
+  datosLugares
+] =
+  await Promise.all([
+    respuestaGeneral.json(),
+    respuestaLugares.json()
+  ])
+
+const resultadosCombinados = [
+  ...(
+    Array.isArray(
+      datosLugares.results
+    )
+      ? datosLugares.results
+      : []
+  ),
+
+  ...(
+    Array.isArray(
+      datosGenerales.results
+    )
+      ? datosGenerales.results
+      : []
+  )
+]
+
+const resultadosUnicos =
+  resultadosCombinados.filter(
+    (
+      resultado,
+      indice,
+      arreglo
+    ) => {
+      return (
+        indice ===
+        arreglo.findIndex(
+          (otro) =>
+            otro.place_id ===
+              resultado.place_id ||
+            (
+              otro.lat ===
+                resultado.lat &&
+              otro.lon ===
+                resultado.lon
+            )
+        )
+      )
+    }
+  )
+
+setSugerenciasUbicacion(
+  resultadosUnicos.slice(
+    0,
+    10
+  )
+)
+        } catch (error) {
+          if (
+            error.name !==
+            'AbortError'
+          ) {
+            console.error(
+              'Error Geoapify:',
+              error
+            )
+
+            setSugerenciasUbicacion(
+              []
+            )
+          }
+
+        } finally {
+          setBuscandoUbicacion(
+            false
+          )
+        }
+      },
+      450
+    )
+
+  return () => {
+    clearTimeout(
+      temporizador
+    )
+
+    controlador.abort()
+  }
+
+}, [
+  formulario.direccion,
+  mostrarFormulario,
+  ubicacionSeleccionada,
+  GEOAPIFY_API_KEY
+])  
+   
+/* ========================================
      TIPOS DE EVENTO
   ======================================== */
 
@@ -311,12 +523,84 @@ function AdminEventos() {
     setError('')
   }
 
+const cambiarDireccion =
+  (e) => {
+    const value =
+      e.target.value
+
+    setFormulario(
+      (anterior) => ({
+        ...anterior,
+
+        direccion:
+          value,
+
+        latitud:
+          '',
+
+        longitud:
+          ''
+      })
+    )
+
+    setUbicacionSeleccionada(
+      false
+    )
+
+    setMensaje('')
+    setError('')
+  }
+
+
+const seleccionarUbicacion =
+  (resultado) => {
+    const direccion =
+      resultado.formatted ||
+      ''
+
+    const nombreLugar =
+      resultado.name ||
+      resultado.address_line1 ||
+      ''
+
+    setFormulario(
+      (anterior) => ({
+        ...anterior,
+
+        direccion,
+
+        latitud:
+          resultado.lat,
+
+        longitud:
+          resultado.lon,
+
+        lugar:
+          anterior.lugar.trim()
+            ? anterior.lugar
+            : nombreLugar
+      })
+    )
+
+    setUbicacionSeleccionada(
+      true
+    )
+
+    setSugerenciasUbicacion(
+      []
+    )
+
+    setMensaje('')
+    setError('')
+  }
   /* ========================================
      NUEVO EVENTO
   ======================================== */
 
   const abrirNuevoEvento =
     () => {
+      setSugerenciasUbicacion([])
+      setUbicacionSeleccionada(false)
       setIdEdicion(null)
 
       setFormulario(
@@ -380,8 +664,16 @@ function AdminEventos() {
         evento.lugar ||
         '',
 
-      ubicacion:
-        evento.ubicacion ||
+      direccion:
+        evento.direccion ||
+        '',
+
+      latitud:
+        evento.latitud ??
+        '',
+
+      longitud:
+         evento.longitud ??
         '',
 
       invitados:
@@ -400,6 +692,15 @@ function AdminEventos() {
         evento.observaciones ||
         ''
     })
+    setUbicacionSeleccionada(
+  Boolean(
+    evento.direccion &&
+    evento.latitud != null &&
+    evento.longitud != null
+  )
+)
+
+setSugerenciasUbicacion([])
 
     setEventoDetalle(null)
 
@@ -429,6 +730,7 @@ function AdminEventos() {
 
       setError('')
     }
+  
 
   /* ========================================
      GUARDAR EVENTO
@@ -442,39 +744,24 @@ function AdminEventos() {
       setError('')
 
       if (
-        !formulario.salaId ||
-        !formulario.nombre.trim() ||
-        !formulario.tipo ||
-        !formulario.fecha ||
-        !formulario.horaInicio ||
-        !formulario.horaFin ||
-        !formulario.lugar.trim() ||
-        !formulario.ubicacion.trim()
-      ) {
-        setError(
-          'Completa todos los campos obligatorios.'
-        )
+  !formulario.salaId ||
+  !formulario.nombre.trim() ||
+  !formulario.tipo ||
+  !formulario.fecha ||
+  !formulario.horaInicio ||
+  !formulario.horaFin ||
+  !formulario.lugar.trim() ||
+  !formulario.direccion.trim() ||
+  formulario.latitud === '' ||
+  formulario.longitud === ''
+) {
+  setError(
+    'Completa todos los campos obligatorios y selecciona una ubicación de la lista.'
+  )
 
-        return
-      }
+  return
+}
 
-      try {
-        const url = new URL(
-          formulario.ubicacion.trim()
-        )
-
-        if (
-          url.protocol !== 'https:' &&
-          url.protocol !== 'http:'
-        ) {
-          throw new Error()
-        }
-      } catch {
-        setError(
-          'La ubicación debe ser un enlace válido de Google Maps.'
-        )
-        return
-      }
 
       /*
         La hora final puede ser menor
@@ -531,14 +818,23 @@ function AdminEventos() {
 
         horario:
           `${formulario.horaInicio} - ${formulario.horaFin}`,
+lugar:
+  formulario.lugar
+    .trim(),
 
-        lugar:
-          formulario.lugar
-            .trim(),
+direccion:
+  formulario.direccion
+    .trim(),
 
-        ubicacion:
-          formulario.ubicacion
-            .trim(),
+latitud:
+  Number(
+    formulario.latitud
+  ),
+
+longitud:
+  Number(
+    formulario.longitud
+  ),
 
         invitados:
           Number(
@@ -1177,27 +1473,87 @@ function AdminEventos() {
 
                 </div>
 
-                {/* UBICACIÓN */}
+{/* UBICACIÓN */}
 
-                <div className="campo-completo">
+<div className="campo-completo ubicacion-autocomplete">
 
-                  <label>
-                    Ubicación *
-                  </label>
+  <label>
+    Ubicación *
+  </label>
 
-                  <input
-                    type="url"
-                    name="ubicacion"
-                    value={
-                      formulario.ubicacion
-                    }
-                    onChange={
-                      manejarCambio
-                    }
-                    placeholder="Pega el link de Google Maps"
-                  />
+  <input
+    type="text"
+    value={
+      formulario.direccion
+    }
+    onChange={
+      cambiarDireccion
+    }
+    placeholder="Busca una dirección o lugar"
+    autoComplete="off"
+  />
 
-                </div>
+  {buscandoUbicacion && (
+    <small className="ubicacion-buscando">
+      Buscando ubicaciones...
+    </small>
+  )}
+
+  {sugerenciasUbicacion.length >
+    0 && (
+
+    <div className="ubicacion-sugerencias">
+
+      {sugerenciasUbicacion.map(
+        (
+          resultado,
+          indice
+        ) => (
+
+          <button
+            type="button"
+            className="ubicacion-sugerencia"
+            key={
+              resultado.place_id ||
+              `${resultado.lat}-${resultado.lon}-${indice}`
+            }
+            onClick={() =>
+              seleccionarUbicacion(
+                resultado
+              )
+            }
+          >
+
+            <strong>
+              {
+                resultado.name ||
+                resultado.address_line1 ||
+                'Ubicación'
+              }
+            </strong>
+
+            <span>
+              {
+                resultado.formatted
+              }
+            </span>
+
+          </button>
+
+        )
+      )}
+
+    </div>
+
+  )}
+
+  {ubicacionSeleccionada && (
+    <small className="ubicacion-confirmada">
+      ✓ Ubicación seleccionada
+    </small>
+  )}
+
+</div>
 
                 {/* INVITADOS */}
 

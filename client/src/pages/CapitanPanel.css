@@ -865,3 +865,23 @@
 .capitan-panel table td {
   font-size: 15px;
 }
+
+/* ========================================
+   TELÉFONO DEL PERSONAL
+======================================== */
+
+.capitan-telefono {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.capitan-mapa-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.capitan-mapa-link:hover {
+  text-decoration: underline;
+}

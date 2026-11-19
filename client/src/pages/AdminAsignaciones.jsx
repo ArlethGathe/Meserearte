@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import {
+  useEffect,
+  useState
+} from 'react'
+
 import './AdminAsignaciones.css'
 
 import {
@@ -41,6 +45,11 @@ function AdminAsignaciones() {
   ] = useState('')
 
   const [
+    advertenciaCapitan,
+    setAdvertenciaCapitan
+  ] = useState('')
+
+  const [
     guardando,
     setGuardando
   ] = useState(false)
@@ -58,7 +67,9 @@ function AdminAsignaciones() {
     eventos.find(
       (evento) =>
         evento.id ===
-        Number(eventoSeleccionado)
+        Number(
+          eventoSeleccionado
+        )
     )
 
   /* ========================================
@@ -130,18 +141,6 @@ function AdminAsignaciones() {
     return 'Sin horario'
   }
 
-  /*
-    Esta función también se utiliza
-    para detectar traslapes.
-
-    Si el evento tiene horaInicio y
-    horaFin se utilizan directamente.
-
-    Si es un evento anterior que
-    solamente tiene "horario",
-    extraemos las horas de ahí.
-  */
-
   const extraerRango = (
     evento
   ) => {
@@ -172,10 +171,12 @@ function AdminAsignaciones() {
 
     return {
       inicio:
-        horas[0] || null,
+        horas[0] ||
+        null,
 
       fin:
-        horas[1] || null
+        horas[1] ||
+        null
     }
   }
 
@@ -190,10 +191,18 @@ function AdminAsignaciones() {
     const registro =
       disponibilidades.find(
         (item) =>
-          item.eventoId ===
-            eventoId &&
-          item.meseroId ===
-            meseroId
+          Number(
+            item.eventoId
+          ) ===
+            Number(
+              eventoId
+            ) &&
+          Number(
+            item.meseroId
+          ) ===
+            Number(
+              meseroId
+            )
       )
 
     return registro
@@ -242,15 +251,6 @@ function AdminAsignaciones() {
       return false
     }
 
-    /*
-      Por ahora esta validación
-      trabaja con eventos del mismo día.
-
-      Los eventos nocturnos que cruzan
-      medianoche los ajustaremos después
-      directamente en backend.
-    */
-
     return (
       rangoA.inicio <
         rangoB.fin &&
@@ -273,10 +273,18 @@ function AdminAsignaciones() {
     const otrasAsignaciones =
       asignaciones.filter(
         (asignacion) =>
-          asignacion.meseroId ===
-            meseroId &&
-          asignacion.eventoId !==
-            eventoActual.id
+          Number(
+            asignacion.meseroId
+          ) ===
+            Number(
+              meseroId
+            ) &&
+          Number(
+            asignacion.eventoId
+          ) !==
+            Number(
+              eventoActual.id
+            )
       )
 
     for (
@@ -286,8 +294,12 @@ function AdminAsignaciones() {
       const otroEvento =
         eventos.find(
           (evento) =>
-            evento.id ===
-            asignacion.eventoId
+            Number(
+              evento.id
+            ) ===
+            Number(
+              asignacion.eventoId
+            )
         )
 
       if (
@@ -312,12 +324,133 @@ function AdminAsignaciones() {
     eventoActual
       ? meseros.filter(
           (mesero) =>
-            mesero.salaId ===
-              eventoActual.salaId &&
+            Number(
+              mesero.salaId
+            ) ===
+              Number(
+                eventoActual.salaId
+              ) &&
             mesero.estado ===
               'Activo'
         )
       : []
+
+  /* ========================================
+     CAPITÁN GUARDADO
+  ======================================== */
+
+  const asignacionesEvento =
+    eventoActual
+      ? asignaciones.filter(
+          (asignacion) =>
+            Number(
+              asignacion.eventoId
+            ) ===
+            Number(
+              eventoActual.id
+            )
+        )
+      : []
+
+  const capitanGuardado =
+    asignacionesEvento.find(
+      (asignacion) =>
+        asignacion.rol ===
+        'Capitán'
+    )
+
+  /* ========================================
+     CAPITÁN NO DISPONIBLE
+  ======================================== */
+
+  useEffect(
+    () => {
+      if (!eventoActual) {
+        setAdvertenciaCapitan('')
+        return
+      }
+
+      /*
+        Puede existir personal pero temporalmente
+        no haber capitán porque el anterior
+        indicó "No disponible".
+      */
+
+      if (
+        asignacionesEvento.length >
+          0 &&
+        !capitanGuardado
+      ) {
+        setAdvertenciaCapitan(
+          'Este evento tiene personal asignado pero actualmente no cuenta con capitán. Debes seleccionar un nuevo capitán antes de guardar cambios.'
+        )
+
+        return
+      }
+
+      if (!capitanGuardado) {
+        setAdvertenciaCapitan('')
+        return
+      }
+
+      const disponibilidad =
+        obtenerDisponibilidad(
+          eventoActual.id,
+          capitanGuardado.meseroId
+        )
+
+      if (
+        disponibilidad ===
+        'No disponible'
+      ) {
+        const datosCapitan =
+          meseros.find(
+            (item) =>
+              Number(
+                item.id
+              ) ===
+              Number(
+                capitanGuardado.meseroId
+              )
+          )
+
+        /*
+          Si el capitán seleccionado en
+          pantalla es el que se volvió
+          no disponible, lo quitamos.
+        */
+
+        setCapitan(
+          (capitanActual) =>
+            Number(
+              capitanActual
+            ) ===
+            Number(
+              capitanGuardado.meseroId
+            )
+              ? ''
+              : capitanActual
+        )
+
+        setCambiosGuardados(
+          false
+        )
+
+        setAdvertenciaCapitan(
+          `${datosCapitan?.nombre || 'El capitán'} ${datosCapitan?.apellidos || ''} indicó que no está disponible para este evento. Debes seleccionar otro mesero como capitán antes de guardar cambios.`
+        )
+
+        return
+      }
+
+      setAdvertenciaCapitan('')
+    },
+    [
+      eventoSeleccionado,
+      disponibilidades,
+      asignaciones
+    ]
+  )
 
   /* ========================================
      CAMBIAR EVENTO
@@ -337,6 +470,7 @@ function AdminAsignaciones() {
 
     setMensaje('')
     setError('')
+    setAdvertenciaCapitan('')
     setCambiosGuardados(false)
 
     if (!eventoId) {
@@ -348,14 +482,18 @@ function AdminAsignaciones() {
     const actuales =
       asignaciones.filter(
         (asignacion) =>
-          asignacion.eventoId ===
+          Number(
+            asignacion.eventoId
+          ) ===
           eventoId
       )
 
     setMeserosSeleccionados(
       actuales.map(
         (asignacion) =>
-          asignacion.meseroId
+          Number(
+            asignacion.meseroId
+          )
       )
     )
 
@@ -366,12 +504,55 @@ function AdminAsignaciones() {
           'Capitán'
       )
 
+    if (!capitanActual) {
+      setCapitan('')
+
+      if (
+        actuales.length >
+        0
+      ) {
+        setAdvertenciaCapitan(
+          'Este evento tiene personal asignado pero no cuenta con capitán. Selecciona uno antes de guardar cambios.'
+        )
+      }
+
+      return
+    }
+
+    const disponibilidadCapitan =
+      obtenerDisponibilidad(
+        eventoId,
+        capitanActual.meseroId
+      )
+
+    if (
+      disponibilidadCapitan ===
+      'No disponible'
+    ) {
+      const datosCapitan =
+        meseros.find(
+          (item) =>
+            Number(
+              item.id
+            ) ===
+            Number(
+              capitanActual.meseroId
+            )
+        )
+
+      setCapitan('')
+
+      setAdvertenciaCapitan(
+        `${datosCapitan?.nombre || 'El capitán'} ${datosCapitan?.apellidos || ''} indicó que no está disponible para este evento. Selecciona un nuevo capitán.`
+      )
+
+      return
+    }
+
     setCapitan(
-      capitanActual
-        ? String(
-            capitanActual.meseroId
-          )
-        : ''
+      String(
+        capitanActual.meseroId
+      )
     )
   }
 
@@ -408,18 +589,38 @@ function AdminAsignaciones() {
     setCambiosGuardados(false)
 
     if (seleccionado) {
-      setMeserosSeleccionados(
+      const nuevosSeleccionados =
         meserosSeleccionados.filter(
           (id) =>
-            id !== meseroId
+            id !==
+            meseroId
         )
+
+      setMeserosSeleccionados(
+        nuevosSeleccionados
       )
 
       if (
         Number(capitan) ===
-        meseroId
+        Number(meseroId)
       ) {
         setCapitan('')
+
+        if (
+          nuevosSeleccionados.length >
+          0
+        ) {
+          setAdvertenciaCapitan(
+            'Quitaste al capitán del personal asignado. Debes seleccionar un nuevo capitán antes de guardar.'
+          )
+        }
+      }
+
+      if (
+        nuevosSeleccionados.length ===
+        0
+      ) {
+        setAdvertenciaCapitan('')
       }
 
       return
@@ -429,6 +630,22 @@ function AdminAsignaciones() {
       ...meserosSeleccionados,
       meseroId
     ])
+
+    /*
+      Si se agrega el primer mesero,
+      recordamos que también debe
+      seleccionarse un capitán.
+    */
+
+    if (
+      meserosSeleccionados.length ===
+        0 &&
+      !capitan
+    ) {
+      setAdvertenciaCapitan(
+        'Si asignas personal al evento debes seleccionar obligatoriamente un capitán.'
+      )
+    }
   }
 
   /* ========================================
@@ -438,13 +655,52 @@ function AdminAsignaciones() {
   const cambiarCapitan = (
     e
   ) => {
-    setCapitan(
+    const nuevoCapitan =
       e.target.value
-    )
 
     setMensaje('')
     setError('')
     setCambiosGuardados(false)
+
+    if (!nuevoCapitan) {
+      setCapitan('')
+
+      if (
+        meserosSeleccionados.length >
+        0
+      ) {
+        setAdvertenciaCapitan(
+          'El evento tiene personal asignado. Debes seleccionar un capitán antes de guardar.'
+        )
+      }
+
+      return
+    }
+
+    const disponibilidad =
+      obtenerDisponibilidad(
+        eventoActual.id,
+        Number(
+          nuevoCapitan
+        )
+      )
+
+    if (
+      disponibilidad ===
+      'No disponible'
+    ) {
+      setError(
+        'Un mesero que indicó "No disponible" no puede ser capitán.'
+      )
+
+      return
+    }
+
+    setCapitan(
+      nuevoCapitan
+    )
+
+    setAdvertenciaCapitan('')
   }
 
   /* ========================================
@@ -456,6 +712,29 @@ function AdminAsignaciones() {
       if (!eventoActual) {
         setError(
           'Selecciona un evento.'
+        )
+
+        return
+      }
+
+      /*
+        REGLA NUEVA:
+        puede existir un evento sin personal,
+        pero si tiene uno o más meseros,
+        obligatoriamente debe existir capitán.
+      */
+
+      if (
+        meserosSeleccionados.length >
+          0 &&
+        !capitan
+      ) {
+        setError(
+          'Debes seleccionar un capitán antes de guardar el personal asignado.'
+        )
+
+        setAdvertenciaCapitan(
+          'El evento no puede guardar personal asignado sin un capitán.'
         )
 
         return
@@ -510,8 +789,14 @@ function AdminAsignaciones() {
           disponibilidadCapitan ===
           'No disponible'
         ) {
+          setCapitan('')
+
           setError(
-            'El mesero seleccionado como capitán indicó que no está disponible.'
+            'El mesero seleccionado como capitán indicó que no está disponible. Selecciona otro capitán.'
+          )
+
+          setAdvertenciaCapitan(
+            'El evento necesita un nuevo capitán antes de guardar cambios.'
           )
 
           return
@@ -534,6 +819,8 @@ function AdminAsignaciones() {
         setCambiosGuardados(
           true
         )
+
+        setAdvertenciaCapitan('')
 
         setMensaje(
           meserosSeleccionados.length ===
@@ -613,7 +900,7 @@ function AdminAsignaciones() {
 
     if (
       Number(capitan) ===
-      meseroId
+      Number(meseroId)
     ) {
       return 'Capitán'
     }
@@ -665,6 +952,20 @@ function AdminAsignaciones() {
         <div className="asignacion-mensaje error">
 
           {error}
+
+        </div>
+
+      )}
+
+      {advertenciaCapitan && (
+
+        <div className="asignacion-mensaje error">
+
+          <strong>
+            Atención:
+          </strong>{' '}
+
+          {advertenciaCapitan}
 
         </div>
 
@@ -1051,6 +1352,16 @@ function AdminAsignaciones() {
 
                               </span>
 
+                            ) : disponibilidad ===
+                              'No disponible' ? (
+
+                              <span className="mesero-traslape">
+
+                                No disponible para
+                                este evento
+
+                              </span>
+
                             ) : (
 
                               <span className="mesero-disponible">
@@ -1088,9 +1399,9 @@ function AdminAsignaciones() {
               </h2>
 
               <p>
-                El capitán debe formar
-                parte del personal
-                asignado.
+                Si existe personal asignado,
+                el evento debe contar
+                obligatoriamente con un capitán.
               </p>
 
             </div>
@@ -1105,7 +1416,7 @@ function AdminAsignaciones() {
             >
 
               <option value="">
-                Sin capitán asignado
+                Selecciona un capitán
               </option>
 
               {meserosDeLaSala
@@ -1195,6 +1506,28 @@ function AdminAsignaciones() {
 
                 <strong>
                   {confirmados}
+                </strong>
+              </p>
+
+              <p>
+                Capitán:{' '}
+
+                <strong>
+                  {capitan
+                    ? (
+                        meseros.find(
+                          (item) =>
+                            Number(
+                              item.id
+                            ) ===
+                            Number(
+                              capitan
+                            )
+                        )
+                          ?.nombre ||
+                        'Asignado'
+                      )
+                    : 'Sin capitán'}
                 </strong>
               </p>
 

@@ -148,6 +148,7 @@ function App() {
       nombre: '',
       apellidos: '',
       correo: '',
+      telefono: '',
       password: '',
       datoSala: ''
     })
@@ -207,28 +208,45 @@ function App() {
         REGISTRO DE MESERO
       */
 
-      else {
-        endpoint =
-          `${API_URL}/auth/registro-mesero`
+     else {
+  endpoint =
+    `${API_URL}/auth/registro-mesero`
 
-        datos = {
-          nombre:
-            registro.nombre,
+  const telefonoLimpio =
+    registro.telefono.replace(
+      /\D/g,
+      ''
+    )
 
-          apellidos:
-            registro.apellidos,
+  if (
+    telefonoLimpio.length !==
+    10
+  ) {
+    throw new Error(
+      'Ingresa un número de teléfono de 10 dígitos.'
+    )
+  }
 
-          correo:
-            registro.correo,
+  datos = {
+    nombre:
+      registro.nombre,
 
-          password:
-            registro.password,
+    apellidos:
+      registro.apellidos,
 
-          codigoSala:
-            registro.datoSala
-        }
-      }
+    correo:
+      registro.correo,
 
+    telefono:
+      telefonoLimpio,
+
+    password:
+      registro.password,
+
+    codigoSala:
+      registro.datoSala
+  }
+}
       const respuesta =
         await fetch(
           endpoint,
@@ -303,6 +321,7 @@ function App() {
         nombre: '',
         apellidos: '',
         correo: '',
+        telefono:'', 
         password: '',
         datoSala: ''
       })
@@ -342,6 +361,7 @@ function App() {
       nombre: '',
       apellidos: '',
       correo: '',
+      telefono:'', 
       password: '',
       datoSala: ''
     })
@@ -438,7 +458,7 @@ function App() {
               <>
 
                 <span>
-                  Vista de acceso
+                  ¡Bienvenido a MesereArte!
                 </span>
 
                 <p>
@@ -817,6 +837,43 @@ function App() {
                   placeholder="nuevo@meserearte.com"
                   required
                 />
+                {rol === 'mesero' && (
+  <>
+    <label>
+      Número de teléfono
+    </label>
+
+    <input
+      type="tel"
+      name="telefono"
+      value={
+        registro.telefono
+      }
+      onChange={(e) => {
+        const valor =
+          e.target.value
+            .replace(
+              /\D/g,
+              ''
+            )
+            .slice(
+              0,
+              10
+            )
+
+        setRegistro({
+          ...registro,
+          telefono:
+            valor
+        })
+      }}
+      placeholder="5512345678"
+      maxLength="10"
+      inputMode="numeric"
+      required
+    />
+  </>
+)}
 
                 <label>
                   Contraseña

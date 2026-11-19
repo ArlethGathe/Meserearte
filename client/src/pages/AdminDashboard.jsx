@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import {
+  useEffect,
+  useState
+} from 'react'
+
 import './AdminDashboard.css'
 
 import AdminSalas from './AdminSalas.jsx'
@@ -13,6 +17,9 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
+const API_URL =
+  'http://localhost:3001/api'
+
 function AdminDashboard({
   usuario,
   onLogout
@@ -22,12 +29,217 @@ function AdminDashboard({
     setSeccion
   ] = useState('inicio')
 
+  const [
+    notificacionesNoLeidas,
+    setNotificacionesNoLeidas
+  ] = useState(0)
+
   const {
     salas,
     meseros,
     eventos,
     asignaciones
   } = useMesereArte()
+
+  /* ========================================
+     CONTADOR DE NOTIFICACIONES
+  ======================================== */
+
+  const cargarContadorNotificaciones =
+    async () => {
+      try {
+        /*
+          Obtenemos todas las salas que
+          pertenecen al administrador.
+        */
+
+        let salasAdministrador =
+          salas.filter(
+            (sala) =>
+              Number(
+                sala.administradorId
+              ) ===
+              Number(
+                usuario?.id
+              )
+          )
+
+        /*
+          Compatibilidad:
+          si el usuario ya trae salaId.
+        */
+
+        if (
+          salasAdministrador.length ===
+            0 &&
+          usuario?.salaId
+        ) {
+          const salaUsuario =
+            salas.find(
+              (sala) =>
+                Number(
+                  sala.id
+                ) ===
+                Number(
+                  usuario.salaId
+                )
+            )
+
+          if (salaUsuario) {
+            salasAdministrador = [
+              salaUsuario
+            ]
+          }
+        }
+
+        /*
+          Respaldo para la etapa actual
+          del proyecto cuando sólo exista
+          una sala.
+        */
+
+        if (
+          salasAdministrador.length ===
+            0 &&
+          salas.length ===
+            1
+        ) {
+          salasAdministrador = [
+            salas[0]
+          ]
+        }
+
+        if (
+          salasAdministrador.length ===
+          0
+        ) {
+          setNotificacionesNoLeidas(
+            0
+          )
+
+          return
+        }
+
+        /*
+          Consultamos las alertas de
+          todas las salas del admin.
+        */
+
+        const respuestas =
+          await Promise.all(
+            salasAdministrador.map(
+              (sala) =>
+                fetch(
+                  `${API_URL}/notificaciones?salaId=${sala.id}&destinatario=Administrador`
+                )
+            )
+          )
+
+        const resultados =
+          await Promise.all(
+            respuestas.map(
+              async (
+                respuesta
+              ) => {
+                const datos =
+                  await respuesta.json()
+
+                if (
+                  !respuesta.ok
+                ) {
+                  throw new Error(
+                    datos.mensaje ||
+                    'No se pudieron consultar las notificaciones.'
+                  )
+                }
+
+                return Array.isArray(
+                  datos
+                )
+                  ? datos
+                  : []
+              }
+            )
+          )
+
+        /*
+          Juntamos las notificaciones
+          de todas las salas.
+        */
+
+        const todas =
+          resultados.flat()
+
+        /*
+          Evitamos contar dos veces
+          una misma notificación.
+        */
+
+        const unicas =
+          Array.from(
+            new Map(
+              todas.map(
+                (
+                  notificacion
+                ) => [
+                  notificacion.id,
+                  notificacion
+                ]
+              )
+            ).values()
+          )
+
+        const noLeidas =
+          unicas.filter(
+            (
+              notificacion
+            ) =>
+              !notificacion.leida
+          ).length
+
+        setNotificacionesNoLeidas(
+          noLeidas
+        )
+
+      } catch (error) {
+        console.error(
+          'Error contador de notificaciones:',
+          error
+        )
+      }
+    }
+
+  /* ========================================
+     ACTUALIZAR CONTADOR AUTOMÁTICAMENTE
+  ======================================== */
+
+  useEffect(
+    () => {
+      cargarContadorNotificaciones()
+
+      const intervalo =
+        setInterval(
+          () => {
+            cargarContadorNotificaciones()
+          },
+          5000
+        )
+
+      return () =>
+        clearInterval(
+          intervalo
+        )
+    },
+    [
+      salas,
+      usuario?.id,
+      usuario?.salaId
+    ]
+  )
+
+  /* ========================================
+     CONTADORES GENERALES
+  ======================================== */
 
   const totalSalas =
     salas.length
@@ -58,6 +270,10 @@ function AdminDashboard({
     ).length
   }
 
+  /* ========================================
+     FECHA
+  ======================================== */
+
   const formatearFecha = (
     fecha
   ) => {
@@ -72,6 +288,10 @@ function AdminDashboard({
     return `${dia}/${mes}/${anio}`
   }
 
+  /* ========================================
+     PRÓXIMOS EVENTOS
+  ======================================== */
+
   const proximosEventos = [
     ...eventos
   ]
@@ -85,6 +305,10 @@ function AdminDashboard({
         )
     )
     .slice(0, 3)
+
+  /* ========================================
+     COMPONENTE
+  ======================================== */
 
   return (
     <div className="admin-layout">
@@ -107,12 +331,15 @@ function AdminDashboard({
 
           <button
             className={
-              seccion === 'inicio'
+              seccion ===
+              'inicio'
                 ? 'activo'
                 : ''
             }
             onClick={() =>
-              setSeccion('inicio')
+              setSeccion(
+                'inicio'
+              )
             }
           >
             Inicio
@@ -120,12 +347,15 @@ function AdminDashboard({
 
           <button
             className={
-              seccion === 'salas'
+              seccion ===
+              'salas'
                 ? 'activo'
                 : ''
             }
             onClick={() =>
-              setSeccion('salas')
+              setSeccion(
+                'salas'
+              )
             }
           >
             Salas
@@ -133,12 +363,15 @@ function AdminDashboard({
 
           <button
             className={
-              seccion === 'usuarios'
+              seccion ===
+              'usuarios'
                 ? 'activo'
                 : ''
             }
             onClick={() =>
-              setSeccion('usuarios')
+              setSeccion(
+                'usuarios'
+              )
             }
           >
             Usuarios
@@ -146,12 +379,15 @@ function AdminDashboard({
 
           <button
             className={
-              seccion === 'eventos'
+              seccion ===
+              'eventos'
                 ? 'activo'
                 : ''
             }
             onClick={() =>
-              setSeccion('eventos')
+              setSeccion(
+                'eventos'
+              )
             }
           >
             Eventos
@@ -173,25 +409,48 @@ function AdminDashboard({
             Asignaciones
           </button>
 
-          <button
-            className={
-              seccion ===
-              'notificaciones'
-                ? 'activo'
-                : ''
-            }
-            onClick={() =>
-              setSeccion(
-                'notificaciones'
-              )
-            }
-          >
-            Notificaciones
-          </button>
+          {/* =================================
+              NOTIFICACIONES + CONTADOR
+          ================================= */}
+
+        <button
+  className={
+    seccion ===
+    'notificaciones'
+      ? 'activo admin-menu-notificaciones'
+      : 'admin-menu-notificaciones'
+  }
+  onClick={() => {
+    setSeccion(
+      'notificaciones'
+    )
+
+    cargarContadorNotificaciones()
+  }}
+>
+  <span>
+    Notificaciones
+  </span>
+
+  {notificacionesNoLeidas >
+    0 && (
+
+    <span className="admin-notificaciones-badge">
+      {
+        notificacionesNoLeidas >
+        99
+          ? '99+'
+          : notificacionesNoLeidas
+      }
+    </span>
+
+  )}
+</button>
 
           <button
             className={
-              seccion === 'reportes'
+              seccion ===
+              'reportes'
                 ? 'activo'
                 : ''
             }
@@ -206,7 +465,8 @@ function AdminDashboard({
 
           <button
             className={
-              seccion === 'perfil'
+              seccion ===
+              'perfil'
                 ? 'activo'
                 : ''
             }
@@ -224,7 +484,9 @@ function AdminDashboard({
         <div className="admin-logout">
 
           <button
-            onClick={onLogout}
+            onClick={
+              onLogout
+            }
           >
             Cerrar sesión
           </button>
@@ -235,36 +497,47 @@ function AdminDashboard({
 
       <main className="admin-main">
 
-        {seccion === 'salas' ? (
+        {seccion ===
+          'salas' ? (
 
           <AdminSalas />
 
-        ) : seccion === 'usuarios' ? (
+        ) : seccion ===
+          'usuarios' ? (
 
           <AdminUsuarios />
 
-        ) : seccion === 'eventos' ? (
+        ) : seccion ===
+          'eventos' ? (
 
           <AdminEventos />
 
-        ) : seccion === 'asignaciones' ? (
+        ) : seccion ===
+          'asignaciones' ? (
 
           <AdminAsignaciones />
 
-        ) : seccion === 'notificaciones' ? (
+        ) : seccion ===
+          'notificaciones' ? (
 
           <AdminNotificaciones
-            usuario={usuario}
+            usuario={
+              usuario
+            }
           />
 
-        ) : seccion === 'reportes' ? (
+        ) : seccion ===
+          'reportes' ? (
 
           <AdminReportes />
 
-        ) : seccion === 'perfil' ? (
+        ) : seccion ===
+          'perfil' ? (
 
           <AdminPerfil
-            usuario={usuario}
+            usuario={
+              usuario
+            }
           />
 
         ) : (
@@ -396,25 +669,35 @@ function AdminDashboard({
 
                       <div
                         className="dashboard-evento"
-                        key={evento.id}
+                        key={
+                          evento.id
+                        }
                       >
 
                         <div className="dashboard-evento-info">
 
                           <h3>
-                            {evento.nombre}
+                            {
+                              evento.nombre
+                            }
                           </h3>
 
                           <p>
                             {formatearFecha(
                               evento.fecha
                             )}
+
                             {' · '}
-                            {evento.horario}
+
+                            {
+                              evento.horario
+                            }
                           </p>
 
                           <span>
-                            {evento.ubicacion}
+                            {
+                              evento.ubicacion
+                            }
                           </span>
 
                         </div>
@@ -429,7 +712,9 @@ function AdminDashboard({
                             {obtenerCantidadAsignados(
                               evento.id
                             )}
+
                             {' / '}
+
                             {
                               evento
                                 .meserosRequeridos
