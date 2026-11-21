@@ -39,3 +39,32 @@ psql @destino -f 001_auth.verify.sql
 ## Reversión y decisión de despliegue
 
 `down` toma bloqueos antes de comprobar si hay datos y nunca usa `CASCADE`. Si encuentra datos de autenticación o una dependencia, se detiene y la transacción revierte. Una vez que la aplicación use el esquema, conservarlo si se necesita revertir código. Volver al backend anterior después de activar Argon2id y sesiones restablecería el acceso sin middleware. Usar una versión de contingencia que preserve esos controles o mantener la API privada en mantenimiento. Cualquier retirada de datos de autenticación requiere un procedimiento separado.
+
+## Migración 002 de transición de credenciales
+
+Aplicar `002_credenciales.up.sql` después de `001_auth.up.sql` y antes de habilitar altas con hash. En el esquema que deja 001, `usuarios.password` es `varchar(255) NOT NULL` y `password_hash` es `text` anulable. Ejecutar `002_credenciales.verify.sql` antes y después de aplicar o revertir para comparar metadatos.
+
+| Estado | `password` | `password_hash` |
+|---|---|---|
+| `pendiente` | Credencial legada | NULL |
+| `migrada` | NULL | PHC Argon2id completo |
+| `requiere_restablecimiento` | NULL | NULL |
+
+002 retira el `NOT NULL` de `password`, conserva la columna y deja las filas existentes como pendientes. Si ya se guardaron hashes bajo 001, la restricción aborta la instalación y exige clasificar esas cuentas antes del corte. La restricción comprueba la coherencia de las columnas y la forma del PHC. El módulo Argon2id valida su coste y verifica la contraseña.
+
+Para una conversión posterior, suspender las escrituras de credenciales legadas y procesar filas pendientes en lotes. Guardar el hash, cambiar el estado y poner la credencial legada en NULL en la misma escritura. Las cuentas con credenciales fijas, compartidas o de origen incierto pasan a restablecimiento y conservan su identidad. Reanudar por estado y registrar solo recuentos. El backend actual compara contra `password`, por lo que el primer cambio de estado y las altas con hash requieren el corte coordinado del backend. El valor predeterminado `pendiente` conserva la compatibilidad de las altas legadas durante la preparación.
+
+`002_credenciales.down.sql` toma un bloqueo exclusivo y restablece `password NOT NULL` solo si todas las cuentas conservan su credencial legada. Si ya hay cuentas migradas o pendientes de restablecimiento, conservar el esquema y revertir a una versión de la aplicación compatible con esos estados. Revertir 002 antes de 001.
+
+### Ensayo de 002
+
+Restaurar únicamente el esquema original de las diez tablas, anterior a 001, en una instancia desechable con una base vacía `meserearte_credenciales_test`. La prueba se conecta explícitamente a `127.0.0.1:55439` como `meserearte_test`, sin cargar la configuración del proyecto. Configurar autenticación local para ese rol de prueba. Desde `server`:
+
+~~~powershell
+npm.cmd test
+$env:MESEREARTE_ENSAYO_CREDENCIALES = '1'
+node --test tests/credenciales-migracion.test.js
+Remove-Item Env:MESEREARTE_ENSAYO_CREDENCIALES
+~~~
+
+El ensayo aplica 001, carga cuentas ficticias y prueba 002, el DOWN limpio y el rechazo del DOWN después de convertir cuentas. Usar una copia vacía nueva para cada ejecución.
