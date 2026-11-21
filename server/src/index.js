@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { pool, probarConexion } from './db.js'
 import { crearLogin } from './login.js'
+import { hashPassword } from './passwords.js'
 import { leerConfiguracionLimiteLogin } from './login-limit-config.js'
 import { crearLimitadorLogin, limitarLogin } from './login-limit.js'
 
@@ -492,148 +493,6 @@ async function buscarConflictoMesero({
 
 
 /* =========================================================
-   DATOS DEMO INICIALES
-========================================================= */
-
-async function inicializarDatosDemo() {
-  const resultado =
-    await pool.query(
-      `
-      SELECT COUNT(*)::INTEGER
-        AS total
-      FROM usuarios
-      `
-    )
-
-  if (
-    resultado.rows[0].total > 0
-  ) {
-    return
-  }
-
-  const cliente =
-    await pool.connect()
-
-  try {
-    await cliente.query('BEGIN')
-
-    const admin =
-      await cliente.query(
-        `
-        INSERT INTO usuarios (
-          nombre,
-          apellidos,
-          correo,
-          password,
-          rol,
-          estado
-        )
-        VALUES (
-          'Administrador',
-          'MesereArte',
-          'admin@meserearte.com',
-          '123456',
-          'Administrador',
-          'Activo'
-        )
-        RETURNING id
-        `
-      )
-
-    const adminId =
-      admin.rows[0].id
-
-    const sala =
-      await cliente.query(
-        `
-        INSERT INTO salas (
-          nombre,
-          descripcion,
-          codigo,
-          administrador_id,
-          estado
-        )
-        VALUES (
-          'Sala Principal',
-          'Sala inicial de MesereArte',
-          'MESA2026',
-          $1,
-          'Activa'
-        )
-        RETURNING id
-        `,
-        [adminId]
-      )
-
-    const salaId =
-      sala.rows[0].id
-
-    const usuarioMesero =
-      await cliente.query(
-        `
-        INSERT INTO usuarios (
-          nombre,
-          apellidos,
-          correo,
-          password,
-          rol,
-          estado
-        )
-        VALUES (
-          'María',
-          'López',
-          'maria@meserearte.com',
-          '123456',
-          'Mesero',
-          'Activo'
-        )
-        RETURNING id
-        `
-      )
-
-    await cliente.query(
-      `
-      INSERT INTO meseros (
-        usuario_id,
-        sala_id,
-        telefono,
-        estado
-      )
-      VALUES (
-        $1,
-        $2,
-        '5512345678',
-        'Activo'
-      )
-      `,
-      [
-        usuarioMesero.rows[0].id,
-        salaId
-      ]
-    )
-
-    await cliente.query(
-      'COMMIT'
-    )
-
-    console.log(
-      'Datos demo creados.'
-    )
-
-  } catch (error) {
-    await cliente.query(
-      'ROLLBACK'
-    )
-
-    throw error
-
-  } finally {
-    cliente.release()
-  }
-}
-
-
-/* =========================================================
    HEALTH
 ========================================================= */
 
@@ -678,6 +537,15 @@ app.post('/api/auth/login', limitarLogin(limitadorLogin, normalizarCorreo), crea
 /* =========================================================
    REGISTRO ADMINISTRADOR
 ========================================================= */
+
+async function generarHashRegistro(password) {
+  try {
+    return await hashPassword(password)
+  } catch (error) {
+    if (error instanceof TypeError) return null
+    throw error
+  }
+}
 
 app.post(
   '/api/auth/registro-admin',
@@ -754,6 +622,15 @@ app.post(
           })
       }
 
+      const passwordHash = await generarHashRegistro(password)
+      if (passwordHash === null) {
+        await cliente.query('ROLLBACK')
+        return res.status(400).json({
+          ok: false,
+          mensaje: 'La contraseña no tiene un formato válido.'
+        })
+      }
+
       const usuarioResultado =
         await cliente.query(
           `
@@ -762,6 +639,8 @@ app.post(
             apellidos,
             correo,
             password,
+            password_hash,
+            estado_credencial,
             rol,
             estado
           )
@@ -769,11 +648,14 @@ app.post(
             $1,
             $2,
             $3,
+            NULL,
             $4,
+            'migrada',
             'Administrador',
             'Activo'
           )
 
+          ON CONFLICT (correo) DO NOTHING
           RETURNING
             id,
             nombre,
@@ -786,9 +668,17 @@ app.post(
             nombre.trim(),
             apellidos.trim(),
             correo,
-            String(password)
+            passwordHash
           ]
         )
+
+      if (usuarioResultado.rowCount === 0) {
+        await cliente.query('ROLLBACK')
+        return res.status(409).json({
+          ok: false,
+          mensaje: 'Ya existe una cuenta con ese correo.'
+        })
+      }
 
       let codigo =
         generarCodigoSala()
@@ -867,15 +757,12 @@ app.post(
             salaResultado.rows[0]
         })
 
-    } catch (error) {
+    } catch {
       await cliente.query(
         'ROLLBACK'
       )
 
-      console.error(
-        'Error registro admin:',
-        error
-      )
+      console.error('Error interno en registro admin')
 
       res
         .status(500)
@@ -1029,6 +916,15 @@ app.post(
           })
       }
 
+      const passwordHash = await generarHashRegistro(password)
+      if (passwordHash === null) {
+        await cliente.query('ROLLBACK')
+        return res.status(400).json({
+          ok: false,
+          mensaje: 'La contraseña no tiene un formato válido.'
+        })
+      }
+
       const usuarioResultado =
         await cliente.query(
           `
@@ -1037,6 +933,8 @@ app.post(
             apellidos,
             correo,
             password,
+            password_hash,
+            estado_credencial,
             rol,
             estado
           )
@@ -1044,11 +942,14 @@ app.post(
             $1,
             $2,
             $3,
+            NULL,
             $4,
+            'migrada',
             'Mesero',
             'Activo'
           )
 
+          ON CONFLICT (correo) DO NOTHING
           RETURNING
             id,
             nombre,
@@ -1061,9 +962,17 @@ app.post(
             nombre.trim(),
             apellidos.trim(),
             correo,
-            String(password)
+            passwordHash
           ]
         )
+
+      if (usuarioResultado.rowCount === 0) {
+        await cliente.query('ROLLBACK')
+        return res.status(409).json({
+          ok: false,
+          mensaje: 'Ya existe una cuenta con ese correo.'
+        })
+      }
 
       const meseroResultado =
         await cliente.query(
@@ -1126,15 +1035,12 @@ app.post(
           sala
         })
 
-    } catch (error) {
+    } catch {
       await cliente.query(
         'ROLLBACK'
       )
 
-      console.error(
-        'Error registro mesero:',
-        error
-      )
+      console.error('Error interno en registro mesero')
 
       res
         .status(500)
@@ -1597,175 +1503,11 @@ app.get(
 )
 
 
-app.post(
-  '/api/meseros',
-  async (
-    req,
-    res
-  ) => {
-    const cliente =
-      await pool.connect()
-
-    try {
-      const {
-        nombre,
-        apellidos,
-        telefono = '',
-        estado = 'Activo'
-      } =
-        req.body
-
-      const correo =
-        normalizarCorreo(
-          req.body.correo
-        )
-
-      const salaId =
-        numero(
-          req.body.salaId
-        )
-
-      if (
-        !nombre ||
-        !apellidos ||
-        !correo ||
-        !salaId
-      ) {
-        return res
-          .status(400)
-          .json({
-            mensaje:
-              'Nombre, apellidos, correo y sala son obligatorios.'
-          })
-      }
-
-      const sala =
-        await obtenerSala(
-          salaId,
-          cliente
-        )
-
-      if (!sala) {
-        return res
-          .status(404)
-          .json({
-            mensaje:
-              'La sala seleccionada no existe.'
-          })
-      }
-
-      await cliente.query(
-        'BEGIN'
-      )
-
-      const password =
-        String(
-          req.body.password ??
-          '123456'
-        )
-
-      const usuario =
-        await cliente.query(
-          `
-          INSERT INTO usuarios (
-            nombre,
-            apellidos,
-            correo,
-            password,
-            rol,
-            estado
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            'Mesero',
-            $5
-          )
-          RETURNING id
-          `,
-          [
-            nombre.trim(),
-            apellidos.trim(),
-            correo,
-            password,
-            estado
-          ]
-        )
-
-      const mesero =
-        await cliente.query(
-          `
-          INSERT INTO meseros (
-            usuario_id,
-            sala_id,
-            telefono,
-            estado
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4
-          )
-          RETURNING id
-          `,
-          [
-            usuario.rows[0].id,
-            salaId,
-            telefono,
-            estado
-          ]
-        )
-
-      await cliente.query(
-        'COMMIT'
-      )
-
-      const creado =
-        await obtenerMesero(
-          mesero.rows[0].id
-        )
-
-      res
-        .status(201)
-        .json(creado)
-
-    } catch (error) {
-      await cliente.query(
-        'ROLLBACK'
-      )
-
-      console.error(
-        'Error crear mesero:',
-        error
-      )
-
-      if (
-        error.code ===
-        '23505'
-      ) {
-        return res
-          .status(409)
-          .json({
-            mensaje:
-              'Ya existe un usuario con ese correo.'
-          })
-      }
-
-      res
-        .status(500)
-        .json({
-          mensaje:
-            'No fue posible crear al mesero.'
-        })
-
-    } finally {
-      cliente.release()
-    }
-  }
-)
+app.post('/api/meseros', (_req, res) => {
+  return res.set('Allow', 'GET').status(405).json({
+    mensaje: 'El alta de meseros se realiza mediante autorregistro con el código de una sala activa.'
+  })
+})
 
 
 app.put(
@@ -5745,8 +5487,6 @@ async function iniciarServidor() {
     console.log(
       conexion
     )
-
-    await inicializarDatosDemo()
 
     app.listen(
       PORT,

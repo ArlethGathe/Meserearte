@@ -14,14 +14,17 @@ const formularioVacio = {
   estado: 'Activo'
 }
 
-function AdminUsuarios() {
+function AdminUsuarios({ administradorId }) {
   const {
     salas,
     meseros,
-    crearMeseroAPI,
     actualizarMeseroAPI,
     eliminarMeseroAPI
   } = useMesereArte()
+
+  const salasInvitacion = salas.filter((sala) =>
+    sala.estado === 'Activa' && Number(sala.administradorId) === Number(administradorId)
+  )
 
   const [busqueda, setBusqueda] =
     useState('')
@@ -69,16 +72,6 @@ function AdminUsuarios() {
 
   const abrirNuevo = () => {
     setIdEdicion(null)
-
-    setFormulario({
-      ...formularioVacio,
-
-      salaId:
-        salas.length > 0
-          ? salas[0].id
-          : ''
-    })
-
     setMostrarFormulario(true)
   }
 
@@ -122,16 +115,7 @@ function AdminUsuarios() {
           )
       }
 
-      if (idEdicion) {
-        await actualizarMeseroAPI(
-          idEdicion,
-          datos
-        )
-      } else {
-        await crearMeseroAPI(
-          datos
-        )
-      }
+      await actualizarMeseroAPI(idEdicion, datos)
 
       cerrarFormulario()
     } catch (error) {
@@ -222,7 +206,7 @@ function AdminUsuarios() {
           className="nuevo-mesero"
           onClick={abrirNuevo}
         >
-          + Nuevo mesero
+          + Invitar mesero
         </button>
 
       </div>
@@ -398,12 +382,13 @@ function AdminUsuarios() {
                 <h2>
                   {idEdicion
                     ? 'Editar mesero'
-                    : 'Nuevo mesero'}
+                    : 'Invitar mesero'}
                 </h2>
 
                 <p>
-                  Captura la información
-                  del mesero.
+                  {idEdicion
+                    ? 'Actualiza la información del mesero.'
+                    : 'Comparte el código de una sala activa. El mesero puede elegir Registrarse como mesero y crear su cuenta con ese código.'}
                 </p>
 
               </div>
@@ -419,7 +404,7 @@ function AdminUsuarios() {
 
             </div>
 
-            <form
+            {idEdicion ? <form
               onSubmit={
                 guardarMesero
               }
@@ -570,17 +555,13 @@ function AdminUsuarios() {
 
               </div>
 
-              {idEdicion && (
-
-                <div className="aviso-eventos">
+              <div className="aviso-eventos">
 
                   Los eventos participados
                   no pueden modificarse
                   manualmente.
 
-                </div>
-
-              )}
+              </div>
 
               <div className="modal-usuario-botones">
 
@@ -603,14 +584,18 @@ function AdminUsuarios() {
                 >
                   {guardando
                     ? 'Guardando...'
-                    : idEdicion
-                      ? 'Guardar cambios'
-                      : 'Registrar mesero'}
+                    : 'Guardar cambios'}
                 </button>
 
               </div>
 
-            </form>
+            </form> : salasInvitacion.length > 0 ? (
+              <ul>
+                {salasInvitacion.map((sala) => (
+                  <li key={sala.id}>{sala.nombre} <strong>{sala.codigo}</strong></li>
+                ))}
+              </ul>
+            ) : <p>Crea o activa una sala para invitar meseros.</p>}
 
           </div>
 

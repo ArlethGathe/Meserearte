@@ -6,7 +6,6 @@ export const db = {
       nombre: 'Administrador',
       apellidos: 'MesereArte',
       correo: 'admin@meserearte.com',
-      password: '123456',
       rol: 'Administrador',
       salaId: 1,
       estado: 'Activo'
@@ -16,7 +15,6 @@ export const db = {
       nombre: 'María',
       apellidos: 'López',
       correo: 'maria@meserearte.com',
-      password: '123456',
       rol: 'Mesero',
       salaId: 1,
       estado: 'Activo'

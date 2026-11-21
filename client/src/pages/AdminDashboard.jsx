@@ -505,7 +505,7 @@ function AdminDashboard({
         ) : seccion ===
           'usuarios' ? (
 
-          <AdminUsuarios />
+          <AdminUsuarios administradorId={usuario.id} />
 
         ) : seccion ===
           'eventos' ? (
