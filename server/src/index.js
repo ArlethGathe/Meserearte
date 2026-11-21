@@ -1,6 +1,9 @@
 import express from 'express'
 import cors from 'cors'
 import { pool, probarConexion } from './db.js'
+import { crearLogin } from './login.js'
+import { leerConfiguracionLimiteLogin } from './login-limit-config.js'
+import { crearLimitadorLogin, limitarLogin } from './login-limit.js'
 
 const app = express()
 
@@ -668,126 +671,8 @@ app.get(
    AUTENTICACIÓN
 ========================================================= */
 
-app.post(
-  '/api/auth/login',
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const correo =
-        normalizarCorreo(
-          req.body.correo
-        )
-
-      const password =
-        String(
-          req.body.password ?? ''
-        )
-
-      const rolSolicitado =
-        req.body.rol
-
-      const resultado =
-        await pool.query(
-          `
-          SELECT
-            u.id,
-            u.nombre,
-            u.apellidos,
-            u.correo,
-            u.rol,
-            u.estado,
-
-            m.id
-              AS "meseroId",
-
-            m.sala_id
-              AS "salaId"
-
-          FROM usuarios u
-
-          LEFT JOIN meseros m
-            ON m.usuario_id =
-               u.id
-
-          WHERE
-            LOWER(u.correo) =
-              LOWER($1)
-
-            AND u.password =
-              $2
-
-          LIMIT 1
-          `,
-          [
-            correo,
-            password
-          ]
-        )
-
-      const usuario =
-        resultado.rows[0]
-
-      if (!usuario) {
-        return res
-          .status(401)
-          .json({
-            ok: false,
-            mensaje:
-              'Correo o contraseña incorrectos.'
-          })
-      }
-
-      if (
-        usuario.estado !==
-        'Activo'
-      ) {
-        return res
-          .status(403)
-          .json({
-            ok: false,
-            mensaje:
-              'La cuenta se encuentra inactiva.'
-          })
-      }
-
-      if (
-        rolSolicitado &&
-        rolSolicitado !==
-          usuario.rol
-      ) {
-        return res
-          .status(403)
-          .json({
-            ok: false,
-            mensaje:
-              'El rol seleccionado no corresponde a esta cuenta.'
-          })
-      }
-
-      res.json({
-        ok: true,
-        usuario,
-        ...usuario
-      })
-
-    } catch (error) {
-      console.error(
-        'Error login:',
-        error
-      )
-
-      res
-        .status(500)
-        .json({
-          ok: false,
-          mensaje:
-            'Error al iniciar sesión.'
-        })
-    }
-  }
-)
+const limitadorLogin = crearLimitadorLogin(leerConfiguracionLimiteLogin())
+app.post('/api/auth/login', limitarLogin(limitadorLogin, normalizarCorreo), crearLogin(pool, normalizarCorreo))
 
 
 /* =========================================================
