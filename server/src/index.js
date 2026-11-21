@@ -3,8 +3,8 @@ import cors from 'cors'
 import { pool, probarConexion } from './db.js'
 import { crearLogin } from './login.js'
 import { hashPassword } from './passwords.js'
-import { leerConfiguracionLimiteLogin } from './login-limit-config.js'
-import { crearLimitadorLogin, limitarLogin } from './login-limit.js'
+import { leerConfiguracionLimiteLogin, leerConfiguracionLimiteRegistro } from './login-limit-config.js'
+import { crearLimitadorIntentos, crearLimitadorLogin, limitarIntentos, limitarLogin } from './login-limit.js'
 
 const app = express()
 
@@ -547,14 +547,32 @@ async function generarHashRegistro(password) {
   }
 }
 
+const limitarRegistro = limitarIntentos(
+  crearLimitadorIntentos(leerConfiguracionLimiteRegistro()), normalizarCorreo
+)
+
+async function buscarSalaRegistro(conexion, codigo, bloqueo = false) {
+  const resultado = await conexion.query(
+    `
+    SELECT id, nombre, codigo, estado
+    FROM salas
+    WHERE UPPER(codigo) = UPPER($1) AND estado = 'Activa'
+    LIMIT 1
+    ${bloqueo ? 'FOR SHARE' : ''}
+    `,
+    [codigo]
+  )
+  return resultado.rows[0]
+}
+
 app.post(
   '/api/auth/registro-admin',
+  limitarRegistro,
   async (
     req,
     res
   ) => {
-    const cliente =
-      await pool.connect()
+    let cliente
 
     try {
       const {
@@ -590,12 +608,8 @@ app.post(
           })
       }
 
-      await cliente.query(
-        'BEGIN'
-      )
-
       const existe =
-        await cliente.query(
+        await pool.query(
           `
           SELECT id
           FROM usuarios
@@ -609,10 +623,6 @@ app.post(
       if (
         existe.rowCount > 0
       ) {
-        await cliente.query(
-          'ROLLBACK'
-        )
-
         return res
           .status(409)
           .json({
@@ -624,12 +634,14 @@ app.post(
 
       const passwordHash = await generarHashRegistro(password)
       if (passwordHash === null) {
-        await cliente.query('ROLLBACK')
         return res.status(400).json({
           ok: false,
           mensaje: 'La contraseña no tiene un formato válido.'
         })
       }
+
+      cliente = await pool.connect()
+      await cliente.query('BEGIN')
 
       const usuarioResultado =
         await cliente.query(
@@ -758,9 +770,7 @@ app.post(
         })
 
     } catch {
-      await cliente.query(
-        'ROLLBACK'
-      )
+      if (cliente) await cliente.query('ROLLBACK')
 
       console.error('Error interno en registro admin')
 
@@ -773,7 +783,7 @@ app.post(
         })
 
     } finally {
-      cliente.release()
+      cliente?.release()
     }
   }
 )
@@ -784,12 +794,12 @@ app.post(
 
 app.post(
   '/api/auth/registro-mesero',
+  limitarRegistro,
   async (
     req,
     res
   ) => {
-    const cliente =
-      await pool.connect()
+    let cliente
 
     try {
       const {
@@ -847,38 +857,9 @@ app.post(
 }
 
 
-      await cliente.query(
-        'BEGIN'
-      )
-
-      const salaResultado =
-        await cliente.query(
-          `
-          SELECT
-            id,
-            nombre,
-            codigo,
-            estado
-          FROM salas
-          WHERE
-            UPPER(codigo) =
-              UPPER($1)
-
-            AND estado =
-              'Activa'
-          LIMIT 1
-          `,
-          [codigoSala]
-        )
-
-      const sala =
-        salaResultado.rows[0]
+      let sala = await buscarSalaRegistro(pool, codigoSala)
 
       if (!sala) {
-        await cliente.query(
-          'ROLLBACK'
-        )
-
         return res
           .status(404)
           .json({
@@ -889,7 +870,7 @@ app.post(
       }
 
       const existe =
-        await cliente.query(
+        await pool.query(
           `
           SELECT id
           FROM usuarios
@@ -903,10 +884,6 @@ app.post(
       if (
         existe.rowCount > 0
       ) {
-        await cliente.query(
-          'ROLLBACK'
-        )
-
         return res
           .status(409)
           .json({
@@ -918,12 +895,24 @@ app.post(
 
       const passwordHash = await generarHashRegistro(password)
       if (passwordHash === null) {
-        await cliente.query('ROLLBACK')
         return res.status(400).json({
           ok: false,
           mensaje: 'La contraseña no tiene un formato válido.'
         })
       }
+
+      cliente = await pool.connect()
+      await cliente.query('BEGIN')
+
+      const salaActual = await buscarSalaRegistro(cliente, codigoSala, true)
+      if (!salaActual || salaActual.id !== sala.id) {
+        await cliente.query('ROLLBACK')
+        return res.status(404).json({
+          ok: false,
+          mensaje: 'El código de sala no es válido o la sala está inactiva.'
+        })
+      }
+      sala = salaActual
 
       const usuarioResultado =
         await cliente.query(
@@ -1036,9 +1025,7 @@ app.post(
         })
 
     } catch {
-      await cliente.query(
-        'ROLLBACK'
-      )
+      if (cliente) await cliente.query('ROLLBACK')
 
       console.error('Error interno en registro mesero')
 
@@ -1051,7 +1038,7 @@ app.post(
         })
 
     } finally {
-      cliente.release()
+      cliente?.release()
     }
   }
 )

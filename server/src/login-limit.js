@@ -1,7 +1,7 @@
 import { createHmac, randomBytes } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 
-export function crearLimitadorLogin(config, reloj = () => performance.now()) {
+export function crearLimitadorIntentos(config, reloj = () => performance.now()) {
   const { ventanaMs, maxPorIp, maxPorIpCorreo, maxClaves } = config
   const claveProceso = randomBytes(32)
   const contadores = new Map()
@@ -54,7 +54,7 @@ export function crearLimitadorLogin(config, reloj = () => performance.now()) {
   }
 }
 
-export function limitarLogin(limitador, normalizarCorreo) {
+export function limitarIntentos(limitador, normalizarCorreo) {
   return async (req, res, next) => {
     const ip = req.ip ?? req.socket.remoteAddress ?? 'origen-desconocido'
     const correo = normalizarCorreo(req.body?.correo)
@@ -70,3 +70,5 @@ export function limitarLogin(limitador, normalizarCorreo) {
     return next()
   }
 }
+
+export { crearLimitadorIntentos as crearLimitadorLogin, limitarIntentos as limitarLogin }

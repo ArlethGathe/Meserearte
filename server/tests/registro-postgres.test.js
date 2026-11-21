@@ -46,11 +46,32 @@ test('registro y login HTTP con PostgreSQL aislado', {
     ...process.env,
     DB_HOST: conexion.host, DB_PORT: String(conexion.port), DB_NAME: conexion.database,
     DB_USER: conexion.user, DB_PASSWORD: conexion.password, PORT: String(puerto),
+    REGISTER_WINDOW_SECONDS: '600', REGISTER_MAX_PER_IP: '30',
+    REGISTER_MAX_PER_IP_EMAIL: '5', REGISTER_MAX_KEYS: '10000',
   }
-  const child = spawn(process.execPath, ['src/index.js'], {
+  await assert.rejects(ejecutar(process.execPath, ['src/index.js'], {
+    cwd, env: { ...env, REGISTER_WINDOW_SECONDS: '0' },
+  }), (error) => error.code === 1 && error.stderr.includes('REGISTER_WINDOW_SECONDS'))
+
+  const child = spawn(process.execPath, ['--import', './tests/fixtures/registro-observador.js', 'src/index.js'], {
     cwd, env,
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
   })
+  const operaciones = []
+  child.on('message', (evento) => {
+    if (evento !== 'barrera') operaciones.push(evento)
+  })
+  async function barrera() {
+    await new Promise((resolve) => {
+      const recibir = (evento) => {
+        if (evento !== 'barrera') return
+        child.off('message', recibir)
+        resolve()
+      }
+      child.on('message', recibir)
+      child.send('barrera')
+    })
+  }
   const cerrado = once(child, 'close')
   t.after(async () => {
     child.kill()
@@ -86,7 +107,8 @@ test('registro y login HTTP con PostgreSQL aislado', {
     for (const secreto of [password, '"password"', '"password_hash"', '$argon2id$']) {
       assert.equal(json.includes(secreto), false)
     }
-    return { estado: respuesta.status, cuerpo: JSON.parse(json) }
+    const retryAfter = respuesta.headers.get('Retry-After')
+    return { estado: respuesta.status, cuerpo: JSON.parse(json), ...(retryAfter ? { retryAfter } : {}) }
   }
 
   async function verificarCredencial(id, clave = password) {
@@ -230,5 +252,40 @@ test('registro y login HTTP con PostgreSQL aislado', {
     const listado = await fetch(base + '/meseros')
     assert.equal(listado.status, 200)
     assert((await listado.json()).some((perfil) => perfil.correo === 'mesero@example.invalid'))
+  })
+
+  await t.test('el registro comparte cupo entre rutas y bloquea antes de SQL, conexión y Argon2id', async () => {
+    const cuenta = { ...admin, correo: 'cupo@example.invalid' }
+    await barrera()
+    operaciones.length = 0
+    const creada = await post('registro-admin', cuenta)
+    assert.equal(creada.estado, 201)
+    await barrera()
+    const inicio = operaciones.indexOf('hash-inicio')
+    const fin = operaciones.indexOf('hash-fin')
+    const begin = operaciones.indexOf('begin')
+    assert(inicio > 0 && fin > inicio && begin > fin)
+    assert.deepEqual(operaciones.slice(inicio, fin + 1), ['hash-inicio', 'hash-fin'])
+    assert(operaciones.slice(fin + 1, begin).includes('conexion'))
+    await verificarCredencial(creada.cuerpo.usuario.id)
+
+    for (let i = 0; i < 4; i++) assert.equal((await post('registro-admin', cuenta)).estado, 409)
+    const total = async () => (await db.query('SELECT count(*) FROM public.usuarios')).rows[0].count
+    const antes = await total()
+    await barrera()
+    operaciones.length = 0
+    const bloqueado = await post('registro-admin', cuenta)
+    const otraRuta = await post('registro-mesero', {
+      ...mesero, correo: ' CUPO@example.invalid ', codigoSala: 'INEXISTENTE',
+    })
+    for (const rechazo of [bloqueado, otraRuta]) {
+      assert.equal(rechazo.estado, 429)
+      assert.deepEqual(rechazo.cuerpo, { ok: false, mensaje: 'Demasiados intentos. Intenta de nuevo más tarde.' })
+      assert(Number(rechazo.retryAfter) > 0 && Number(rechazo.retryAfter) <= 600)
+    }
+    await barrera()
+    assert.deepEqual(operaciones, [])
+    assert.equal(await total(), antes)
+    assert.equal((await post('login', { correo: cuenta.correo, password, rol: 'Administrador' })).estado, 200)
   })
 })
