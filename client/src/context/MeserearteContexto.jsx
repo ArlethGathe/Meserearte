@@ -465,50 +465,6 @@ export function MesereArteProvider({
      MESEROS
   ======================================== */
 
-  const crearMeseroAPI =
-    async (
-      datos
-    ) => {
-
-      const respuesta =
-        await fetch(
-          `${API_URL}/meseros`,
-          {
-            method:
-              'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
-
-            body:
-              JSON.stringify(
-                datos
-              )
-          }
-        )
-
-      const resultado =
-        await respuesta.json()
-
-      if (!respuesta.ok) {
-        throw new Error(
-          resultado.mensaje ||
-          'No se pudo registrar al mesero.'
-        )
-      }
-
-      setMeseros(
-        (anteriores) => [
-          ...anteriores,
-          resultado
-        ]
-      )
-
-      return resultado
-    }
-
   const actualizarMeseroAPI =
     async (
       id,
@@ -962,7 +918,6 @@ export function MesereArteProvider({
         actualizarSalaAPI,
         eliminarSalaAPI,
 
-        crearMeseroAPI,
         actualizarMeseroAPI,
         eliminarMeseroAPI,
 

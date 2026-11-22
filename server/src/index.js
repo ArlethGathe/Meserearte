@@ -3,23 +3,32 @@ import cors from 'cors'
 import { pool, probarConexion } from './db.js'
 import { crearLogin } from './login.js'
 import { hashPassword } from './passwords.js'
+import { configurarEntregaRestablecimiento, crearRestablecimiento } from './restablecimiento.js'
 import { leerConfiguracionLimiteLogin, leerConfiguracionLimiteRegistro } from './login-limit-config.js'
 import { crearLimitadorIntentos, crearLimitadorLogin, limitarIntentos, limitarLogin } from './login-limit.js'
 
 const app = express()
 
 const PORT = Number(process.env.PORT || 3001)
+const rutaSolicitarRestablecimiento = '/api/auth/restablecimiento/solicitar'
+const rutaConfirmarRestablecimiento = '/api/auth/restablecimiento/confirmar'
+const entregarRestablecimiento = configurarEntregaRestablecimiento()
+const origenRestablecimiento = entregarRestablecimiento
+  ? new URL(process.env.PASSWORD_RESET_APP_URL).origin
+  : null
 
 /* =========================================================
    CONFIGURACIÓN GENERAL
 ========================================================= */
 
 app.use(
-  cors({
+  cors((req, definirOpciones) => definirOpciones(null, {
     origin(origin, callback) {
       if (
         !origin ||
-        /^http:\/\/localhost:\d+$/.test(origin)
+        /^http:\/\/localhost:\d+$/.test(origin) ||
+        (origin === origenRestablecimiento
+          && [rutaSolicitarRestablecimiento, rutaConfirmarRestablecimiento].includes(req.path))
       ) {
         callback(null, true)
         return
@@ -31,7 +40,7 @@ app.use(
         )
       )
     }
-  })
+  }))
 )
 
 app.use(express.json())
@@ -532,6 +541,17 @@ app.get(
 
 const limitadorLogin = crearLimitadorLogin(leerConfiguracionLimiteLogin())
 app.post('/api/auth/login', limitarLogin(limitadorLogin, normalizarCorreo), crearLogin(pool, normalizarCorreo))
+
+const cuposRestablecimiento = { ventanaMs: 600000, maxPorIp: 30, maxPorIpCorreo: 3, maxClaves: 10000 }
+const restablecimiento = crearRestablecimiento({
+  pool,
+  entregar: entregarRestablecimiento,
+  limitarSolicitud: crearLimitadorIntentos(cuposRestablecimiento),
+})
+app.post(rutaSolicitarRestablecimiento, restablecimiento.solicitar)
+app.post(rutaConfirmarRestablecimiento,
+  limitarIntentos(crearLimitadorIntentos({ ...cuposRestablecimiento, maxPorIpCorreo: 30 }), () => ''),
+  restablecimiento.confirmar)
 
 
 /* =========================================================

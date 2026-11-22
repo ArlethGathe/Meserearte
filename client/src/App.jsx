@@ -3,6 +3,7 @@ import './App.css'
 
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import MeseroDashboard from './pages/MeseroDashboard.jsx'
+import Restablecimiento from './Restablecimiento.jsx'
 
 import {
   useMesereArte
@@ -15,8 +16,11 @@ function App() {
     cargarDatos
   } = useMesereArte()
 
+  const [tokenRestablecimiento, setTokenRestablecimiento] = useState(() =>
+    new URLSearchParams(window.location.hash.slice(1)).get('restablecer')
+  )
   const [vista, setVista] =
-    useState('login')
+    useState(tokenRestablecimiento ? 'restablecer' : 'login')
 
   const [rol, setRol] =
     useState('administrador')
@@ -374,6 +378,19 @@ function App() {
      DASHBOARD ADMINISTRADOR
   ======================================== */
 
+  if (vista === 'restablecer') {
+    return (
+      <Restablecimiento
+        api={import.meta.env.VITE_API_URL || API_URL}
+        token={tokenRestablecimiento}
+        volver={() => {
+          setTokenRestablecimiento(null)
+          setVista('login')
+        }}
+      />
+    )
+  }
+
   if (
     vista === 'admin' &&
     usuarioActual &&
@@ -695,6 +712,19 @@ function App() {
                 </button>
 
               </p>
+
+              <button
+                type="button"
+                className="enlace-registro"
+                onClick={() => {
+                  setError('')
+                  setMensaje('')
+                  setLogin({ correo: '', password: '' })
+                  setVista('restablecer')
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
 
             </>
 
