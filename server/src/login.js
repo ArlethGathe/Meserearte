@@ -27,7 +27,7 @@ async function credencialValida(cuenta, password) {
   return false
 }
 
-export function crearLogin(pool, normalizarCorreo) {
+export function crearLogin(pool, normalizarCorreo, emitirSesion) {
   return async (req, res) => {
     try {
       const correo = normalizarCorreo(req.body.correo)
@@ -37,6 +37,7 @@ export function crearLogin(pool, normalizarCorreo) {
         `
         SELECT u.id, u.nombre, u.apellidos, u.correo, u.rol, u.estado,
                m.id AS "meseroId", m.sala_id AS "salaId",
+               u.xmin::text AS "versionCuenta",
                u.estado_credencial AS "estadoCredencial",
                u.password IS NULL AS "sinPassword",
                CASE WHEN u.estado_credencial = 'pendiente' AND u.password_hash IS NULL
@@ -68,7 +69,8 @@ export function crearLogin(pool, normalizarCorreo) {
 
       const { id, nombre, apellidos, rol, estado, meseroId, salaId } = cuenta
       const usuario = { id, nombre, apellidos, correo: cuenta.correo, rol, estado, meseroId, salaId }
-      return res.json({ ok: true, usuario, ...usuario })
+      await emitirSesion(res, id, cuenta.versionCuenta)
+      return res.set('Cache-Control', 'no-store').json({ ok: true, usuario, ...usuario })
     } catch {
       console.error('Login: error interno al consultar o verificar la credencial')
       return res.status(500).json({ ok: false, mensaje: 'Error al iniciar sesión.' })

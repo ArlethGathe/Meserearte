@@ -6,6 +6,8 @@ import { test } from 'node:test'
 import express from 'express'
 import pg from 'pg'
 import { crearLogin } from '../src/login.js'
+import { crearSesiones } from '../src/sesiones.js'
+import { leerConfiguracionSesion } from '../src/session-config.js'
 import { configurarEntregaRestablecimiento, crearRestablecimiento } from '../src/restablecimiento.js'
 import { hashPassword, verifyPassword } from '../src/passwords.js'
 
@@ -42,7 +44,7 @@ test('restablecimiento HTTP para cuentas migradas y por restablecer', {
            NOT EXISTS (SELECT 1 FROM public.usuarios) AS vacia
   `)
   assert.deepEqual(destino, { base, puerto: 55439, vacia: true })
-  for (const nombre of ['001_auth.up', '002_credenciales.up', '003_restablecimiento.up']) {
+  for (const nombre of ['001_auth.up', '002_credenciales.up', '003_restablecimiento.up', '004_sesiones.up']) {
     await db.query(await readFile(new URL('../migrations/' + nombre + '.sql', import.meta.url), 'utf8'))
   }
 
@@ -68,7 +70,8 @@ test('restablecimiento HTTP para cuentas migradas y por restablecer', {
   })
   app.post('/solicitar', rutas.solicitar)
   app.post('/confirmar', rutas.confirmar)
-  app.post('/login', crearLogin(db, (correo) => correo.trim().toLowerCase()))
+  app.post('/login', crearLogin(db, (correo) => correo.trim().toLowerCase(),
+    crearSesiones(db, leerConfiguracionSesion({})).emitir))
   const http = app.listen(0, '127.0.0.1')
   await once(http, 'listening')
   t.after(() => new Promise((resolve) => http.close(resolve)))

@@ -40,7 +40,7 @@ test('POST /api/auth/login durante la transición', async (t) => {
       if (falloConsulta) throw falloConsulta
       return { rows: cuenta ? [cuenta] : [] }
     },
-  }, (value) => String(value ?? '').trim().toLowerCase()))
+  }, (value) => String(value ?? '').trim().toLowerCase(), async () => {}))
 
   const server = app.listen(0, '127.0.0.1')
   await once(server, 'listening')

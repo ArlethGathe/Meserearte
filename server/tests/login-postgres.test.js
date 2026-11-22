@@ -6,6 +6,8 @@ import argon2 from 'argon2'
 import express from 'express'
 import pg from 'pg'
 import { crearLogin } from '../src/login.js'
+import { crearSesiones } from '../src/sesiones.js'
+import { leerConfiguracionSesion } from '../src/session-config.js'
 import { leerConfiguracionLimiteLogin } from '../src/login-limit-config.js'
 import { crearLimitadorLogin, limitarLogin } from '../src/login-limit.js'
 import { hashPassword } from '../src/passwords.js'
@@ -27,7 +29,7 @@ test('login HTTP con limitador y PostgreSQL aislado', {
   assert.deepEqual(catalogo.rows[0], {
     base: 'meserearte_login_test', puerto: 55439, sin_migrar: true, vacia: true,
   })
-  for (const nombre of ['001_auth.up', '002_credenciales.up']) {
+  for (const nombre of ['001_auth.up', '002_credenciales.up', '004_sesiones.up']) {
     await db.query(await readFile(new URL('../migrations/' + nombre + '.sql', import.meta.url), 'utf8'))
   }
 
@@ -62,7 +64,7 @@ test('login HTTP con limitador y PostgreSQL aislado', {
   app.use(express.json())
   app.post('/api/auth/login',
     limitarLogin(crearLimitadorLogin(configuracion, () => ahora), normalizar),
-    crearLogin(db, normalizar))
+    crearLogin(db, normalizar, crearSesiones(db, leerConfiguracionSesion({})).emitir))
   const server = app.listen(0, '127.0.0.1')
   await once(server, 'listening')
   t.after(() => new Promise((resolve) => server.close(resolve)))

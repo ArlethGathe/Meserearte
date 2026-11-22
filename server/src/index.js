@@ -3,6 +3,8 @@ import cors from 'cors'
 import { pool, probarConexion } from './db.js'
 import { crearLogin } from './login.js'
 import { hashPassword } from './passwords.js'
+import { leerConfiguracionSesion } from './session-config.js'
+import { crearSesiones } from './sesiones.js'
 import { configurarEntregaRestablecimiento, crearRestablecimiento } from './restablecimiento.js'
 import { leerConfiguracionLimiteLogin, leerConfiguracionLimiteRegistro } from './login-limit-config.js'
 import { crearLimitadorIntentos, crearLimitadorLogin, limitarIntentos, limitarLogin } from './login-limit.js'
@@ -10,6 +12,8 @@ import { crearLimitadorIntentos, crearLimitadorLogin, limitarIntentos, limitarLo
 const app = express()
 
 const PORT = Number(process.env.PORT || 3001)
+const configSesion = leerConfiguracionSesion()
+const rutasSesion = ['/api/auth/login', '/api/auth/me', '/api/auth/logout']
 const rutaSolicitarRestablecimiento = '/api/auth/restablecimiento/solicitar'
 const rutaConfirmarRestablecimiento = '/api/auth/restablecimiento/confirmar'
 const entregarRestablecimiento = configurarEntregaRestablecimiento()
@@ -23,10 +27,12 @@ const origenRestablecimiento = entregarRestablecimiento
 
 app.use(
   cors((req, definirOpciones) => definirOpciones(null, {
+    credentials: rutasSesion.includes(req.path),
     origin(origin, callback) {
       if (
         !origin ||
         /^http:\/\/localhost:\d+$/.test(origin) ||
+        (origin === configSesion.origen && rutasSesion.includes(req.path)) ||
         (origin === origenRestablecimiento
           && [rutaSolicitarRestablecimiento, rutaConfirmarRestablecimiento].includes(req.path))
       ) {
@@ -540,7 +546,12 @@ app.get(
 ========================================================= */
 
 const limitadorLogin = crearLimitadorLogin(leerConfiguracionLimiteLogin())
-app.post('/api/auth/login', limitarLogin(limitadorLogin, normalizarCorreo), crearLogin(pool, normalizarCorreo))
+const sesiones = crearSesiones(pool, configSesion)
+app.post('/api/auth/login', limitarLogin(limitadorLogin, normalizarCorreo), crearLogin(pool, normalizarCorreo, sesiones.emitir))
+app.get('/api/auth/me', sesiones.autenticar(), (req, res) => {
+  res.set('Cache-Control', 'no-store').json({ ok: true, usuario: req.usuarioAutenticado })
+})
+app.post('/api/auth/logout', sesiones.logout)
 
 const cuposRestablecimiento = { ventanaMs: 600000, maxPorIp: 30, maxPorIpCorreo: 3, maxClaves: 10000 }
 const restablecimiento = crearRestablecimiento({

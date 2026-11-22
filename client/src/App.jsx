@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 import AdminDashboard from './pages/AdminDashboard.jsx'
@@ -10,6 +10,7 @@ import {
 } from './context/MesereArteContexto.jsx'
 
 const API_URL = 'http://localhost:3001/api'
+const AUTH_API_URL = import.meta.env.VITE_API_URL || API_URL
 
 function App() {
   const {
@@ -27,6 +28,31 @@ function App() {
 
   const [usuarioActual, setUsuarioActual] =
     useState(null)
+  const [restaurando, setRestaurando] = useState(!tokenRestablecimiento)
+
+  useEffect(() => {
+    if (!restaurando) return
+    const controlador = new AbortController()
+    async function restaurarSesion() {
+      try {
+        const respuesta = await fetch(AUTH_API_URL + '/auth/me', {
+          credentials: 'include',
+          signal: controlador.signal,
+        })
+        if (!respuesta.ok) return
+        const { usuario } = await respuesta.json()
+        if (controlador.signal.aborted) return
+        setUsuarioActual(usuario)
+        setVista(usuario.rol === 'Administrador' ? 'admin' : 'mesero')
+      } catch {
+        // La pantalla de acceso queda disponible si la sesión no se puede recuperar.
+      } finally {
+        if (!controlador.signal.aborted) setRestaurando(false)
+      }
+    }
+    void restaurarSesion()
+    return () => controlador.abort()
+  }, [restaurando])
 
   const [mensaje, setMensaje] =
     useState('')
@@ -69,9 +95,10 @@ function App() {
     try {
       const respuesta =
         await fetch(
-          `${API_URL}/auth/login`,
+          `${AUTH_API_URL}/auth/login`,
           {
             method: 'POST',
+            credentials: 'include',
 
             headers: {
               'Content-Type':
@@ -349,7 +376,17 @@ function App() {
      CERRAR SESIÓN
   ======================================== */
 
-  const cerrarSesion = () => {
+  const cerrarSesion = async () => {
+    try {
+      const respuesta = await fetch(AUTH_API_URL + '/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!respuesta.ok) throw new Error()
+    } catch {
+      window.alert('No se pudo cerrar la sesión. Intenta de nuevo.')
+      return
+    }
     setUsuarioActual(null)
 
     setVista('login')
@@ -377,6 +414,8 @@ function App() {
   /* ========================================
      DASHBOARD ADMINISTRADOR
   ======================================== */
+
+  if (restaurando) return <p role="status">Comprobando sesión…</p>
 
   if (vista === 'restablecer') {
     return (

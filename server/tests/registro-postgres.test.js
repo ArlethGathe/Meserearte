@@ -29,7 +29,7 @@ test('registro y login HTTP con PostgreSQL aislado', {
   assert.deepEqual(identidad.rows[0], {
     base: conexion.database, puerto: conexion.port, vacia: true, sin_migrar: true,
   })
-  for (const nombre of ['001_auth.up', '002_credenciales.up']) {
+  for (const nombre of ['001_auth.up', '002_credenciales.up', '004_sesiones.up']) {
     await db.query(await readFile(new URL('../migrations/' + nombre + '.sql', import.meta.url), 'utf8'))
   }
   await db.query(`
