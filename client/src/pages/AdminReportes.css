@@ -134,6 +134,44 @@
   color: #96651c;
 }
 
+.reportes-resumen .resumen-retardos {
+  border-left-color: #c18a2e;
+}
+
+.historial-meseros-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+
+.historial-meseros-filtros label {
+  display: grid;
+  gap: 6px;
+  color: #685143;
+  font-weight: 600;
+}
+
+.historial-meseros-filtros select {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #d9c6ad;
+  border-radius: 8px;
+  background: white;
+  color: #39261b;
+  font: inherit;
+}
+
+.historial-meseros caption {
+  text-align: left;
+  padding: 12px;
+  color: #39261b;
+  font-weight: 700;
+}
+
+.historial-meseros details summary {
+  cursor: pointer;
+}
+
 /* =========================================
    TABS
 ========================================= */

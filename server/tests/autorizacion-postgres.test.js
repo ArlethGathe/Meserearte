@@ -247,4 +247,84 @@ test('permisos e IDOR sobre Express y PostgreSQL aislado', {
       salaId: 101, destinatarioMeseroId: 12, titulo: 'Ficticio', mensaje: 'Ficticio', modoDestinatario: 'Individual',
     })).estado, 403)
   })
+
+  await t.test('CU11 reúne participaciones reales y permite evaluar un retardo', async () => {
+    await db.query(`
+      INSERT INTO usuarios (id,nombre,apellidos,correo,password_hash,estado_credencial,rol)
+      VALUES (6,'Persona','Historial','historial@example.invalid',$1,'migrada','Mesero'),
+             (7,'Persona','Sin eventos','vacia@example.invalid',$1,'migrada','Mesero')
+    `, [hash])
+    await db.query(`
+      INSERT INTO meseros (id,usuario_id,sala_id,telefono) VALUES
+        (14,6,101,'5544444444'),(15,7,101,'5555555555');
+      INSERT INTO eventos (id,sala_id,nombre,tipo,fecha,hora_inicio,hora_fin,ubicacion,lugar)
+      SELECT id,101,'Evento ' || id,'Prueba',
+             (now() AT TIME ZONE 'America/Mexico_City')::date - (id - 205),
+             '08:00','10:00','Prueba','Lugar ' || id
+      FROM generate_series(205,209) AS id;
+      INSERT INTO asignaciones (evento_id,mesero_id,rol) VALUES
+        (205,11,'Capitán'),(205,14,'Mesero'),(206,14,'Capitán'),
+        (207,14,'Mesero'),(208,14,'Mesero'),(209,14,'Mesero');
+      INSERT INTO disponibilidades (evento_id,mesero_id,estado) VALUES
+        (205,11,'Confirmado'),(205,14,'Confirmado');
+      INSERT INTO asistencias (evento_id,mesero_id,estado) VALUES
+        (206,14,'Presente'),(207,14,'Ausente'),(209,14,'Presente');
+      INSERT INTO reportes (id,evento_id,sala_id,capitan_mesero_id,estado) VALUES
+        (801,208,101,11,'Borrador'),(802,209,101,11,'Enviado');
+      INSERT INTO evaluaciones_meseros (reporte_id,evento_id,mesero_id,desempeno,puntualidad,actitud,incidencia)
+      VALUES (801,208,14,1,1,1,TRUE),(802,209,14,3,NULL,5,FALSE);
+    `)
+
+    const retardo = await pedir('/asistencias', capA, 'PUT', { eventoId: 205, meseroId: 14, estado: 'Retardo' })
+    assert.equal(retardo.estado, 200)
+    assert.equal(retardo.cuerpo.estado, 'Retardo')
+    const sinEvaluar = await pedir('/reportes/evento/205', capA, 'PUT', { estado: 'Enviado' })
+    assert.equal(sinEvaluar.estado, 400)
+    assert.match(sinEvaluar.cuerpo.mensaje, /retardo/)
+    const enviado = await pedir('/reportes/evento/205', capA, 'PUT', {
+      estado: 'Enviado',
+      evaluacionesPersonal: [{ meseroId: 14, desempeno: 5, puntualidad: 2, actitud: 4,
+        incidencia: true, observacion: 'Observación individual ficticia' }],
+    })
+    assert.equal(enviado.estado, 200)
+    const reportes = await pedir('/reportes', adminA)
+    assert.equal(reportes.estado, 200)
+    assert.deepEqual(reportes.cuerpo.find((r) => r.eventoId === 205).asistencia, {
+      total: 2, presentes: 0, retardos: 1, ausentes: 0, sinRegistrar: 1,
+    })
+
+    const vacio = await pedir('/meseros/15/historial', adminA)
+    assert.equal(vacio.estado, 200)
+    assert.deepEqual(vacio.cuerpo.historial, [])
+    assert.equal(vacio.cuerpo.resumen.eventosParticipados, 0)
+    assert.equal(vacio.cuerpo.resumen.promedioDesempeno, null)
+
+    const resultado = await pedir('/meseros/14/historial', adminA)
+    assert.equal(resultado.estado, 200)
+    assert.equal(resultado.cuerpo.mesero.id, 14)
+    assert.deepEqual(resultado.cuerpo.resumen, {
+      eventosParticipados: 5, comoCapitan: 1, comoMesero: 4, asistencias: 3, presentes: 2,
+      retardos: 1, ausentes: 1, sinRegistrar: 1, incidencias: 1,
+      promedioDesempeno: 4, promedioPuntualidad: 2, promedioActitud: 4.5,
+    })
+    const historial = resultado.cuerpo.historial
+    assert.deepEqual(historial.map((fila) => [fila.eventoId, fila.rol, fila.asistencia, fila.evaluacionRegistrada]), [
+      [205, 'Mesero', 'Retardo', true], [206, 'Capitán', 'Presente', false],
+      [207, 'Mesero', 'Ausente', false], [208, 'Mesero', 'Sin registrar', false],
+      [209, 'Mesero', 'Presente', true],
+    ])
+    assert.equal(historial[0].eventoNombre, 'Evento 205')
+    assert.equal(historial[0].eventoTipo, 'Prueba')
+    assert.equal(historial[0].lugar, 'Lugar 205')
+    assert.match(historial[0].fecha, /^\d{4}-\d{2}-\d{2}$/)
+    assert.deepEqual([historial[0].desempeno, historial[0].puntualidad, historial[0].actitud], [5, 2, 4])
+    assert.equal(historial[0].incidencia, true)
+    assert.equal(historial[0].observacion, 'Observación individual ficticia')
+    assert.equal(historial[3].desempeno, null)
+    assert.equal(historial[3].incidencia, null)
+    assert.equal((await pedir('/meseros/14/historial', adminB)).estado, 403)
+    assert.equal((await pedir('/meseros/14/historial', meseroC)).estado, 403)
+    assert.equal((await pedir('/meseros/14/historial', adminA, 'PUT', { observacion: 'Cambio' })).estado, 404)
+    assert.deepEqual((await pedir('/meseros/14/historial', adminA)).cuerpo, resultado.cuerpo)
+  })
 })

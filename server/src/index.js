@@ -4420,16 +4420,9 @@ app.get(
             ev.desempeno,
             ev.puntualidad,
             ev.actitud,
-
-            COALESCE(
-              ev.incidencia,
-              FALSE
-            ) AS incidencia,
-
-            COALESCE(
-              ev.observacion,
-              ''
-            ) AS observacion
+            ev.id IS NOT NULL AS "evaluacionRegistrada",
+            ev.incidencia,
+            ev.observacion
 
           FROM asignaciones a
 
@@ -4509,6 +4502,8 @@ app.get(
             registro.asistencia ===
             'Presente'
         ).length
+
+      const retardos = historial.filter((registro) => registro.asistencia === 'Retardo').length
 
       const ausentes =
         historial.filter(
@@ -4592,7 +4587,9 @@ app.get(
           eventosParticipados,
           comoCapitan,
           comoMesero,
+          asistencias: presentes + retardos,
           presentes,
+          retardos,
           ausentes,
           sinRegistrar,
           incidencias,
@@ -4792,6 +4789,19 @@ app.get(
             r.capitan_mesero_id
               AS "capitanId",
 
+            (
+              SELECT json_build_object(
+                'total', count(*),
+                'presentes', count(*) FILTER (WHERE asi.estado = 'Presente'),
+                'retardos', count(*) FILTER (WHERE asi.estado = 'Retardo'),
+                'ausentes', count(*) FILTER (WHERE asi.estado = 'Ausente'),
+                'sinRegistrar', count(*) FILTER (WHERE asi.estado IS NULL)
+              )
+              FROM asignaciones a
+              LEFT JOIN asistencias asi ON asi.evento_id = a.evento_id AND asi.mesero_id = a.mesero_id
+              WHERE a.evento_id = e.id
+            ) AS asistencia,
+
             r.resumen_servicio
               AS "resumenServicio",
 
@@ -4982,7 +4992,7 @@ async function guardarReporte(
       estado ===
       'Enviado'
     ) {
-      const presentes =
+      const asistentes =
         await cliente.query(
           `
           SELECT
@@ -5004,8 +5014,7 @@ async function guardarReporte(
             asi.evento_id = $1
 
             AND
-            asi.estado =
-              'Presente'
+            asi.estado IN ('Presente', 'Retardo')
 
             AND
             a.rol <>
@@ -5015,8 +5024,8 @@ async function guardarReporte(
         )
 
       for (
-        const presente
-        of presentes.rows
+        const asistente
+        of asistentes.rows
       ) {
         const evaluacion =
           evaluaciones.find(
@@ -5025,7 +5034,7 @@ async function guardarReporte(
                 item.meseroId
               ) ===
               Number(
-                presente.meseroId
+                asistente.meseroId
               )
           )
 
@@ -5055,7 +5064,7 @@ async function guardarReporte(
             .status(400)
             .json({
               mensaje:
-                'Debes evaluar a todos los meseros presentes antes de enviar el reporte.'
+                'Debes evaluar a los meseros presentes y con retardo antes de enviar el reporte.'
             })
         }
       }

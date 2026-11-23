@@ -283,15 +283,7 @@ function CapitanPanel({
           meseroId
       )
 
-    if (
-      !registro ||
-      registro.estado ===
-        'Sin registrar'
-    ) {
-      return 'Pendiente'
-    }
-
-    return registro.estado
+    return registro?.estado ?? 'Sin registrar'
   }
 
   const registrarAsistencia =
@@ -1149,6 +1141,13 @@ const asistenciaPendiente =
 
                   <div>
 
+                    <span>
+                      Retardos
+                    </span>
+                    <strong>{retardos}</strong>
+                  </div>
+
+                  <div>
                     <span>
                       Ausentes
                     </span>

@@ -73,6 +73,7 @@ function CapitanReporte({
   ] = useState({
     total: 0,
     presentes: 0,
+    retardos: 0,
     ausentes: 0,
     sinRegistrar: 0
   })
@@ -269,6 +270,8 @@ setHabilitado(
             'Presente'
         )
 
+      const retardos = asistencias.filter((asistencia) => asistencia.estado === 'Retardo')
+
       const ausentes =
         asistencias.filter(
           (asistencia) =>
@@ -289,6 +292,8 @@ setHabilitado(
 
         presentes:
           presentes.length,
+
+        retardos: retardos.length,
 
         ausentes:
           ausentes.length,
@@ -334,15 +339,14 @@ setHabilitado(
       }
 
       /*
-        Solamente se evalúan meseros
-        presentes.
+        Se evalúan los meseros presentes y con retardo.
 
         El capitán no se evalúa
         a sí mismo.
       */
 
-      const presentesIds =
-        presentes.map(
+      const asistentesIds =
+        [...presentes, ...retardos].map(
           (asistencia) =>
             Number(
               asistencia.meseroId
@@ -360,7 +364,7 @@ setHabilitado(
                   mesero.id
                 ) &&
 
-              presentesIds.includes(
+              asistentesIds.includes(
                 Number(
                   asignacion.meseroId
                 )
@@ -547,7 +551,7 @@ const guardarReporte =
       !evaluacionesCompletas()
     ) {
       setError(
-        'Debes evaluar a todos los meseros presentes antes de enviar el reporte final.'
+        'Debes evaluar a los meseros presentes y con retardo antes de enviar el reporte final.'
       )
       return
     }
@@ -820,6 +824,13 @@ const guardarReporte =
         <div>
 
           <span>
+            Retardos
+          </span>
+          <strong>{resumenAsistencia.retardos}</strong>
+        </div>
+
+        <div>
+          <span>
             Ausentes
           </span>
 
@@ -940,7 +951,7 @@ const guardarReporte =
 
           <p>
             Evalúa a los meseros registrados
-            como presentes. La escala va
+            como presentes o con retardo. La escala va
             de 1 a 5.
           </p>
 
@@ -951,7 +962,7 @@ const guardarReporte =
 
           <div className="evaluacion-vacia">
 
-            No hay meseros presentes
+            No hay meseros presentes ni con retardo
             para evaluar.
 
           </div>

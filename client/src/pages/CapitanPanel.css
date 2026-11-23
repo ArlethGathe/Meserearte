@@ -582,7 +582,7 @@
   display: grid;
 
   grid-template-columns:
-    repeat(3, 1fr);
+    repeat(4, minmax(0, 1fr));
 
   gap: 12px;
 

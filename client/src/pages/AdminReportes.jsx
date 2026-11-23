@@ -5,6 +5,7 @@ import {
 } from 'react'
 
 import './AdminReportes.css'
+import HistorialMeseros from './HistorialMeseros.jsx'
 
 import {
   useMesereArte
@@ -121,7 +122,7 @@ function AdminReportes({
                 meseros.find(
                   (mesero) =>
                     mesero.id ===
-                    reporte.capitanMeseroId
+                    (reporte.capitanMeseroId ?? reporte.capitanId)
                 )
 
               return {
@@ -246,6 +247,8 @@ function AdminReportes({
       0
     )
 
+  const totalRetardos = reportesFinales.reduce((total, reporte) => total + (reporte.asistencia?.retardos ?? 0), 0)
+
   const totalAusentes =
     reportesFinales.reduce(
       (
@@ -336,7 +339,7 @@ function AdminReportes({
           <p>
             Consulta los reportes finales
             enviados por los capitanes y
-            el historial de los eventos.
+            los historiales de eventos y de meseros.
           </p>
 
         </div>
@@ -378,7 +381,7 @@ function AdminReportes({
         <div className="resumen-presentes">
 
           <span>
-            Asistencias
+            Presentes
           </span>
 
           <strong>
@@ -390,6 +393,12 @@ function AdminReportes({
             como presente.
           </p>
 
+        </div>
+
+        <div className="resumen-retardos">
+          <span>Retardos</span>
+          <strong>{totalRetardos}</strong>
+          <p>Personal que llegó con retardo.</p>
         </div>
 
         <div className="resumen-ausentes">
@@ -448,7 +457,7 @@ function AdminReportes({
             )
           }
         >
-          Reportes recibidos
+          Reportes de eventos
         </button>
 
         <button
@@ -466,6 +475,11 @@ function AdminReportes({
           }
         >
           Historial de eventos
+        </button>
+
+        <button type="button" className={pestaña === 'meseros' ? 'activo' : ''}
+          onClick={() => setPestaña('meseros')}>
+          Historial de meseros
         </button>
 
       </div>
@@ -487,6 +501,8 @@ function AdminReportes({
       {/* ===================================
           REPORTES RECIBIDOS
       =================================== */}
+
+      {pestaña === 'meseros' && <HistorialMeseros meseros={meseros} />}
 
       {pestaña ===
         'reportes' && (
@@ -631,6 +647,13 @@ function AdminReportes({
 
                       <div>
 
+                        <span>
+                          Retardos
+                        </span>
+                        <strong>{reporte.asistencia?.retardos ?? 0}</strong>
+                      </div>
+
+                      <div>
                         <span>
                           Ausentes
                         </span>
@@ -981,6 +1004,13 @@ function AdminReportes({
 
               <div>
 
+                <span>
+                  Retardos
+                </span>
+                <strong>{reporteSeleccionado.asistencia?.retardos ?? 0}</strong>
+              </div>
+
+              <div>
                 <span>
                   Ausentes
                 </span>
