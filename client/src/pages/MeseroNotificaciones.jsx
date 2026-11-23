@@ -9,8 +9,7 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 function MeseroNotificaciones({
   usuario
@@ -64,7 +63,7 @@ function MeseroNotificaciones({
         setError('')
 
         const respuesta =
-          await fetch(
+          await apiFetch(
             `${API_URL}/notificaciones/mesero/${meseroActual.id}`
           )
 
@@ -156,7 +155,7 @@ function MeseroNotificaciones({
         setError('')
 
         const respuesta =
-          await fetch(
+          await apiFetch(
             `${API_URL}/notificaciones/${id}/leida`,
             {
               method:

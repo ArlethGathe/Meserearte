@@ -9,8 +9,7 @@ import {
 const MesereArteContext =
   createContext(null)
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 export function MesereArteProvider({
   children
@@ -86,23 +85,23 @@ export function MesereArteProvider({
             respuestaAsignaciones,
             respuestaDisponibilidades
           ] = await Promise.all([
-            fetch(
+            apiFetch(
               `${API_URL}/salas`
             ),
 
-            fetch(
+            apiFetch(
               `${API_URL}/meseros`
             ),
 
-            fetch(
+            apiFetch(
               `${API_URL}/eventos`
             ),
 
-            fetch(
+            apiFetch(
               `${API_URL}/asignaciones`
             ),
 
-            fetch(
+            apiFetch(
               `${API_URL}/disponibilidades`
             )
           ])
@@ -340,7 +339,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/salas`,
           {
             method:
@@ -385,7 +384,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/salas/${id}`,
           {
             method:
@@ -432,7 +431,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/salas/${id}`,
           {
             method:
@@ -472,7 +471,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/meseros/${id}`,
           {
             method:
@@ -519,7 +518,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/meseros/${id}`,
           {
             method:
@@ -576,7 +575,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/eventos`,
           {
             method:
@@ -621,7 +620,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/eventos/${id}`,
           {
             method:
@@ -673,7 +672,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/eventos/${id}`,
           {
             method:
@@ -732,7 +731,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/asignaciones/evento/${eventoId}`,
           {
             method:
@@ -806,7 +805,7 @@ export function MesereArteProvider({
     ) => {
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/disponibilidades`,
           {
             method:

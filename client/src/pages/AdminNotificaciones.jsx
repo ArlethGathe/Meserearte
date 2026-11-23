@@ -10,8 +10,7 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 function AdminNotificaciones({
   usuario
@@ -269,7 +268,7 @@ function AdminNotificaciones({
         setError('')
 
         const respuesta =
-          await fetch(
+          await apiFetch(
             `${API_URL}/notificaciones`
           )
 
@@ -511,7 +510,7 @@ function AdminNotificaciones({
         setEnviando(true)
 
         const respuesta =
-          await fetch(
+          await apiFetch(
             `${API_URL}/notificaciones`,
             {
               method:
@@ -627,7 +626,7 @@ function AdminNotificaciones({
     async (id) => {
       try {
         const respuesta =
-          await fetch(
+          await apiFetch(
             `${API_URL}/notificaciones/${id}/leida`,
             {
               method:

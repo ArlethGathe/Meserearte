@@ -96,11 +96,12 @@ test('registro y login HTTP con PostgreSQL aislado', {
   const mesero = { nombre: ' Luis ', apellidos: ' Ficticio ', correo: 'MESERO@example.invalid',
     telefono: '+52 55-1234-5678', password }
 
-  async function post(ruta, datos) {
+  async function post(ruta, datos, cookie, csrf) {
     const rutaApi = ruta.startsWith('/') ? ruta : '/auth/' + ruta
     const respuesta = await fetch(base + rutaApi, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}),
+        ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
       body: JSON.stringify(datos),
     })
     const json = await respuesta.text()
@@ -233,6 +234,13 @@ test('registro y login HTTP con PostgreSQL aislado', {
   })
 
   await t.test('el alta directa rechaza credenciales y conserva los perfiles existentes', async () => {
+    const sesion = await fetch(base + '/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correo: admin.correo, password, rol: 'Administrador' }),
+    })
+    assert.equal(sesion.status, 200)
+    const cookie = sesion.headers.get('Set-Cookie').split(';')[0]
+    const { csrfToken } = await (await fetch(base + '/auth/csrf', { headers: { Cookie: cookie } })).json()
     const datos = {
       nombre: 'Personal', apellidos: 'Ficticio', correo: 'personal@example.invalid',
       telefono: '55-1234-5678', salaId: sala.id, estado: 'Activo',
@@ -243,13 +251,13 @@ test('registro y login HTTP con PostgreSQL aislado', {
     `)).rows[0]
     const antes = await inventario()
     for (const solicitud of [datos, { ...datos, password }]) {
-      assert.deepEqual(await post('/meseros', solicitud), {
+      assert.deepEqual(await post('/meseros', solicitud, cookie, csrfToken), {
         estado: 405,
         cuerpo: { mensaje: 'El alta de meseros se realiza mediante autorregistro con el código de una sala activa.' },
       })
     }
     assert.deepEqual(await inventario(), antes)
-    const listado = await fetch(base + '/meseros')
+    const listado = await fetch(base + '/meseros', { headers: { Cookie: cookie } })
     assert.equal(listado.status, 200)
     assert((await listado.json()).some((perfil) => perfil.correo === 'mesero@example.invalid'))
   })

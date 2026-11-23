@@ -12,8 +12,7 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 function fechaHoyMexico() {
   const partes =
@@ -230,7 +229,7 @@ function CapitanPanel({
         setError('')
 
         const respuesta =
-          await fetch(
+          await apiFetch(
             `${API_URL}/asistencias/evento/${eventoActual.id}`
           )
 
@@ -316,7 +315,7 @@ function CapitanPanel({
         )
 
         const respuesta =
-          await fetch(
+          await apiFetch(
             `${API_URL}/asistencias`,
             {
               method:

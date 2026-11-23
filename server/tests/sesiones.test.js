@@ -8,6 +8,7 @@ import { crearLogin } from '../src/login.js'
 import { hashPassword } from '../src/passwords.js'
 import { leerConfiguracionSesion } from '../src/session-config.js'
 import { crearSesiones, digestSesion, generarTokenSesion } from '../src/sesiones.js'
+import { crearCsrf } from '../src/csrf.js'
 
 test('tokens aleatorios, digest y validación', () => {
   const a = generarTokenSesion()
@@ -74,7 +75,10 @@ test('sesiones HTTP sobre PostgreSQL desechable', {
   app.use(express.json())
   app.post('/api/auth/login', crearLogin(db, (valor) => valor, sesiones.emitir))
   app.post('/login-local', crearLogin(db, (valor) => valor, local.emitir))
-  app.post('/api/auth/logout', sesiones.logout)
+  const csrf = crearCsrf(Buffer.alloc(32, 17))
+  app.get('/api/auth/csrf', sesiones.autenticar(), csrf.entregar)
+  app.post('/api/auth/logout', sesiones.autenticar({ opcional: true }),
+    (req, res, next) => req.digestSesion ? csrf.verificar(req, res, next) : next(), sesiones.logout)
   const me = (req, res) => res.json({ ok: true, usuario: req.usuarioAutenticado })
   app.get('/api/auth/me', sesiones.autenticar(), me)
   app.get('/actividad', sesiones.autenticar({ renovarActividad: true }), me)
@@ -84,10 +88,11 @@ test('sesiones HTTP sobre PostgreSQL desechable', {
   const url = 'http://127.0.0.1:' + server.address().port
   const secretos = [hash, password]
 
-  async function pedir(ruta, { cookie, body, method } = {}) {
+  async function pedir(ruta, { cookie, body, method, csrf } = {}) {
     const res = await fetch(url + ruta, {
       method: method ?? (body ? 'POST' : 'GET'),
-      headers: { ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     })
     const texto = await res.text()
@@ -178,7 +183,8 @@ test('sesiones HTTP sobre PostgreSQL desechable', {
 
   await t.test('logout revoca solo la sesión actual y una cuenta inactiva pierde acceso', async () => {
     const otra = partir((await login()).cookie)
-    const salida = await pedir('/api/auth/logout', { method: 'POST', cookie: primera })
+    const csrf = (await pedir('/api/auth/csrf', { cookie: primera })).cuerpo.csrfToken
+    const salida = await pedir('/api/auth/logout', { method: 'POST', cookie: primera, csrf })
     assert.equal(salida.estado, 204)
     assert.match(salida.cookie, /^meserearte_session=;/)
     assert.match(salida.cookie, /Expires=Thu, 01 Jan 1970/i)

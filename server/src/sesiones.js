@@ -58,8 +58,14 @@ export function crearSesiones(pool, config) {
     if (sesion.id === null) return { motivo: 'usuario_inexistente' }
     if (sesion.estado !== 'Activo') return { motivo: 'cuenta_inactiva' }
 
-    if (renovarActividad) {
-      const renovada = await pool.query(`
+    if (renovarActividad && !(await extender(entrada.digest))) return { motivo: 'sesion_cambio' }
+
+    const { id, nombre, apellidos, correo, rol, estado, meseroId, salaId } = sesion
+    return { usuario: { id, nombre, apellidos, correo, rol, estado, meseroId, salaId }, digest: entrada.digest }
+  }
+
+  async function extender(digest) {
+    const renovada = await pool.query(`
         UPDATE public.auth_sesiones s
         SET ultima_actividad = GREATEST(s.ultima_actividad, statement_timestamp()),
             expira_inactividad_en = LEAST(s.expira_absoluta_en,
@@ -69,31 +75,42 @@ export function crearSesiones(pool, config) {
           AND s.expira_inactividad_en > statement_timestamp()
           AND s.expira_absoluta_en > statement_timestamp()
           AND u.id = s.usuario_id AND u.estado = 'Activo'
-      `, [entrada.digest, inactividadSegundos])
-      if (renovada.rowCount !== 1) return { motivo: 'sesion_cambio' }
-    }
-
-    const { id, nombre, apellidos, correo, rol, estado, meseroId, salaId } = sesion
-    return { usuario: { id, nombre, apellidos, correo, rol, estado, meseroId, salaId } }
+      `, [digest, inactividadSegundos])
+    return renovada.rowCount === 1
   }
 
-  function autenticar({ renovarActividad = false } = {}) {
+  const noAutenticado = (res) => res.status(401).json({ ok: false, mensaje: 'Inicia sesión para continuar.' })
+  const errorValidacion = (res) => {
+    console.error('Sesión: fallo interno al validar.')
+    return res.status(500).json({ ok: false, mensaje: 'No se pudo comprobar la sesión.' })
+  }
+
+  function autenticar({ renovarActividad = false, opcional = false } = {}) {
     return async (req, res, next) => {
       try {
-        const { usuario } = await validar(req.headers.cookie, { renovarActividad })
-        if (!usuario) return res.status(401).json({ ok: false, mensaje: 'Inicia sesión para continuar.' })
+        const { usuario, digest } = await validar(req.headers.cookie, { renovarActividad })
+        if (!usuario && !opcional) return noAutenticado(res)
         req.usuarioAutenticado = usuario
+        req.digestSesion = digest
         return next()
       } catch {
-        console.error('Sesión: fallo interno al validar.')
-        return res.status(500).json({ ok: false, mensaje: 'No se pudo comprobar la sesión.' })
+        return errorValidacion(res)
       }
+    }
+  }
+
+  async function renovar(req, res, next) {
+    try {
+      if (!(await extender(req.digestSesion))) return noAutenticado(res)
+      return next()
+    } catch {
+      return errorValidacion(res)
     }
   }
 
   async function logout(req, res) {
     try {
-      const { digest } = leerCookie(req.headers.cookie, nombreCookie)
+      const digest = req.digestSesion
       if (digest) {
         await pool.query(`
           UPDATE public.auth_sesiones SET revocada_en = GREATEST(creada_en, clock_timestamp())
@@ -108,5 +125,5 @@ export function crearSesiones(pool, config) {
     }
   }
 
-  return { emitir, validar, autenticar, logout }
+  return { emitir, validar, autenticar, renovar, logout }
 }

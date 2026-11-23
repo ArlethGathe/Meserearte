@@ -5,18 +5,11 @@ import AdminDashboard from './pages/AdminDashboard.jsx'
 import MeseroDashboard from './pages/MeseroDashboard.jsx'
 import Restablecimiento from './Restablecimiento.jsx'
 
-import {
-  useMesereArte
-} from './context/MesereArteContexto.jsx'
+import { MesereArteProvider } from './context/MesereArteContexto.jsx'
+import { API_URL, apiFetch, limpiarCsrf, prepararCsrf } from './api.js'
 
-const API_URL = 'http://localhost:3001/api'
-const AUTH_API_URL = import.meta.env.VITE_API_URL || API_URL
 
 function App() {
-  const {
-    cargarDatos
-  } = useMesereArte()
-
   const [tokenRestablecimiento, setTokenRestablecimiento] = useState(() =>
     new URLSearchParams(window.location.hash.slice(1)).get('restablecer')
   )
@@ -31,16 +24,27 @@ function App() {
   const [restaurando, setRestaurando] = useState(!tokenRestablecimiento)
 
   useEffect(() => {
+    const volverAlLogin = () => {
+      setUsuarioActual(null)
+      setVista('login')
+    }
+    window.addEventListener('meserearte:sesion-vencida', volverAlLogin)
+    return () => window.removeEventListener('meserearte:sesion-vencida', volverAlLogin)
+  }, [])
+
+
+  useEffect(() => {
     if (!restaurando) return
     const controlador = new AbortController()
     async function restaurarSesion() {
       try {
-        const respuesta = await fetch(AUTH_API_URL + '/auth/me', {
+        const respuesta = await fetch(API_URL + '/auth/me', {
           credentials: 'include',
           signal: controlador.signal,
         })
         if (!respuesta.ok) return
         const { usuario } = await respuesta.json()
+        if (!(await prepararCsrf())) return
         if (controlador.signal.aborted) return
         setUsuarioActual(usuario)
         setVista(usuario.rol === 'Administrador' ? 'admin' : 'mesero')
@@ -95,7 +99,7 @@ function App() {
     try {
       const respuesta =
         await fetch(
-          `${AUTH_API_URL}/auth/login`,
+          `${API_URL}/auth/login`,
           {
             method: 'POST',
             credentials: 'include',
@@ -134,6 +138,8 @@ function App() {
         Guardamos al usuario autenticado.
       */
 
+      limpiarCsrf()
+      if (!(await prepararCsrf())) throw new Error('No fue posible preparar la sesión.')
       setUsuarioActual(
         resultado.usuario
       )
@@ -307,16 +313,6 @@ function App() {
       }
 
       /*
-        Recargamos los datos porque el
-        registro puede haber creado:
-        - una sala
-        - un usuario
-        - un mesero
-      */
-
-      await cargarDatos()
-
-      /*
         Mensaje dependiendo del rol.
       */
 
@@ -378,9 +374,8 @@ function App() {
 
   const cerrarSesion = async () => {
     try {
-      const respuesta = await fetch(AUTH_API_URL + '/auth/logout', {
+      const respuesta = await apiFetch(API_URL + '/auth/logout', {
         method: 'POST',
-        credentials: 'include',
       })
       if (!respuesta.ok) throw new Error()
     } catch {
@@ -436,10 +431,12 @@ function App() {
     usuarioActual.rol === 'Administrador'
   ) {
     return (
-      <AdminDashboard
-        usuario={usuarioActual}
-        onLogout={cerrarSesion}
-      />
+      <MesereArteProvider key={usuarioActual.id}>
+        <AdminDashboard
+          usuario={usuarioActual}
+          onLogout={cerrarSesion}
+        />
+      </MesereArteProvider>
     )
   }
 
@@ -453,10 +450,12 @@ function App() {
     usuarioActual.rol === 'Mesero'
   ) {
     return (
-      <MeseroDashboard
-        usuario={usuarioActual}
-        onLogout={cerrarSesion}
-      />
+      <MesereArteProvider key={usuarioActual.id}>
+        <MeseroDashboard
+          usuario={usuarioActual}
+          onLogout={cerrarSesion}
+        />
+      </MesereArteProvider>
     )
   }
 

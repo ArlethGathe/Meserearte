@@ -5,8 +5,7 @@ import {
 
 import './CapitanReporte.css'
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 function fechaHoyMexico() {
   const partes =
@@ -136,19 +135,19 @@ function CapitanReporte({
         respuestaAsistencias
       ] =
         await Promise.all([
-          fetch(
+          apiFetch(
             `${API_URL}/reportes/evento/${evento.id}`
           ),
 
-          fetch(
+          apiFetch(
             `${API_URL}/asignaciones`
           ),
 
-          fetch(
+          apiFetch(
             `${API_URL}/meseros`
           ),
 
-          fetch(
+          apiFetch(
             `${API_URL}/asistencias/evento/${evento.id}`
           )
         ])
@@ -559,7 +558,7 @@ const guardarReporte =
       setMensaje('')
 
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_URL}/reportes/evento/${evento.id}`,
           {
             method: 'PUT',

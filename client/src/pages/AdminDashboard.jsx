@@ -17,8 +17,7 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 function AdminDashboard({
   usuario,
@@ -129,7 +128,7 @@ function AdminDashboard({
           await Promise.all(
             salasAdministrador.map(
               (sala) =>
-                fetch(
+                apiFetch(
                   `${API_URL}/notificaciones?salaId=${sala.id}&destinatario=Administrador`
                 )
             )

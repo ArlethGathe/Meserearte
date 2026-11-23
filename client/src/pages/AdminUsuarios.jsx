@@ -461,6 +461,7 @@ function AdminUsuarios({ administradorId }) {
                   <input
                     type="email"
                     name="correo"
+                    readOnly
                     value={
                       formulario.correo
                     }

@@ -10,8 +10,7 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 function AdminReportes({
   usuario
@@ -67,7 +66,7 @@ function AdminReportes({
             : `${API_URL}/reportes`
 
         const respuesta =
-          await fetch(url)
+          await apiFetch(url)
 
         const resultado =
           await respuesta.json()

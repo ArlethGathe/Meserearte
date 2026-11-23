@@ -5,6 +5,8 @@ import { crearLogin } from './login.js'
 import { hashPassword } from './passwords.js'
 import { leerConfiguracionSesion } from './session-config.js'
 import { crearSesiones } from './sesiones.js'
+import { crearCsrf, HEADER_CSRF, leerOrigenesDesarrollo, leerSecretoCsrf, METODOS_ESCRITURA } from './csrf.js'
+import { ambito, capitanVigente, crearAutorizacion, denegar, eventoAsignado, salaPropia } from './autorizacion.js'
 import { configurarEntregaRestablecimiento, crearRestablecimiento } from './restablecimiento.js'
 import { leerConfiguracionLimiteLogin, leerConfiguracionLimiteRegistro } from './login-limit-config.js'
 import { crearLimitadorIntentos, crearLimitadorLogin, limitarIntentos, limitarLogin } from './login-limit.js'
@@ -13,7 +15,7 @@ const app = express()
 
 const PORT = Number(process.env.PORT || 3001)
 const configSesion = leerConfiguracionSesion()
-const rutasSesion = ['/api/auth/login', '/api/auth/me', '/api/auth/logout']
+const csrf = crearCsrf(leerSecretoCsrf())
 const rutaSolicitarRestablecimiento = '/api/auth/restablecimiento/solicitar'
 const rutaConfirmarRestablecimiento = '/api/auth/restablecimiento/confirmar'
 const entregarRestablecimiento = configurarEntregaRestablecimiento()
@@ -25,29 +27,21 @@ const origenRestablecimiento = entregarRestablecimiento
    CONFIGURACIÓN GENERAL
 ========================================================= */
 
-app.use(
-  cors((req, definirOpciones) => definirOpciones(null, {
-    credentials: rutasSesion.includes(req.path),
-    origin(origin, callback) {
-      if (
-        !origin ||
-        /^http:\/\/localhost:\d+$/.test(origin) ||
-        (origin === configSesion.origen && rutasSesion.includes(req.path)) ||
-        (origin === origenRestablecimiento
-          && [rutaSolicitarRestablecimiento, rutaConfirmarRestablecimiento].includes(req.path))
-      ) {
-        callback(null, true)
-        return
-      }
-
-      callback(
-        new Error(
-          'Origen no permitido por CORS'
-        )
-      )
-    }
-  }))
-)
+const origenesAplicacion = new Set([...leerOrigenesDesarrollo(), configSesion.origen].filter(Boolean))
+const corsApi = cors({
+  origin: true,
+  credentials: true,
+  allowedHeaders: ['Content-Type', HEADER_CSRF],
+})
+app.use('/api', (req, res, next) => {
+  const origen = req.get('Origin')
+  if (origen && !origenesAplicacion.has(origen)
+    && !(origen === origenRestablecimiento
+      && ['/auth/restablecimiento/solicitar', '/auth/restablecimiento/confirmar'].includes(req.path))) {
+    return res.status(403).json({ ok: false, mensaje: 'Origen no permitido.' })
+  }
+  return corsApi(req, res, next)
+})
 
 app.use(express.json())
 
@@ -551,7 +545,9 @@ app.post('/api/auth/login', limitarLogin(limitadorLogin, normalizarCorreo), crea
 app.get('/api/auth/me', sesiones.autenticar(), (req, res) => {
   res.set('Cache-Control', 'no-store').json({ ok: true, usuario: req.usuarioAutenticado })
 })
-app.post('/api/auth/logout', sesiones.logout)
+app.get('/api/auth/csrf', sesiones.autenticar(), csrf.entregar)
+app.post('/api/auth/logout', sesiones.autenticar({ opcional: true }), (req, res, next) =>
+  req.digestSesion ? csrf.verificar(req, res, next) : next(), sesiones.logout)
 
 const cuposRestablecimiento = { ventanaMs: 600000, maxPorIp: 30, maxPorIpCorreo: 3, maxClaves: 10000 }
 const restablecimiento = crearRestablecimiento({
@@ -1079,6 +1075,13 @@ app.post(
    SALAS
 ========================================================= */
 
+const permisos = crearAutorizacion(pool)
+const leerSesion = sesiones.autenticar({ renovarActividad: false })
+app.use('/api', leerSesion, (req, res, next) => {
+  if (!METODOS_ESCRITURA.has(req.method)) return next()
+  return csrf.verificar(req, res, () => sesiones.renovar(req, res, next))
+})
+
 app.get(
   '/api/salas',
   async (
@@ -1093,7 +1096,7 @@ app.get(
             s.id,
             s.nombre,
             s.descripcion,
-            s.codigo,
+            CASE WHEN s.administrador_id = $1 THEN s.codigo END AS codigo,
 
             s.administrador_id
               AS "administradorId",
@@ -1116,10 +1119,12 @@ app.get(
             ) AS "meserosActivos"
 
           FROM salas s
+          WHERE s.administrador_id = $1 OR EXISTS (SELECT 1 FROM meseros m WHERE m.id = $2 AND m.sala_id = s.id)
 
           ORDER BY
             s.id
-          `
+          `,
+          ambito(req.usuarioAutenticado)
         )
 
       res.json(
@@ -1145,6 +1150,7 @@ app.get(
 
 app.post(
   '/api/salas',
+  permisos.admin,
   async (
     req,
     res
@@ -1165,40 +1171,7 @@ app.post(
           })
       }
 
-      let administradorId =
-        numero(
-          req.body.administradorId
-        )
-
-      if (!administradorId) {
-        const admin =
-          await pool.query(
-            `
-            SELECT id
-            FROM usuarios
-            WHERE
-              rol =
-                'Administrador'
-              AND
-              estado =
-                'Activo'
-            ORDER BY id
-            LIMIT 1
-            `
-          )
-
-        administradorId =
-          admin.rows[0]?.id
-      }
-
-      if (!administradorId) {
-        return res
-          .status(400)
-          .json({
-            mensaje:
-              'No existe un administrador activo.'
-          })
-      }
+      const administradorId = req.usuarioAutenticado.id
 
       let codigo =
         generarCodigoSala()
@@ -1291,6 +1264,7 @@ app.post(
 
 app.put(
   '/api/salas/:id',
+  permisos.salaAdmin((req) => req.params.id),
   async (
     req,
     res
@@ -1388,6 +1362,7 @@ app.put(
 
 app.delete(
   '/api/salas/:id',
+  permisos.salaAdmin((req) => req.params.id),
   async (
     req,
     res
@@ -1480,6 +1455,10 @@ app.get(
               WHERE
                 a.mesero_id =
                   m.id
+                AND (m.id = $2 OR EXISTS (
+                  SELECT 1 FROM eventos historia WHERE historia.id = a.evento_id
+                    AND ${salaPropia('historia.sala_id')}
+                ) OR ${capitanVigente('a.evento_id')})
             ) AS "eventosParticipados"
 
           FROM meseros m
@@ -1487,11 +1466,13 @@ app.get(
           INNER JOIN usuarios u
             ON u.id =
                m.usuario_id
+          WHERE ${salaPropia('m.sala_id')} OR m.id = $2 OR EXISTS (SELECT 1 FROM asignaciones equipo JOIN eventos e ON e.id = equipo.evento_id AND e.sala_id = m.sala_id WHERE equipo.mesero_id = m.id AND ${capitanVigente('equipo.evento_id')})
 
           ORDER BY
             u.nombre,
             u.apellidos
-          `
+          `,
+          ambito(req.usuarioAutenticado)
         )
 
       res.json(
@@ -1530,6 +1511,7 @@ app.post('/api/meseros', (_req, res) => {
 
 app.put(
   '/api/meseros/:id',
+  permisos.perfil, permisos.destinoOpcional,
   async (
     req,
     res
@@ -1554,6 +1536,12 @@ app.put(
             mensaje:
               'Mesero no encontrado.'
           })
+      }
+
+      const personal = req.usuarioAutenticado.rol === 'Mesero'
+      if ((personal && Object.keys(req.body ?? {}).some((clave) => !['nombre', 'apellidos', 'telefono'].includes(clave)))
+        || (req.body.correo !== undefined && normalizarCorreo(req.body.correo) !== normalizarCorreo(actual.correo))) {
+        return denegar(res)
       }
 
       const salaId =
@@ -1581,7 +1569,10 @@ app.put(
         'BEGIN'
       )
 
-      await cliente.query(
+      if (personal) {
+        await cliente.query('UPDATE usuarios SET nombre = COALESCE($1, nombre), apellidos = COALESCE($2, apellidos) WHERE id = $3',
+          [req.body.nombre ?? null, req.body.apellidos ?? null, req.usuarioAutenticado.id])
+      } else await cliente.query(
         `
         UPDATE usuarios
         SET
@@ -1619,10 +1610,9 @@ app.put(
         ).replace(/\D/g, '')
         : actual.telefono
 
-      if (
-           !telefonoActualizado ||
-           telefonoActualizado.length < 10
-         ) {
+      if ((!personal || req.body.telefono !== undefined)
+        && (!telefonoActualizado || telefonoActualizado.length < 10)) {
+             await cliente.query('ROLLBACK')
              return res
              .status(400)
              .json({
@@ -1631,7 +1621,10 @@ app.put(
              })
            }
            
-      await cliente.query(
+      if (personal) {
+        await cliente.query('UPDATE meseros SET telefono = $1 WHERE id = $2 AND usuario_id = $3',
+          [telefonoActualizado, req.usuarioAutenticado.meseroId, req.usuarioAutenticado.id])
+      } else await cliente.query(
         `
         UPDATE meseros
         SET
@@ -1700,6 +1693,7 @@ app.put(
 
 app.delete(
   '/api/meseros/:id',
+  permisos.recurso('meseros', (req) => numero(req.params.id)),
   async (
     req,
     res
@@ -1842,11 +1836,13 @@ app.get(
             e.estado
 
           FROM eventos e
+          WHERE ${salaPropia('e.sala_id')} OR ${eventoAsignado('e.id')}
 
           ORDER BY
             e.fecha,
             e.hora_inicio
-          `
+          `,
+          ambito(req.usuarioAutenticado)
         )
 
       res.json(
@@ -1872,6 +1868,7 @@ app.get(
 
 app.post(
   '/api/eventos',
+  permisos.salaAdmin((req) => req.body?.salaId),
   async (
     req,
     res
@@ -2121,6 +2118,8 @@ if (
 
 app.put(
   '/api/eventos/:id',
+  permisos.destinoOpcional,
+  permisos.recurso('eventos', (req) => numero(req.params.id)),
   async (
     req,
     res
@@ -2359,7 +2358,7 @@ if (
             .status(409)
             .json({
               mensaje:
-                `El cambio genera un conflicto con "${conflicto.nombre}".`
+                'El cambio genera un conflicto con otra asignación.'
             })
         }
       }
@@ -2442,6 +2441,7 @@ if (
 
 app.delete(
   '/api/eventos/:id',
+  permisos.recurso('eventos', (req) => numero(req.params.id)),
   async (
     req,
     res
@@ -2518,11 +2518,13 @@ app.get(
             rol
 
           FROM asignaciones
+          WHERE ${salaPropia('(SELECT e.sala_id FROM eventos e WHERE e.id = asignaciones.evento_id)')} OR asignaciones.mesero_id = $2 OR ${capitanVigente('asignaciones.evento_id')}
 
           ORDER BY
             evento_id,
             id
-          `
+          `,
+          ambito(req.usuarioAutenticado)
         )
 
       res.json(
@@ -2548,6 +2550,7 @@ app.get(
 
 app.put(
   '/api/asignaciones/evento/:eventoId',
+  permisos.recurso('eventos', (req) => numero(req.params.eventoId)),
   async (
     req,
     res
@@ -2639,14 +2642,7 @@ app.put(
             cliente
           )
 
-        if (!mesero) {
-          return res
-            .status(404)
-            .json({
-              mensaje:
-                `No existe el mesero ${meseroId}.`
-            })
-        }
+        if (!mesero || Number(mesero.salaId) !== Number(evento.salaId)) return denegar(res)
 
         if (
           mesero.estado !==
@@ -2657,22 +2653,6 @@ app.put(
             .json({
               mensaje:
                 `${mesero.nombre} ${mesero.apellidos} no está activo.`
-            })
-        }
-
-        if (
-          Number(
-            mesero.salaId
-          ) !==
-          Number(
-            evento.salaId
-          )
-        ) {
-          return res
-            .status(400)
-            .json({
-              mensaje:
-                `${mesero.nombre} ${mesero.apellidos} no pertenece a la sala del evento.`
             })
         }
 
@@ -2691,7 +2671,7 @@ app.put(
             .status(409)
             .json({
               mensaje:
-                `${mesero.nombre} ${mesero.apellidos} ya está asignado a "${conflicto.nombre}" en un horario que se traslapa.`
+                'El mesero ya tiene otra asignación en un horario que se traslapa.'
             })
         }
       }
@@ -2966,9 +2946,11 @@ app.get(
               AS "fechaRespuesta"
 
           FROM disponibilidades
+          WHERE ${salaPropia('(SELECT e.sala_id FROM eventos e WHERE e.id = disponibilidades.evento_id)')} OR disponibilidades.mesero_id = $2 OR ${capitanVigente('disponibilidades.evento_id')}
 
           ORDER BY id
-          `
+          `,
+          ambito(req.usuarioAutenticado)
         )
 
       res.json(
@@ -2994,6 +2976,7 @@ app.get(
 
 app.put(
   '/api/disponibilidades',
+  permisos.disponibilidad,
   async (
     req,
     res
@@ -3011,9 +2994,7 @@ app.put(
         )
 
       const meseroId =
-        numero(
-          req.body.meseroId
-        )
+        req.usuarioAutenticado.meseroId
 
       const estado =
         req.body.estado
@@ -3364,6 +3345,7 @@ app.put(
 ========================================================= */
 
 async function consultarNotificaciones({
+  administradorId,
   salaId = null,
   destinatario = null
 } = {}) {
@@ -3404,7 +3386,7 @@ async function consultarNotificaciones({
 
       FROM notificaciones n
 
-      WHERE
+      WHERE ${salaPropia('n.sala_id', '$3')} AND
         (
           $1::INTEGER IS NULL
           OR
@@ -3430,7 +3412,7 @@ async function consultarNotificaciones({
       `,
       [
         salaId,
-        destinatario
+        destinatario, administradorId
       ]
     )
 
@@ -3440,6 +3422,7 @@ async function consultarNotificaciones({
 
 app.get(
   '/api/notificaciones',
+  permisos.admin, permisos.filtroSala,
   async (
     req,
     res
@@ -3459,6 +3442,7 @@ app.get(
 
       res.json(
         await consultarNotificaciones({
+          administradorId: req.usuarioAutenticado.id,
           salaId,
           destinatario
         })
@@ -3483,6 +3467,7 @@ app.get(
 
 app.get(
   '/api/notificaciones/enviadas',
+  permisos.admin, permisos.filtroSala,
   async (
     req,
     res
@@ -3532,7 +3517,7 @@ app.get(
           FROM notificaciones n
 
           WHERE
-            n.envio_id IS NOT NULL
+            ${salaPropia('n.sala_id', '$2')} AND n.envio_id IS NOT NULL
 
             AND
             n.automatica = FALSE
@@ -3550,7 +3535,7 @@ app.get(
           ORDER BY
             MAX(n.fecha) DESC
           `,
-          [salaId]
+          [salaId, req.usuarioAutenticado.id]
         )
 
       res.json(
@@ -3576,6 +3561,7 @@ app.get(
 
 app.get(
   '/api/notificaciones/mesero/:meseroId',
+  permisos.propio((req) => req.params.meseroId),
   async (
     req,
     res
@@ -3621,9 +3607,7 @@ app.get(
             id DESC
           `,
           [
-            numero(
-              req.params.meseroId
-            )
+            req.usuarioAutenticado.meseroId
           ]
         )
 
@@ -3740,11 +3724,10 @@ async function enviarNotificacion(
           SELECT mesero_id
             AS "meseroId"
 
-          FROM asignaciones
-
-          WHERE evento_id = $1
+          FROM asignaciones a JOIN meseros m ON m.id = a.mesero_id
+          WHERE a.evento_id = $1 AND m.sala_id = $2
           `,
-          [eventoId]
+          [eventoId, salaId]
         )
 
       destinatarios =
@@ -3909,11 +3892,13 @@ async function enviarNotificacion(
 
 app.post(
   '/api/notificaciones',
+  permisos.aviso,
   enviarNotificacion
 )
 
 app.post(
   '/api/notificaciones/enviar',
+  permisos.aviso,
   enviarNotificacion
 )
 
@@ -3929,7 +3914,10 @@ async function marcarNotificacionLeida(
         UPDATE notificaciones
         SET leida = TRUE
 
-        WHERE id = $1
+        WHERE id = $1 AND (destinatario_mesero_id = $3 OR (
+          ${salaPropia('notificaciones.sala_id', '$2')} AND destinatario = 'Administrador'
+          AND destinatario_mesero_id IS NULL
+        ))
 
         RETURNING
           id,
@@ -3938,7 +3926,7 @@ async function marcarNotificacionLeida(
         [
           numero(
             req.params.id
-          )
+          ), ...ambito(req.usuarioAutenticado)
         ]
       )
 
@@ -3987,6 +3975,7 @@ app.put(
 
 app.get(
   '/api/asistencias/evento/:eventoId',
+  permisos.evento((req) => req.params.eventoId),
   async (
     req,
     res
@@ -4074,6 +4063,7 @@ app.get(
 
 app.put(
   '/api/asistencias',
+  permisos.evento((req) => req.body?.eventoId, true),
   async (
     req,
     res
@@ -4092,11 +4082,7 @@ app.put(
       const estado =
         req.body.estado
 
-      let capitanId =
-        numero(
-          req.body.capitanId ??
-          req.body.capitanMeseroId
-        )
+      const capitanId = req.usuarioAutenticado.meseroId
 
       if (
         ![
@@ -4136,65 +4122,6 @@ app.put(
           .json({
             mensaje:
               'La asistencia sólo puede registrarse el día del evento.'
-          })
-      }
-
-      if (!capitanId) {
-        const capitan =
-          await pool.query(
-            `
-            SELECT mesero_id
-              AS "meseroId"
-
-            FROM asignaciones
-
-            WHERE
-              evento_id = $1
-
-              AND
-              rol =
-                'Capitán'
-
-            LIMIT 1
-            `,
-            [eventoId]
-          )
-
-        capitanId =
-          capitan.rows[0]
-            ?.meseroId
-      }
-
-      const esCapitan =
-        await pool.query(
-          `
-          SELECT id
-          FROM asignaciones
-
-          WHERE
-            evento_id = $1
-
-            AND
-            mesero_id = $2
-
-            AND
-            rol =
-              'Capitán'
-          `,
-          [
-            eventoId,
-            capitanId
-          ]
-        )
-
-      if (
-        esCapitan.rowCount === 0
-      ) {
-        return res
-          .status(403)
-          .json({
-            mensaje:
-              'Sólo el capitán del evento puede registrar asistencias.'
           })
       }
 
@@ -4300,12 +4227,13 @@ if (
             estado,
             registrado_por
           )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4
-          )
+          SELECT $1, $2, $3, $4
+          WHERE ${capitanVigente('$1', '$4', true)}
+            AND EXISTS (SELECT 1 FROM asignaciones a JOIN disponibilidades d
+              ON d.evento_id = a.evento_id AND d.mesero_id = a.mesero_id
+              JOIN eventos e ON e.id = a.evento_id JOIN meseros m ON m.id = a.mesero_id AND m.sala_id = e.sala_id
+              WHERE a.evento_id = $1 AND a.mesero_id = $2 AND d.estado = 'Confirmado'
+              FOR SHARE OF a, d, m)
 
           ON CONFLICT (
             evento_id,
@@ -4341,6 +4269,7 @@ if (
           ]
         )
 
+      if (resultado.rowCount === 0) return denegar(res)
       res.json(
         resultado.rows[0]
       )
@@ -4367,6 +4296,7 @@ if (
 
 app.get(
   '/api/meseros/:id/historial',
+  permisos.perfil,
   async (
     req,
     res
@@ -4523,7 +4453,8 @@ app.get(
 
           LEFT JOIN evaluaciones_meseros ev
             ON
-              ev.evento_id =
+              ev.reporte_id = r.id
+              AND ev.evento_id =
                 a.evento_id
 
               AND
@@ -4537,14 +4468,14 @@ app.get(
                 'Enviado'
 
           WHERE
-            a.mesero_id = $1
+            a.mesero_id = $1 AND ($2::integer IS NULL OR ${salaPropia('e.sala_id', '$2')})
 
           ORDER BY
             e.fecha DESC,
             e.hora_inicio DESC
           `,
           [
-            meseroId
+            meseroId, ambito(req.usuarioAutenticado)[0]
           ]
         )
 
@@ -4838,14 +4769,13 @@ async function obtenerReporteEvento(
 
 app.get(
   '/api/reportes',
+  permisos.admin, permisos.filtroSala,
   async (
     req,
     res
   ) => {
     try {
-      const verTodos =
-        req.query.todos ===
-        'true'
+      const salaId = numero(req.query.salaId)
 
       const resultado =
         await pool.query(
@@ -4887,18 +4817,14 @@ app.get(
                r.evento_id
 
           WHERE
-            (
-              $1::BOOLEAN = TRUE
-              OR
-              r.estado =
-                'Enviado'
-            )
+            r.estado = 'Enviado' AND ${salaPropia('e.sala_id', '$1')}
+            AND ($2::integer IS NULL OR e.sala_id = $2)
 
           ORDER BY
             e.fecha DESC,
             r.id DESC
           `,
-          [verTodos]
+          [req.usuarioAutenticado.id, salaId]
         )
 
       res.json(
@@ -4924,6 +4850,7 @@ app.get(
 
 app.get(
   '/api/reportes/evento/:eventoId',
+  permisos.evento((req) => req.params.eventoId),
   async (
     req,
     res
@@ -4936,7 +4863,7 @@ app.get(
           )
         )
 
-      if (!reporte) {
+      if (!reporte || (req.usuarioAutenticado.rol === 'Administrador' && reporte.estado !== 'Enviado')) {
         return res
           .status(404)
           .json({
@@ -4971,11 +4898,12 @@ async function guardarReporte(
   const cliente =
     await pool.connect()
 
+  let transaccion = false
   try {
     const eventoId =
       numero(
-        req.body.eventoId ??
-        req.params.eventoId
+        req.params.eventoId ??
+        req.body.eventoId
       )
 
     const evento =
@@ -5005,62 +4933,11 @@ async function guardarReporte(
         })
     }
 
-    const capitanResultado =
-      await cliente.query(
-        `
-        SELECT mesero_id
-          AS "meseroId"
-
-        FROM asignaciones
-
-        WHERE
-          evento_id = $1
-
-          AND
-          rol =
-            'Capitán'
-
-        LIMIT 1
-        `,
-        [eventoId]
-      )
-
-    const capitanAsignado =
-      capitanResultado
-        .rows[0]
-        ?.meseroId
-
-    if (!capitanAsignado) {
-      return res
-        .status(400)
-        .json({
-          mensaje:
-            'El evento no tiene un capitán asignado.'
-        })
-    }
-
-    const capitanSolicitado =
-      numero(
-        req.body.capitanId ??
-        req.body.capitanMeseroId
-      )
-
-    if (
-      capitanSolicitado &&
-      Number(
-        capitanSolicitado
-      ) !==
-      Number(
-        capitanAsignado
-      )
-    ) {
-      return res
-        .status(403)
-        .json({
-          mensaje:
-            'Sólo el capitán asignado puede elaborar este reporte.'
-        })
-    }
+    const capitanAsignado = req.usuarioAutenticado.meseroId
+    await cliente.query('BEGIN')
+    transaccion = true
+    const permisoVigente = await cliente.query(`SELECT 1 WHERE ${capitanVigente('$1', '$2', true)}`, [eventoId, capitanAsignado])
+    if (permisoVigente.rowCount === 0) return denegar(res)
 
     const existente =
       await cliente.query(
@@ -5183,10 +5060,6 @@ async function guardarReporte(
         }
       }
     }
-
-    await cliente.query(
-      'BEGIN'
-    )
 
 const reporteResultado =
   await cliente.query(
@@ -5403,9 +5276,8 @@ const reporteResultado =
       )
     }
 
-    await cliente.query(
-      'COMMIT'
-    )
+    await cliente.query('COMMIT')
+    transaccion = false
 
     res.json(
       await obtenerReporteEvento(
@@ -5413,54 +5285,27 @@ const reporteResultado =
       )
     )
 
-  } catch (error) {
-
-    try {
-      await cliente.query(
-        'ROLLBACK'
-      )
-    } catch (
-      rollbackError
-    ) {
-      console.error(
-        'Error rollback:',
-        rollbackError
-      )
-    }
-
-    console.error(
-      'Error guardar reporte:',
-      error
-    )
-
-    res
-      .status(500)
-      .json({
-        mensaje:
-          error.message ||
-          'No fue posible guardar el reporte.',
-
-        codigo:
-          error.code ||
-          null,
-
-        detalle:
-          error.detail ||
-          null
-      })
-
+  } catch {
+    console.error('Error interno al guardar el reporte.')
+    res.status(500).json({ mensaje: 'No fue posible guardar el reporte.' })
   } finally {
-    cliente.release()
+    try {
+      if (transaccion) await cliente.query('ROLLBACK')
+    } finally {
+      cliente.release()
+    }
   }
 }
 
 app.post(
   '/api/reportes',
+  permisos.evento((req) => req.params.eventoId ?? req.body?.eventoId, true),
   guardarReporte
 )
 
 app.put(
   '/api/reportes/evento/:eventoId',
+  permisos.evento((req) => req.params.eventoId ?? req.body?.eventoId, true),
   guardarReporte
 )
 

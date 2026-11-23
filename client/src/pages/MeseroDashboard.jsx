@@ -14,8 +14,7 @@ import {
   useMesereArte
 } from '../context/MesereArteContexto.jsx'
 
-const API_URL =
-  'http://localhost:3001/api'
+import { API_URL, apiFetch } from '../api.js'
 
 function MeseroDashboard({
   usuario,
@@ -102,7 +101,7 @@ function MeseroDashboard({
         async () => {
           try {
             const respuesta =
-              await fetch(
+              await apiFetch(
                 `${API_URL}/notificaciones/mesero/${meseroActual.id}`
               )
 
