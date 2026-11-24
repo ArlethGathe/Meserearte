@@ -4643,9 +4643,13 @@ app.get(
    REPORTES
 ========================================================= */
 
-async function obtenerReporteEvento(
-  eventoId
-) {
+const autorReporte = `(
+  SELECT json_build_object('meseroId', m.id, 'nombreCompleto', concat_ws(' ', u.nombre, u.apellidos))
+  FROM meseros m JOIN usuarios u ON u.id = m.usuario_id
+  WHERE m.id = r.capitan_mesero_id
+) AS autor`
+
+async function obtenerReporteEvento(eventoId, detalleAdmin = false) {
   const resultado =
     await pool.query(
       `
@@ -4660,6 +4664,8 @@ async function obtenerReporteEvento(
 
         r.capitan_mesero_id
           AS "capitanId",
+
+        ${autorReporte},
 
         r.resumen_servicio
           AS "resumenServicio",
@@ -4692,11 +4698,11 @@ async function obtenerReporteEvento(
            r.evento_id
 
       WHERE
-        r.evento_id = $1
+        r.evento_id = $1 AND (NOT $2::boolean OR r.estado = 'Enviado')
 
       LIMIT 1
       `,
-      [eventoId]
+      [eventoId, detalleAdmin]
     )
 
   const reporte =
@@ -4704,6 +4710,39 @@ async function obtenerReporteEvento(
 
   if (!reporte) {
     return null
+  }
+
+  if (detalleAdmin) {
+    const { rows: personal } = await pool.query(
+      `SELECT a.mesero_id AS "meseroId", concat_ws(' ', u.nombre, u.apellidos) AS "nombreCompleto",
+              a.rol, COALESCE(asi.estado, 'Sin registrar') AS asistencia,
+              CASE WHEN ev.id IS NOT NULL THEN json_build_object(
+                'desempeno', ev.desempeno, 'puntualidad', ev.puntualidad, 'actitud', ev.actitud,
+                'incidencia', ev.incidencia, 'observacion', ev.observacion
+              ) END AS evaluacion
+       FROM asignaciones a
+       JOIN meseros m ON m.id = a.mesero_id
+       JOIN usuarios u ON u.id = m.usuario_id
+       LEFT JOIN asistencias asi ON asi.evento_id = a.evento_id AND asi.mesero_id = a.mesero_id
+       LEFT JOIN evaluaciones_meseros ev ON ev.reporte_id = $2
+         AND ev.evento_id = a.evento_id AND ev.mesero_id = a.mesero_id
+       WHERE a.evento_id = $1
+       ORDER BY (a.rol = 'Capitán') DESC, u.nombre, u.apellidos, m.id`,
+      [eventoId, reporte.id]
+    )
+    const capitan = personal.find(({ rol }) => rol === 'Capitán')
+    return {
+      ...reporte,
+      capitanActual: capitan ? { meseroId: capitan.meseroId, nombreCompleto: capitan.nombreCompleto } : null,
+      personal,
+      resumenAsistencia: {
+        total: personal.length,
+        presentes: personal.filter(({ asistencia }) => asistencia === 'Presente').length,
+        retardos: personal.filter(({ asistencia }) => asistencia === 'Retardo').length,
+        ausentes: personal.filter(({ asistencia }) => asistencia === 'Ausente').length,
+        sinRegistrar: personal.filter(({ asistencia }) => asistencia === 'Sin registrar').length
+      }
+    }
   }
 
   const asistencias =
@@ -4751,12 +4790,12 @@ async function obtenerReporteEvento(
            m.usuario_id
 
       WHERE
-        ev.evento_id = $1
+        ev.evento_id = $1 AND ev.reporte_id = $2
 
       ORDER BY
         u.nombre
       `,
-      [eventoId]
+      [eventoId, reporte.id]
     )
 
   return {
@@ -4798,6 +4837,8 @@ app.get(
 
             r.capitan_mesero_id
               AS "capitanId",
+
+            ${autorReporte},
 
             (
               SELECT json_build_object(
@@ -4880,10 +4921,11 @@ app.get(
         await obtenerReporteEvento(
           numero(
             req.params.eventoId
-          )
+          ),
+          req.usuarioAutenticado.rol === 'Administrador'
         )
 
-      if (!reporte || (req.usuarioAutenticado.rol === 'Administrador' && reporte.estado !== 'Enviado')) {
+      if (!reporte) {
         return res
           .status(404)
           .json({

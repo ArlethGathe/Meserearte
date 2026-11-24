@@ -859,18 +859,6 @@ function AdminAsignaciones() {
         ).length
       : 0
 
-  const pendientes =
-    eventoActual
-      ? meserosSeleccionados.filter(
-          (meseroId) =>
-            obtenerDisponibilidad(
-              eventoActual.id,
-              meseroId
-            ) ===
-            'Pendiente'
-        ).length
-      : 0
-
   const noDisponibles =
     eventoActual
       ? meserosSeleccionados.filter(
@@ -882,6 +870,12 @@ function AdminAsignaciones() {
             'No disponible'
         ).length
       : 0
+
+  const confirmacionesGuardadas = { Confirmado: 0, Pendiente: 0, 'No disponible': 0 }
+  for (const { meseroId, eventoId } of asignacionesEvento) {
+    const estado = obtenerDisponibilidad(eventoId, meseroId)
+    confirmacionesGuardadas[estado] += 1
+  }
 
   /* ========================================
      ROL
@@ -1101,8 +1095,7 @@ function AdminAsignaciones() {
 
               <strong>
                 {
-                  meserosSeleccionados
-                    .length
+                  asignacionesEvento.length
                 }
               </strong>
 
@@ -1121,7 +1114,7 @@ function AdminAsignaciones() {
               </span>
 
               <strong>
-                {confirmados}
+                {confirmacionesGuardadas.Confirmado}
               </strong>
 
             </div>
@@ -1133,7 +1126,7 @@ function AdminAsignaciones() {
               </span>
 
               <strong>
-                {pendientes}
+                {confirmacionesGuardadas.Pendiente}
               </strong>
 
             </div>
@@ -1145,7 +1138,7 @@ function AdminAsignaciones() {
               </span>
 
               <strong>
-                {noDisponibles}
+                {confirmacionesGuardadas['No disponible']}
               </strong>
 
             </div>

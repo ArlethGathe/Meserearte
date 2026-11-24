@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -50,6 +51,34 @@ function AdminReportes({
     reporteSeleccionado,
     setReporteSeleccionado
   ] = useState(null)
+
+  const [consultaDetalle, setConsultaDetalle] = useState(null)
+  const [observacion, setObservacion] = useState(null)
+  const dialogoObservacion = useRef(null)
+  const eventoDetalleId = reporteSeleccionado?.eventoId
+  const consultaActual = consultaDetalle?.eventoId === eventoDetalleId ? consultaDetalle : null
+  const detalle = consultaActual?.datos
+
+  useEffect(() => {
+    if (!eventoDetalleId) return
+    const controlador = new AbortController()
+    apiFetch(`${API_URL}/reportes/evento/${eventoDetalleId}`, { signal: controlador.signal })
+      .then(async (respuesta) => {
+        const datos = await respuesta.json()
+        if (!respuesta.ok) throw new Error(datos.mensaje || 'No fue posible consultar el reporte.')
+        if (!controlador.signal.aborted) setConsultaDetalle({ eventoId: eventoDetalleId, datos })
+      })
+      .catch((error) => {
+        if (!controlador.signal.aborted) setConsultaDetalle({ eventoId: eventoDetalleId, error: error.message })
+      })
+    return () => controlador.abort()
+  }, [eventoDetalleId])
+
+  function cerrarReporte() {
+    setReporteSeleccionado(null)
+    setConsultaDetalle(null)
+    setObservacion(null)
+  }
 
   /* ========================================
      CARGAR REPORTES
@@ -118,20 +147,7 @@ function AdminReportes({
                     reporte.eventoId
                 )
 
-              const capitan =
-                meseros.find(
-                  (mesero) =>
-                    mesero.id ===
-                    (reporte.capitanMeseroId ?? reporte.capitanId)
-                )
-
-              return {
-                ...reporte,
-
-                evento,
-
-                capitan
-              }
+              return { ...reporte, evento }
             }
           )
           .sort(
@@ -145,8 +161,7 @@ function AdminReportes({
           ),
       [
         reportes,
-        eventos,
-        meseros
+        eventos
       ]
     )
 
@@ -167,19 +182,16 @@ function AdminReportes({
         }
 
         const nombreEvento =
-          reporte.evento?.nombre
-            ?.toLowerCase() ||
-          ''
+          (reporte.eventoNombre ?? reporte.evento?.nombre ?? '').toLowerCase()
 
-        const nombreCapitan =
-          `${reporte.capitan?.nombre || ''} ${reporte.capitan?.apellidos || ''}`
-            .toLowerCase()
+        const nombreAutor =
+          reporte.autor?.nombreCompleto?.toLowerCase() ?? ''
 
         return (
           nombreEvento.includes(
             texto
           ) ||
-          nombreCapitan.includes(
+          nombreAutor.includes(
             texto
           )
         )
@@ -513,7 +525,7 @@ function AdminReportes({
 
             <input
               type="text"
-              placeholder="Buscar por evento o capitán..."
+              placeholder="Buscar por evento o autor..."
               value={
                 busqueda
               }
@@ -576,15 +588,13 @@ function AdminReportes({
                         </span>
 
                         <h2>
-                          {reporte.evento
-                            ?.nombre ||
+                          {reporte.eventoNombre ||
                             `Evento #${reporte.eventoId}`}
                         </h2>
 
                         <p>
                           {formatearFecha(
-                            reporte.evento
-                              ?.fecha
+                            reporte.eventoFecha
                           )}
 
                           {reporte.evento
@@ -606,13 +616,11 @@ function AdminReportes({
                       <div>
 
                         <span>
-                          Capitán
+                          Autor del reporte
                         </span>
 
                         <strong>
-                          {reporte.capitan
-                            ? `${reporte.capitan.nombre} ${reporte.capitan.apellidos}`
-                            : 'Sin información'}
+                          {reporte.autor?.nombreCompleto || 'Sin información'}
                         </strong>
 
                       </div>
@@ -888,11 +896,7 @@ function AdminReportes({
 
         <div
           className="modal-reporte-fondo"
-          onClick={() =>
-            setReporteSeleccionado(
-              null
-            )
-          }
+          onClick={cerrarReporte}
         >
 
           <div
@@ -912,7 +916,7 @@ function AdminReportes({
 
                 <h2>
                   {reporteSeleccionado
-                    .evento?.nombre ||
+                    .eventoNombre ||
                     `Evento #${reporteSeleccionado.eventoId}`}
                 </h2>
 
@@ -929,17 +933,16 @@ function AdminReportes({
               <button
                 type="button"
                 className="cerrar-reporte"
-                onClick={() =>
-                  setReporteSeleccionado(
-                    null
-                  )
-                }
+                onClick={cerrarReporte}
               >
                 ×
               </button>
 
             </div>
 
+            {!consultaActual && <p role="status">Cargando detalle del reporte…</p>}
+            {consultaActual?.error && <p role="alert">{consultaActual.error}</p>}
+            {detalle && <>
             <div className="modal-reporte-info">
 
               <div>
@@ -950,26 +953,19 @@ function AdminReportes({
 
                 <strong>
                   {formatearFecha(
-                    reporteSeleccionado
-                      .evento?.fecha
+                    detalle.eventoFecha
                   )}
                 </strong>
 
               </div>
 
               <div>
-
-                <span>
-                  Capitán
-                </span>
-
-                <strong>
-                  {reporteSeleccionado
-                    .capitan
-                    ? `${reporteSeleccionado.capitan.nombre} ${reporteSeleccionado.capitan.apellidos}`
-                    : 'Sin información'}
-                </strong>
-
+                <span>Autor del reporte</span>
+                <strong>{detalle.autor?.nombreCompleto || 'Sin información'}</strong>
+              </div>
+              <div>
+                <span>Capitán actual</span>
+                <strong>{detalle.capitanActual?.nombreCompleto || 'Sin asignar'}</strong>
               </div>
 
               <div>
@@ -979,8 +975,7 @@ function AdminReportes({
                 </span>
 
                 <strong>
-                  {reporteSeleccionado
-                    .asistencia
+                  {detalle.resumenAsistencia
                     ?.total ||
                     0}
                 </strong>
@@ -994,8 +989,7 @@ function AdminReportes({
                 </span>
 
                 <strong>
-                  {reporteSeleccionado
-                    .asistencia
+                  {detalle.resumenAsistencia
                     ?.presentes ||
                     0}
                 </strong>
@@ -1007,7 +1001,7 @@ function AdminReportes({
                 <span>
                   Retardos
                 </span>
-                <strong>{reporteSeleccionado.asistencia?.retardos ?? 0}</strong>
+                <strong>{detalle.resumenAsistencia?.retardos ?? 0}</strong>
               </div>
 
               <div>
@@ -1016,8 +1010,7 @@ function AdminReportes({
                 </span>
 
                 <strong>
-                  {reporteSeleccionado
-                    .asistencia
+                  {detalle.resumenAsistencia
                     ?.ausentes ||
                     0}
                 </strong>
@@ -1031,8 +1024,7 @@ function AdminReportes({
                 </span>
 
                 <strong>
-                  {reporteSeleccionado
-                    .asistencia
+                  {detalle.resumenAsistencia
                     ?.sinRegistrar ||
                     0}
                 </strong>
@@ -1049,8 +1041,7 @@ function AdminReportes({
 
               <p>
                 {
-                  reporteSeleccionado
-                    .resumenServicio
+                  detalle.resumenServicio
                 }
               </p>
 
@@ -1063,8 +1054,7 @@ function AdminReportes({
               </span>
 
               <p>
-                {reporteSeleccionado
-                  .incidencias ||
+                {detalle.incidencias ||
                   'No se registraron incidencias.'}
               </p>
 
@@ -1077,22 +1067,67 @@ function AdminReportes({
               </span>
 
               <p>
-                {reporteSeleccionado
-                  .observaciones ||
+                {detalle.observaciones ||
                   'Sin observaciones adicionales.'}
               </p>
 
             </div>
 
+            <section className="modal-reporte-seccion">
+              <h3>Personal asignado</h3>
+              {detalle.personal.length === 0 ? <p>No hay personal asignado.</p> : (
+                <div className="tabla-reportes-responsive">
+                  <table className="reporte-personal">
+                    <thead>
+                      <tr>
+                        {['Nombre', 'Rol', 'Asistencia', 'Desempeño', 'Puntualidad', 'Actitud', 'Incidencia', 'Observación'].map(
+                          (columna) => <th key={columna} scope="col">{columna}</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalle.personal.map(({ meseroId, nombreCompleto, rol, asistencia, evaluacion }) => (
+                        <tr key={meseroId}>
+                          <th scope="row">{nombreCompleto}</th>
+                          <td>{rol}</td>
+                          <td>{asistencia}</td>
+                          {evaluacion ? <>
+                            <td>{evaluacion.desempeno ?? '—'}</td>
+                            <td>{evaluacion.puntualidad ?? '—'}</td>
+                            <td>{evaluacion.actitud ?? '—'}</td>
+                            <td>{evaluacion.incidencia == null ? '—' : evaluacion.incidencia ? 'Sí' : 'No'}</td>
+                            <td>{evaluacion.observacion ? (
+                              <button type="button" className="historial-observacion-enlace" onClick={() => {
+                                setObservacion({ nombreCompleto, texto: evaluacion.observacion })
+                                dialogoObservacion.current.showModal()
+                              }}>Ver observación</button>
+                            ) : '—'}</td>
+                          </> : <td colSpan={5}>Sin evaluación</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <dialog className="historial-observacion-modal reporte-observacion" ref={dialogoObservacion}
+                aria-labelledby="titulo-reporte-observacion">
+                <header>
+                  <h3 id="titulo-reporte-observacion">Observación del mesero</h3>
+                  <button type="button" className="historial-observacion-x" aria-label="Cerrar observación"
+                    onClick={() => dialogoObservacion.current.close()}>×</button>
+                </header>
+                <p className="historial-observacion-evento">{observacion?.nombreCompleto}</p>
+                <p className="historial-observacion-texto">{observacion?.texto}</p>
+                <footer><button type="button" onClick={() => dialogoObservacion.current.close()}>Cerrar</button></footer>
+              </dialog>
+            </section>
+            </>}
+
             <div className="modal-reporte-botones">
 
               <button
                 type="button"
-                onClick={() =>
-                  setReporteSeleccionado(
-                    null
-                  )
-                }
+                onClick={cerrarReporte}
               >
                 Cerrar
               </button>

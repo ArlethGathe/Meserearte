@@ -40,11 +40,7 @@ function MeseroNotificaciones({
 
   const meseroActual =
     meseros.find(
-      (mesero) =>
-        mesero.correo
-          ?.toLowerCase() ===
-        usuario.correo
-          ?.toLowerCase()
+      (mesero) => mesero.id === usuario.meseroId
     )
 
   /* ========================================

@@ -328,6 +328,78 @@ test('permisos e IDOR sobre Express y PostgreSQL aislado', {
     assert.deepEqual((await pedir('/meseros/14/historial', adminA)).cuerpo, resultado.cuerpo)
   })
 
+  await t.test('CU10 distingue autor histórico, capitán actual y detalle de personal', async () => {
+    await db.query(`
+      INSERT INTO usuarios (id,nombre,apellidos,correo,rol,password_hash,estado_credencial)
+      VALUES (16,'Persona','Ficticia 16','cuenta16@example.invalid','Mesero',$1,'migrada')
+    `, [hash])
+    await db.query(`
+      INSERT INTO meseros (id,usuario_id,sala_id,telefono) VALUES (16,16,101,'5512345678');
+      INSERT INTO eventos (id,sala_id,nombre,tipo,fecha,hora_inicio,hora_fin,ubicacion,lugar)
+      VALUES (215,101,'Evento de reportes','Prueba','2020-01-01','08:00','10:00','Prueba','Lugar 215');
+      INSERT INTO asignaciones (evento_id,mesero_id,rol) VALUES
+        (215,16,'Capitán'),(215,13,'Mesero'),(215,14,'Mesero'),(215,15,'Mesero');
+      INSERT INTO asistencias (evento_id,mesero_id,estado) VALUES
+        (215,16,'Presente'),(215,13,'Presente'),(215,14,'Retardo'),(215,15,'Ausente');
+    `)
+    const autor = await login(16, 'Mesero')
+    const ruta = '/reportes/evento/215'
+    assert.equal((await pedir(ruta, adminA)).estado, 404)
+    assert.equal((await pedir('/reportes/evento/208', adminA)).estado, 404)
+    const observacion = 'Observación individual ficticia. '.repeat(25)
+    assert.equal((await pedir('/reportes', autor, 'POST', {
+      eventoId: 215, estado: 'Enviado', resumenServicio: 'Resumen ficticio',
+      incidencias: 'Incidencia general', observaciones: 'Observación general',
+      evaluacionesPersonal: [
+        { meseroId: 13, desempeno: 4, puntualidad: 5, actitud: 3, incidencia: false },
+        { meseroId: 14, desempeno: 5, puntualidad: 2, actitud: 4, incidencia: true, observacion }
+      ]
+    })).estado, 200)
+    const listado = await pedir('/reportes?salaId=101', adminA)
+    assert.equal(listado.estado, 200)
+    assert.ok(!listado.cuerpo.some(({ eventoId }) => eventoId === 208))
+    const tarjeta = listado.cuerpo.find(({ eventoId }) => eventoId === 215)
+    assert.equal(tarjeta.eventoNombre, 'Evento de reportes')
+    assert.deepEqual(tarjeta.autor, { meseroId: 16, nombreCompleto: 'Persona Ficticia 16' })
+    assert.deepEqual(tarjeta.asistencia, { total: 4, presentes: 2, retardos: 1, ausentes: 1, sinRegistrar: 0 })
+    assert.ok(!(await pedir('/reportes', adminB)).cuerpo.some(({ eventoId }) => eventoId === 215))
+    assert.equal((await pedir('/reportes?salaId=101', adminB)).estado, 403)
+    assert.equal((await pedir(ruta, adminB)).estado, 403)
+    assert.equal((await pedir(ruta, meseroC)).estado, 403)
+    // El esquema permite referencias separadas a reporte y evento.
+    await db.query(`
+      INSERT INTO evaluaciones_meseros (reporte_id,evento_id,mesero_id,desempeno,puntualidad,actitud)
+      VALUES (801,215,15,1,1,1),($1,208,15,2,2,2)
+    `, [tarjeta.id])
+    const lecturaCapitan = await pedir(ruta, autor)
+    assert.equal(lecturaCapitan.estado, 200)
+    assert.deepEqual(lecturaCapitan.cuerpo.evaluacionesPersonal.map(({ meseroId }) => meseroId).sort(), [13, 14])
+    await db.query(`
+      UPDATE asignaciones SET rol = 'Mesero' WHERE evento_id = 215 AND mesero_id = 16;
+      UPDATE asignaciones SET rol = 'Capitán' WHERE evento_id = 215 AND mesero_id = 13;
+      DELETE FROM asistencias WHERE evento_id = 215 AND mesero_id = 15;
+    `)
+    const detalle = await pedir(ruta, adminA)
+    assert.equal(detalle.estado, 200)
+    assert.equal(detalle.cuerpo.autor.nombreCompleto, 'Persona Ficticia 16')
+    assert.equal(detalle.cuerpo.autor.meseroId, 16)
+    assert.equal(detalle.cuerpo.capitanActual.meseroId, 13)
+    assert.equal(detalle.cuerpo.eventoFecha, '2020-01-01')
+    assert.equal(detalle.cuerpo.resumenServicio, 'Resumen ficticio')
+    assert.equal(detalle.cuerpo.incidencias, 'Incidencia general')
+    assert.equal(detalle.cuerpo.observaciones, 'Observación general')
+    assert.deepEqual(detalle.cuerpo.resumenAsistencia, { total: 4, presentes: 2, retardos: 1, ausentes: 0, sinRegistrar: 1 })
+    const personal = new Map(detalle.cuerpo.personal.map((fila) => [fila.meseroId, fila]))
+    assert.equal(personal.get(16).rol, 'Mesero')
+    assert.equal(personal.get(16).evaluacion, null)
+    assert.equal(personal.get(13).rol, 'Capitán')
+    assert.equal(personal.get(13).evaluacion.puntualidad, 5)
+    assert.equal(personal.get(14).asistencia, 'Retardo')
+    assert.deepEqual(personal.get(14).evaluacion, { desempeno: 5, puntualidad: 2, actitud: 4, incidencia: true, observacion })
+    assert.equal(personal.get(15).asistencia, 'Sin registrar')
+    assert.equal(personal.get(15).evaluacion, null)
+  })
+
   await t.test('CU15 consulta y edita el perfil propio conservando sesión, sala e historial', async () => {
     const ruta = '/meseros/mi-perfil'
     const historial = async () => (await pedir('/meseros/11/historial', adminA)).cuerpo
@@ -473,5 +545,93 @@ test('permisos e IDOR sobre Express y PostgreSQL aislado', {
     assert.equal((await enviar([33])).estado, 403)
     assert.deepEqual((await pedir(base, capitan)).cuerpo, [{ id: 233 }])
     assert.deepEqual((await pedir(base, primero)).cuerpo, [{ id: 231 }])
+  })
+
+  await t.test('auditoría final: sala, evento, equipo, disponibilidad y asistencia por HTTP', async () => {
+    const sala = await pedir('/salas', adminA, 'POST', { nombre: 'Sala ficticia de auditoría' })
+    assert.equal(sala.estado, 201)
+    assert.ok(sala.cuerpo.codigo)
+    assert.equal(sala.cuerpo.administradorId, 1)
+    assert.ok(!(await pedir('/salas', adminB)).cuerpo.some(({ id }) => id === sala.cuerpo.id))
+    assert.equal((await pedir('/salas/' + sala.cuerpo.id, adminB, 'PUT', { nombre: 'Ajena' })).estado, 403)
+
+    const [{ hoy, manana }] = (await db.query(`
+      SELECT to_char(now() AT TIME ZONE 'America/Mexico_City','YYYY-MM-DD') AS hoy,
+             to_char((now() AT TIME ZONE 'America/Mexico_City') + interval '1 day','YYYY-MM-DD') AS manana
+    `)).rows
+    const datos = { salaId: 101, nombre: 'Evento ficticio de auditoría', tipo: 'Otro', fecha: hoy,
+      horaInicio: '20:00', horaFin: '22:00', lugar: 'Lugar ficticio de auditoría',
+      direccion: 'Dirección ficticia', latitud: 19, longitud: -99, uniforme: 'Negro', observaciones: 'Indicaciones' }
+    assert.equal((await pedir('/eventos', adminB, 'POST', datos)).estado, 403)
+    const creado = await pedir('/eventos', adminA, 'POST', datos)
+    assert.equal(creado.estado, 201)
+    const eventoId = creado.cuerpo.id
+    const rutaEvento = '/eventos/' + eventoId
+    const rutaEquipo = '/asignaciones/evento/' + eventoId
+    assert.ok(!(await pedir('/eventos', meseroC)).cuerpo.some(({ id }) => id === eventoId))
+    assert.equal((await pedir(rutaEvento, adminB, 'PUT', { nombre: 'Ajeno' })).estado, 403)
+    const editado = await pedir(rutaEvento, adminA, 'PUT', { nombre: 'Evento editado' })
+    assert.equal(editado.estado, 200)
+    const leerEvento = async () => (await pedir('/eventos', meseroC)).cuerpo.find(({ id }) => id === eventoId)
+    const cuenta14 = await pedir('/auth/login', null, 'POST', { correo: 'historial@example.invalid', password, rol: 'Mesero' })
+    assert.equal(cuenta14.estado, 200)
+    const personal = cuenta14.cookie
+    assert.equal((await pedir(rutaEquipo, adminA, 'PUT', { meseroIds: [13] })).estado, 400)
+    assert.ok([400, 403].includes((await pedir(rutaEquipo, adminA, 'PUT', { meseroIds: [13, 12], capitanId: 13 })).estado))
+    assert.ok([200, 201].includes((await pedir(rutaEquipo, adminA, 'PUT', { meseroIds: [13, 14, 14], capitanId: 13 })).estado))
+    assert.equal((await leerEvento()).nombre, 'Evento editado')
+    assert.equal((await leerEvento()).direccion, datos.direccion)
+    assert.ok((await leerEvento()).ubicacion)
+    assert.ok(!(await pedir('/eventos', capB)).cuerpo.some(({ id }) => id === eventoId))
+    const equipo = (await pedir('/asignaciones', adminA)).cuerpo.filter((fila) => fila.eventoId === eventoId)
+    assert.deepEqual(equipo.map(({ meseroId, rol }) => [meseroId, rol]).sort(), [[13, 'Capitán'], [14, 'Mesero']])
+    const traslape = await pedir('/eventos', adminA, 'POST', { ...datos, lugar: 'Otro lugar el mismo día' })
+    assert.equal(traslape.estado, 201)
+    assert.equal((await pedir('/asignaciones/evento/' + traslape.cuerpo.id, adminA, 'PUT', {
+      meseroIds: [13], capitanId: 13
+    })).estado, 409)
+    const avisoManual = await pedir('/notificaciones', adminA, 'POST', {
+      salaId: 101, destinatarioMeseroId: 14, titulo: 'Aviso administrativo ficticio',
+      mensaje: 'Indicaciones para el equipo', modoDestinatario: 'Individual'
+    })
+    assert.equal(avisoManual.estado, 201)
+    const bandeja = await pedir('/notificaciones/mesero/14', personal)
+    const aviso = bandeja.cuerpo.find(({ envioId }) => envioId === avisoManual.cuerpo.envioId)
+    assert.equal(aviso.leida, false)
+    assert.equal((await pedir('/notificaciones/' + aviso.id + '/leida', personal, 'PUT', {})).estado, 200)
+    assert.ok((await pedir('/notificaciones/mesero/14', personal)).cuerpo.find(({ id }) => id === aviso.id).leida)
+    assert.ok(!(await pedir('/notificaciones/mesero/13', meseroC)).cuerpo.some(({ id }) => id === aviso.id))
+    const respuestas = async () => (await pedir('/disponibilidades', adminA)).cuerpo.filter((fila) => fila.eventoId === eventoId)
+    assert.deepEqual((await respuestas()).map(({ estado }) => estado), ['Pendiente', 'Pendiente'])
+    for (const [cookie, meseroId] of [[meseroC, 13], [personal, 14]]) {
+      assert.equal((await pedir('/disponibilidades', cookie, 'PUT', { eventoId, meseroId, estado: 'Confirmado' })).estado, 200)
+    }
+    assert.equal((await pedir('/disponibilidades', personal, 'PUT', { eventoId, meseroId: 14, estado: 'No disponible' })).estado, 409)
+    for (const estado of ['Presente', 'Retardo', 'Ausente']) {
+      const registro = await pedir('/asistencias', meseroC, 'PUT', { eventoId, meseroId: 14, estado })
+      assert.equal(registro.estado, 200)
+      assert.equal(registro.cuerpo.estado, estado)
+    }
+    assert.equal((await pedir('/asistencias', meseroC, 'PUT', { eventoId, meseroId: 12, estado: 'Presente' })).estado, 400)
+    assert.deepEqual((await db.query('SELECT estado FROM asistencias WHERE evento_id = $1 AND mesero_id = 14', [eventoId])).rows,
+      [{ estado: 'Ausente' }])
+
+    const futuro = await pedir('/eventos', adminA, 'POST', { ...datos, fecha: manana, lugar: 'Lugar futuro ficticio' })
+    assert.equal(futuro.estado, 201)
+    const futuroId = futuro.cuerpo.id
+    assert.equal((await pedir('/asignaciones/evento/' + futuroId, adminA, 'PUT', { meseroIds: [13], capitanId: 13 })).estado, 200)
+    assert.equal((await pedir('/asistencias', meseroC, 'PUT', { eventoId: futuroId, meseroId: 13, estado: 'Presente' })).estado, 403)
+    assert.equal((await pedir('/reportes', meseroC, 'POST', { eventoId: futuroId, estado: 'Enviado' })).estado, 403)
+    assert.equal((await pedir('/disponibilidades', meseroC, 'PUT', {
+      eventoId: futuroId, meseroId: 13, estado: 'No disponible'
+    })).estado, 200)
+    const asignacion = (await pedir('/asignaciones', adminA)).cuerpo.find((fila) => fila.eventoId === futuroId)
+    assert.equal(asignacion.rol, 'Capitán')
+    const avisos = (await pedir('/notificaciones?destinatario=Administrador', adminA)).cuerpo
+    assert.match(avisos.find((aviso) => aviso.eventoId === futuroId).mensaje, /reemplazar|nuevo capitán/i)
+    assert.ok(!(await pedir('/notificaciones/mesero/13', meseroC)).cuerpo.some((aviso) => aviso.eventoId === futuroId))
+    assert.equal((await pedir('/reportes/evento/' + futuroId, meseroC)).estado, 403)
+    assert.ok([200, 204].includes((await pedir('/eventos/' + futuroId, adminA, 'DELETE')).estado))
+    assert.equal((await db.query('SELECT id FROM eventos WHERE id = $1', [futuroId])).rowCount, 0)
   })
 })

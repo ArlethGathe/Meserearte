@@ -468,6 +468,27 @@
   overflow-x: auto;
 }
 
+.reporte-personal {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.reporte-personal th,
+.reporte-personal td {
+  padding: .55rem;
+  border-bottom: 1px solid #eadbc6;
+}
+
+.reporte-personal thead {
+  background: #f3e5d2;
+}
+
+.modal-reporte-seccion .reporte-observacion p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .tabla-historial-reportes {
   width: 100%;
 
