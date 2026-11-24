@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './AdminUsuarios.css'
+import { API_URL, apiFetch } from '../api.js'
 
 import {
   useMesereArte
@@ -12,6 +13,59 @@ const formularioVacio = {
   telefono: '',
   salaId: '',
   estado: 'Activo'
+}
+
+const indicadoresDesempeno = [
+  ['promedioDesempeno', 'Desempeño promedio'],
+  ['promedioPuntualidad', 'Puntualidad promedio'],
+  ['promedioActitud', 'Actitud promedio'],
+]
+const formatoPromedio = new Intl.NumberFormat('es-MX', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 2,
+})
+
+function EvaluacionDesempeno({ meseroId }) {
+  const [resultado, setResultado] = useState(null)
+
+  useEffect(() => {
+    const control = new AbortController()
+    async function consultar() {
+      try {
+        const respuesta = await apiFetch(`${API_URL}/meseros/${encodeURIComponent(meseroId)}/historial`, {
+          signal: control.signal,
+        })
+        if (!respuesta.ok) throw new Error('No fue posible consultar las evaluaciones.')
+        const { resumen } = await respuesta.json()
+        if (!control.signal.aborted) setResultado({ resumen })
+      } catch {
+        if (!control.signal.aborted) setResultado({ error: true })
+      }
+    }
+    void consultar()
+    return () => control.abort()
+  }, [meseroId])
+
+  return (
+    <section className="detalle-usuario-evaluacion" aria-labelledby="titulo-evaluacion-mesero">
+      <h3 id="titulo-evaluacion-mesero">Evaluación del desempeño</h3>
+      {!resultado && <p role="status">Cargando evaluaciones…</p>}
+      {resultado?.error && <p role="alert">No fue posible consultar las evaluaciones.</p>}
+      {resultado?.resumen && (
+        <dl>
+          {indicadoresDesempeno.map(([campo, etiqueta]) => {
+            const valor = resultado.resumen[campo]
+            return <div key={campo}>
+              <dt>{etiqueta}</dt>
+              <dd className={valor == null ? 'detalle-usuario-sin-evaluacion' : undefined}>
+                {valor == null ? 'Sin evaluación' : `${formatoPromedio.format(valor)} / 5`}
+              </dd>
+            </div>
+          })}
+        </dl>
+      )}
+    </section>
+  )
 }
 
 function AdminUsuarios({ administradorId }) {
@@ -725,6 +779,8 @@ function AdminUsuarios({ administradorId }) {
               </div>
 
             </div>
+
+            <EvaluacionDesempeno key={meseroDetalle.id} meseroId={meseroDetalle.id} />
 
           </div>
 

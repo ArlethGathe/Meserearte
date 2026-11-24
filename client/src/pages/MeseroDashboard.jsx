@@ -8,6 +8,8 @@ import './MeseroDashboard.css'
 
 import CapitanPanel from './CapitanPanel.jsx'
 
+import MeseroPerfil from './MeseroPerfil.jsx'
+
 import MeseroNotificaciones from './MeseroNotificaciones.jsx'
 
 import {
@@ -1410,144 +1412,7 @@ function MeseroDashboard({
             PERFIL
         ================================= */}
 
-        {seccion ===
-          'perfil' && (
-
-          <div className="mesero-pagina">
-
-            <div className="mesero-titulo">
-
-              <h1>
-                Mi perfil
-              </h1>
-
-              <p>
-                Información de tu cuenta
-                en MesereArte.
-              </p>
-
-            </div>
-
-            <div className="mesero-perfil">
-
-              <div>
-
-                <span>
-                  Nombre
-                </span>
-
-                <strong>
-                  {usuario.nombre}{' '}
-                  {
-                    usuario.apellidos
-                  }
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Correo
-                </span>
-
-                <strong>
-                  {
-                    usuario.correo
-                  }
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Teléfono
-                </span>
-
-                <strong>
-                  {meseroActual
-                    ?.telefono ||
-                    'Sin registrar'}
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Rol de cuenta
-                </span>
-
-                <strong>
-                  {
-                    usuario.rol
-                  }
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Sala
-                </span>
-
-                <strong>
-                  {salaActual
-                    ? salaActual.nombre
-                    : 'Sin sala'}
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Estado
-                </span>
-
-                <strong>
-                  {
-                    usuario.estado
-                  }
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Eventos asignados
-                </span>
-
-                <strong>
-                  {
-                    eventosAsignados.length
-                  }
-                </strong>
-
-              </div>
-
-              <div>
-
-                <span>
-                  Eventos como capitán
-                </span>
-
-                <strong>
-                  {
-                    totalEventosCapitan
-                  }
-                </strong>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        )}
+        {seccion === 'perfil' && <MeseroPerfil />}
 
       </main>
 

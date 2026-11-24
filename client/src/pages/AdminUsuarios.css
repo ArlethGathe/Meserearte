@@ -549,3 +549,46 @@
   line-height: 1.5;
   color: #8a6d58;
 }
+.detalle-usuario-evaluacion {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e5d5bf;
+}
+
+.detalle-usuario-evaluacion h3 {
+  margin: 0 0 10px;
+  color: #39261b;
+  font-size: 1rem;
+}
+
+.detalle-usuario-evaluacion dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.detalle-usuario-evaluacion dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 14px;
+  padding: 8px 12px;
+  border: 1px solid #ebe0d2;
+  border-radius: 8px;
+  background: #fffdf9;
+  color: #624837;
+}
+
+.detalle-usuario-evaluacion dd {
+  margin: 0;
+  color: #49301f;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.detalle-usuario-evaluacion .detalle-usuario-sin-evaluacion {
+  color: #6d6660;
+  font-size: 0.875rem;
+  font-weight: 400;
+}

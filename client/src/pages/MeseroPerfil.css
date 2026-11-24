@@ -1,0 +1,45 @@
+.mesero-mi-perfil h2 {
+  font-size: 1.15rem;
+  margin: 1.25rem 0 .65rem;
+}
+
+.mesero-mi-perfil fieldset {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.mesero-mi-perfil label input {
+  background: #fffdf9;
+  border: 1px solid #c7b6a4;
+  border-radius: 8px;
+  color: inherit;
+  display: block;
+  font: inherit;
+  margin-top: .35rem;
+  padding: .55rem .7rem;
+  width: 100%;
+}
+
+.mesero-perfil-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin-top: .85rem;
+}
+
+.mesero-perfil-acciones button {
+  background: #63452f;
+  border: 1px solid #63452f;
+  border-radius: 8px;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  padding: .55rem .9rem;
+}
+
+.mesero-perfil-acciones button + button {
+  background: #fffdf9;
+  color: #63452f;
+}

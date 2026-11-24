@@ -1,4 +1,5 @@
 import express from 'express'
+import { crearPerfilMesero } from './perfil-mesero.js'
 import cors from 'cors'
 import { pool, probarConexion } from './db.js'
 import { crearLogin } from './login.js'
@@ -1508,6 +1509,11 @@ app.post('/api/meseros', (_req, res) => {
   })
 })
 
+
+const perfilMesero = crearPerfilMesero(pool, normalizarCorreo, denegar)
+const soloMesero = permisos.propio((req) => req.usuarioAutenticado.meseroId)
+app.get('/api/meseros/mi-perfil', soloMesero, perfilMesero.consultar)
+app.put('/api/meseros/mi-perfil', soloMesero, perfilMesero.actualizar)
 
 app.put(
   '/api/meseros/:id',

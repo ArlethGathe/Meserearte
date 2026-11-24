@@ -327,4 +327,64 @@ test('permisos e IDOR sobre Express y PostgreSQL aislado', {
     assert.equal((await pedir('/meseros/14/historial', adminA, 'PUT', { observacion: 'Cambio' })).estado, 404)
     assert.deepEqual((await pedir('/meseros/14/historial', adminA)).cuerpo, resultado.cuerpo)
   })
+
+  await t.test('CU15 consulta y edita el perfil propio conservando sesión, sala e historial', async () => {
+    const ruta = '/meseros/mi-perfil'
+    const historial = async () => (await pedir('/meseros/11/historial', adminA)).cuerpo
+    const relaciones = async () => (await db.query(`
+      SELECT m.id, m.usuario_id, m.sala_id, u.rol, u.estado,
+             (SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id)
+                FROM asignaciones a WHERE a.mesero_id = m.id) AS asignaciones
+      FROM meseros m JOIN usuarios u ON u.id = m.usuario_id WHERE m.id = 11
+    `)).rows[0]
+    const historialInicial = await historial()
+    const relacionesIniciales = await relaciones()
+    const inicial = await pedir(ruta, capA)
+    assert.equal(inicial.estado, 200)
+    assert.deepEqual(inicial.cuerpo, {
+      nombre: 'Persona', apellidos: 'Ficticia 3', correo: 'cuenta3@example.invalid',
+      telefono: '5511111111', rol: 'Mesero', sala: 'Sala A', estado: relacionesIniciales.estado,
+      eventosParticipados: historialInicial.resumen.eventosParticipados, eventosComoCapitan: 1
+    })
+    assert.equal(inicial.cuerpo.eventosParticipados, 2)
+    assert.equal((await pedir(ruta, adminA)).estado, 403)
+    assert.equal((await pedir(ruta)).estado, 401)
+    const datos = { nombre: 'Nombre ficticio', apellidos: 'Apellidos ficticios',
+      correo: '  CUENTA3@Example.Invalid ', telefono: '(55) 1234-5678' }
+    for (const [campo, valor] of Object.entries({
+      usuarioId: 4, meseroId: 12, rol: 'Administrador', salaId: 102,
+      estado: 'Inactivo', eventosParticipados: 30
+    })) {
+      assert.equal((await pedir(ruta, capA, 'PUT', { ...datos, [campo]: valor })).estado, 403)
+    }
+    assert.equal((await pedir('/meseros/12', capA, 'PUT', datos)).estado, 403)
+    for (const [campo, valor] of [
+      ['nombre', ' '], ['apellidos', ''], ['correo', ''], ['correo', 'invalido'], ['telefono', '123']
+    ]) {
+      assert.equal((await pedir(ruta, capA, 'PUT', { ...datos, [campo]: valor })).estado, 400)
+    }
+    assert.equal((await pedir(ruta, capA, 'PUT', { ...datos, correo: ' CUENTA4@EXAMPLE.INVALID ' })).estado, 409)
+    assert.deepEqual((await pedir(ruta, capA)).cuerpo, inicial.cuerpo)
+    const mismoCorreo = await pedir(ruta, capA, 'PUT', datos)
+    assert.equal(mismoCorreo.estado, 200)
+    assert.deepEqual(mismoCorreo.cuerpo, {
+      ...inicial.cuerpo, nombre: datos.nombre, apellidos: datos.apellidos, telefono: '5512345678'
+    })
+    const correoNuevo = 'perfil-nuevo@example.invalid'
+    const nuevo = await pedir(ruta, capA, 'PUT', { ...datos, correo: ' PERFIL-NUEVO@EXAMPLE.INVALID ' })
+    assert.equal(nuevo.estado, 200)
+    assert.deepEqual(nuevo.cuerpo, { ...mismoCorreo.cuerpo, correo: correoNuevo })
+    assert.deepEqual((await pedir(ruta, capA)).cuerpo, nuevo.cuerpo)
+    assert.deepEqual(await relaciones(), relacionesIniciales)
+    const historialFinal = await historial()
+    assert.deepEqual(historialFinal.resumen, historialInicial.resumen)
+    assert.deepEqual(historialFinal.historial, historialInicial.historial)
+    assert.ok([200, 204].includes((await pedir('/auth/logout', capA, 'POST')).estado))
+    assert.equal((await pedir(ruta, capA)).estado, 401)
+    const credenciales = { password, rol: 'Mesero' }
+    assert.equal((await pedir('/auth/login', null, 'POST', { ...credenciales, correo: 'cuenta3@example.invalid' })).estado, 401)
+    const reingreso = await pedir('/auth/login', null, 'POST', { ...credenciales, correo: correoNuevo })
+    assert.equal(reingreso.estado, 200)
+    assert.deepEqual((await pedir(ruta, reingreso.cookie)).cuerpo, nuevo.cuerpo)
+  })
 })
