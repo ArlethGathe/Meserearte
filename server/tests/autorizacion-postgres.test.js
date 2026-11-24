@@ -387,4 +387,91 @@ test('permisos e IDOR sobre Express y PostgreSQL aislado', {
     assert.equal(reingreso.estado, 200)
     assert.deepEqual((await pedir(ruta, reingreso.cookie)).cuerpo, nuevo.cuerpo)
   })
+
+  await t.test('CU18 envía avisos solo al personal seleccionado y revoca acceso al reemplazar al capitán', async () => {
+    await db.query(`
+      INSERT INTO usuarios (id,nombre,apellidos,correo,rol,password_hash,estado_credencial)
+      SELECT id,'Persona','Avisos ' || id,'cuenta' || id || '@example.invalid','Mesero',$1,'migrada'
+      FROM generate_series(31,35) id
+    `, [hash])
+    await db.query(`
+      INSERT INTO meseros (id,usuario_id,sala_id,telefono)
+      SELECT id,id,101,'5512345678' FROM generate_series(31,35) id;
+      INSERT INTO eventos (id,sala_id,nombre,tipo,fecha,hora_inicio,hora_fin,ubicacion,lugar)
+      VALUES (231,101,'Avisos','Prueba',CURRENT_DATE,'08:00','10:00','Prueba','Lugar 231'),
+             (232,101,'Otro evento','Prueba',CURRENT_DATE,'11:00','13:00','Prueba','Lugar 232'),
+             (233,101,'Capitán solo','Prueba',CURRENT_DATE,'14:00','16:00','Prueba','Lugar 233');
+      INSERT INTO asignaciones (evento_id,mesero_id,rol) VALUES
+        (231,31,'Capitán'),(231,32,'Mesero'),(231,33,'Mesero'),(231,35,'Mesero'),
+        (232,34,'Capitán'),(233,31,'Capitán');
+    `)
+    const base = '/notificaciones/eventos'
+    const capitan = await login(31, 'Mesero')
+    const primero = await login(32, 'Mesero')
+    const segundo = await login(33, 'Mesero')
+    const otroEvento = await login(34, 'Mesero')
+    const tercero = await login(35, 'Mesero')
+    const enviar = (destinatarioIds, campos = {}, actor = capitan, evento = 231) =>
+      pedir(base + '/' + evento, actor, 'POST', { titulo: 'Aviso ficticio', mensaje: 'Llegada del equipo', destinatarioIds, ...campos })
+    const bandeja = async (id, cookie) => {
+      const respuesta = await pedir('/notificaciones/mesero/' + id, cookie)
+      assert.equal(respuesta.estado, 200)
+      return respuesta.cuerpo.filter(({ tipo }) => tipo === 'Aviso de evento')
+    }
+
+    assert.deepEqual((await pedir(base, capitan)).cuerpo.map(({ id }) => id).sort(), [231, 233])
+    assert.deepEqual((await pedir(base, primero)).cuerpo, [])
+    assert.equal((await pedir(base + '/231/destinatarios', primero)).estado, 403)
+    assert.equal((await enviar([33], {}, primero)).estado, 403)
+    assert.equal((await pedir(base + '/231/destinatarios', adminA)).estado, 403)
+    assert.equal((await pedir(base + '/232/destinatarios', capitan)).estado, 403)
+    assert.equal((await enviar([34], {}, capitan, 232)).estado, 403)
+    const personal = await pedir(base + '/231/destinatarios', capitan)
+    assert.equal(personal.estado, 200)
+    assert.deepEqual(personal.cuerpo.map(({ id }) => id), [32, 33, 35])
+    assert.deepEqual((await pedir(base + '/233/destinatarios', capitan)).cuerpo, [])
+    for (const respuesta of [
+      await enviar([]), await enviar([32], { titulo: '  ' }), await enviar([32], { mensaje: ' ' }),
+      await enviar([32, 34]), await enviar([32, 12]), await enviar([31]), await enviar([32, '32x']),
+      await enviar(undefined, { destinatarioId: 34 }), await enviar([32], { eventoId: 232, salaId: 102 })
+    ]) assert.equal(respuesta.estado, 400)
+    assert.deepEqual(await bandeja(32, primero), [])
+
+    const uno = await enviar([32])
+    assert.equal(uno.estado, 201)
+    const todos = await enviar([32, '32', 33, 35])
+    assert.equal(todos.estado, 201)
+    assert.equal(todos.cuerpo.total, 3)
+    assert.notEqual(uno.cuerpo.envioId, todos.cuerpo.envioId)
+
+    const avisosPrimero = await bandeja(32, primero)
+    assert.equal(avisosPrimero.length, 2)
+    const individual = avisosPrimero.find(({ envioId }) => envioId === uno.cuerpo.envioId)
+    assert.deepEqual([individual.eventoId, individual.salaId, individual.titulo, individual.mensaje,
+      individual.emisor, individual.leida], [231, 101, 'Aviso ficticio', 'Llegada del equipo', 'Capitán', false])
+    for (const [id, cookie] of [[33, segundo], [35, tercero]]) {
+      assert.deepEqual((await bandeja(id, cookie)).map(({ envioId }) => envioId), [todos.cuerpo.envioId])
+    }
+    assert.deepEqual(await bandeja(34, otroEvento), [])
+    assert.deepEqual(await bandeja(12, capB), [])
+    for (const ruta of ['/notificaciones', '/notificaciones/enviadas']) {
+      const admin = await pedir(ruta, adminA)
+      assert.equal(admin.estado, 200)
+      assert.ok(!admin.cuerpo.some(({ envioId }) => [uno.cuerpo.envioId, todos.cuerpo.envioId].includes(envioId)))
+    }
+    const leida = '/notificaciones/' + individual.id + '/leida'
+    assert.equal((await pedir(leida, segundo, 'PUT', {})).estado, 404)
+    assert.equal((await pedir(leida, primero, 'PUT', {})).estado, 200)
+    assert.equal((await bandeja(32, primero)).find(({ id }) => id === individual.id).leida, true)
+
+    await db.query(`
+      UPDATE asignaciones SET rol = 'Mesero' WHERE evento_id = 231 AND mesero_id = 31;
+      UPDATE asignaciones SET rol = 'Capitán' WHERE evento_id = 231 AND mesero_id = 32;
+    `)
+    assert.equal((await pedir('/auth/me', capitan)).estado, 200)
+    assert.equal((await pedir(base + '/231/destinatarios', capitan)).estado, 403)
+    assert.equal((await enviar([33])).estado, 403)
+    assert.deepEqual((await pedir(base, capitan)).cuerpo, [{ id: 233 }])
+    assert.deepEqual((await pedir(base, primero)).cuerpo, [{ id: 231 }])
+  })
 })

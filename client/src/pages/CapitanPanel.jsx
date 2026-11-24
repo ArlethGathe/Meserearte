@@ -5,6 +5,8 @@ import {
 
 import './CapitanPanel.css'
 
+import CapitanNotificaciones from './CapitanNotificaciones.jsx'
+
 import CapitanReporte
   from './CapitanReporte.jsx'
 
@@ -41,7 +43,7 @@ function fechaHoyMexico() {
 
 function CapitanPanel({
   mesero,
-  eventos
+  eventos: eventosAsignados
 }) {
   const {
     salas,
@@ -53,13 +55,26 @@ function CapitanPanel({
   const [
     eventoSeleccionado,
     setEventoSeleccionado
-  ] = useState(
-    eventos.length > 0
-      ? String(
-          eventos[0].id
-        )
-      : ''
-  )
+  ] = useState('')
+
+  const claveEventos = eventosAsignados.map(({ id }) => id).join(',')
+  const [capitania, setCapitania] = useState(null)
+
+  useEffect(() => {
+    const controlador = new AbortController()
+    apiFetch(API_URL + '/notificaciones/eventos', { signal: controlador.signal })
+      .then(async (respuesta) => {
+        if (!respuesta.ok) throw new Error('No fue posible consultar tus designaciones de capitán.')
+        const filas = await respuesta.json()
+        if (!controlador.signal.aborted) setCapitania({ clave: claveEventos, ids: new Set(filas.map(({ id }) => id)) })
+      })
+      .catch(() => {
+        if (!controlador.signal.aborted) setCapitania({ clave: claveEventos, error: true })
+      })
+    return () => controlador.abort()
+  }, [claveEventos])
+
+  const eventos = eventosAsignados.filter(({ id }) => capitania?.ids?.has(id))
 
   const [
     asistencias,
@@ -102,7 +117,7 @@ function CapitanPanel({
         Number(
           eventoSeleccionado
         )
-    )
+    ) ?? eventos[0]
 
   const asistenciaHabilitada =
     Boolean(
@@ -503,17 +518,18 @@ const asistenciaPendiente =
   }
 
   if (
-    !eventos ||
-    eventos.length === 0
+    capitania?.clave !== claveEventos || capitania.error || eventos.length === 0
   ) {
     return (
       <div className="capitan-panel">
 
         <div className="capitan-vacio">
 
-          Actualmente no tienes
-          eventos asignados como
-          capitán.
+          {capitania?.clave !== claveEventos
+            ? 'Consultando tus designaciones de capitán…'
+            : capitania.error
+              ? 'No fue posible consultar tus designaciones de capitán.'
+              : 'Actualmente no tienes eventos asignados como capitán.'}
 
         </div>
 
@@ -616,7 +632,7 @@ const asistenciaPendiente =
 
         <select
           value={
-            eventoSeleccionado
+            eventoActual?.id ?? ''
           }
           onChange={(e) => {
             setEventoSeleccionado(
@@ -635,7 +651,7 @@ const asistenciaPendiente =
                 key={evento.id}
                 value={evento.id}
               >
-                {evento.nombre}
+                {evento.nombre} · {formatearFecha(evento.fecha)}
               </option>
 
             )
@@ -647,6 +663,8 @@ const asistenciaPendiente =
 
       {eventoActual && (
         <>
+
+          <CapitanNotificaciones key={eventoActual.id} eventoId={eventoActual.id} />
 
           {/* =================================
               DATOS DEL EVENTO

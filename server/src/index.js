@@ -1,4 +1,5 @@
 import express from 'express'
+import { registrarNotificacionesEvento } from './notificaciones-evento.js'
 import { crearPerfilMesero } from './perfil-mesero.js'
 import cors from 'cors'
 import { pool, probarConexion } from './db.js'
@@ -3392,7 +3393,8 @@ async function consultarNotificaciones({
 
       FROM notificaciones n
 
-      WHERE ${salaPropia('n.sala_id', '$3')} AND
+      WHERE ${salaPropia('n.sala_id', '$3')}
+        AND n.emisor IS DISTINCT FROM 'Capitán' AND
         (
           $1::INTEGER IS NULL
           OR
@@ -3524,6 +3526,7 @@ app.get(
 
           WHERE
             ${salaPropia('n.sala_id', '$2')} AND n.envio_id IS NOT NULL
+            AND n.emisor IS DISTINCT FROM 'Capitán'
 
             AND
             n.automatica = FALSE
@@ -3908,6 +3911,7 @@ app.post(
   enviarNotificacion
 )
 
+registrarNotificacionesEvento(app, pool, permisos)
 
 async function marcarNotificacionLeida(
   req,

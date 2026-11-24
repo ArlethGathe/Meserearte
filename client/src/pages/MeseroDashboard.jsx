@@ -356,8 +356,8 @@ function MeseroDashboard({
   const eventosCapitan =
     eventosAsignados.filter(
       (evento) =>
-        evento.rolEvento ===
-        'Capitán'
+        evento.rolEvento === 'Capitán'
+        && evento.disponibilidad !== 'No disponible'
     )
 
   const totalEventosCapitan =
@@ -562,27 +562,12 @@ function MeseroDashboard({
             )}
           </button>
 
-          {/* SOLO APARECE SI ES CAPITÁN */}
-
-          {totalEventosCapitan > 0 && (
-
-            <button
-              className={
-                seccion ===
-                'capitan'
-                  ? 'activo'
-                  : ''
-              }
-              onClick={() =>
-                setSeccion(
-                  'capitan'
-                )
-              }
-            >
-              Funciones de capitán
-            </button>
-
-          )}
+          <button
+            className={seccion === 'capitan' ? 'activo' : ''}
+            onClick={() => setSeccion('capitan')}
+          >
+            Funciones de capitán
+          </button>
 
           <button
             className={
@@ -1394,8 +1379,7 @@ function MeseroDashboard({
         ================================= */}
 
         {seccion ===
-          'capitan' &&
-          totalEventosCapitan > 0 && (
+          'capitan' && (
 
           <CapitanPanel
             mesero={
