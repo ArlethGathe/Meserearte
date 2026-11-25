@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState
 } from 'react'
 
@@ -28,6 +29,25 @@ function AdminDashboard({
     seccion,
     setSeccion
   ] = useState('inicio')
+
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const botonMenu = useRef(null)
+  const botonCerrarMenu = useRef(null)
+
+  useEffect(() => {
+    if (menuAbierto) botonCerrarMenu.current?.focus()
+  }, [menuAbierto])
+
+  function cerrarMenu() {
+    if (!menuAbierto) return
+    setMenuAbierto(false)
+    botonMenu.current?.focus()
+  }
+
+  function navegarMenu(destino) {
+    setSeccion(destino)
+    cerrarMenu()
+  }
 
   const [
     notificacionesNoLeidas,
@@ -301,7 +321,30 @@ function AdminDashboard({
   return (
     <div className="admin-layout">
 
-      <aside className="admin-sidebar">
+      <header className="admin-barra-movil">
+        <button type="button" ref={botonMenu} aria-label="Abrir menú"
+          aria-expanded={menuAbierto} aria-controls="admin-menu-lateral"
+          onClick={() => setMenuAbierto(true)}>
+          <span aria-hidden="true">☰</span>
+        </button>
+        <span className="admin-logo-movil" aria-hidden="true">M</span>
+        <strong>MesereArte</strong>
+      </header>
+
+      {menuAbierto && (
+        <div className="admin-fondo-menu" aria-hidden="true" onClick={cerrarMenu} />
+      )}
+
+      <aside id="admin-menu-lateral"
+        className={menuAbierto ? 'admin-sidebar admin-sidebar--abierto' : 'admin-sidebar'}
+        onKeyDown={(evento) => {
+          if (evento.key === 'Escape') cerrarMenu()
+        }}>
+
+        <button type="button" className="admin-cerrar-menu" ref={botonCerrarMenu}
+          aria-label="Cerrar menú" onClick={cerrarMenu}>
+          <span aria-hidden="true">×</span>
+        </button>
 
         <div className="admin-logo">
 
@@ -325,7 +368,7 @@ function AdminDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'inicio'
               )
             }
@@ -341,7 +384,7 @@ function AdminDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'salas'
               )
             }
@@ -357,7 +400,7 @@ function AdminDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'usuarios'
               )
             }
@@ -373,7 +416,7 @@ function AdminDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'eventos'
               )
             }
@@ -389,7 +432,7 @@ function AdminDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'asignaciones'
               )
             }
@@ -414,6 +457,7 @@ function AdminDashboard({
     )
 
     cargarContadorNotificaciones()
+    cerrarMenu()
   }}
 >
   <span>
@@ -443,7 +487,7 @@ function AdminDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'reportes'
               )
             }
@@ -459,7 +503,7 @@ function AdminDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'perfil'
               )
             }

@@ -45,6 +45,12 @@
   color: #d9c7b6;
 }
 
+.admin-barra-movil,
+.admin-cerrar-menu,
+.admin-fondo-menu {
+  display: none;
+}
+
 /* =========================================
    MENÚ
 ========================================= */
@@ -441,22 +447,80 @@
 
 }
 
-@media (max-width: 800px) {
+@media (max-width: 850px) {
 
   .admin-layout {
     flex-direction: column;
   }
 
   .admin-sidebar {
-    width: 100%;
-    min-width: 100%;
-    min-height: auto;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1001;
+    width: min(82%, 310px);
+    min-width: 0;
+    min-height: 0;
+    padding-top: 58px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform 240ms ease, visibility 0s linear 240ms;
   }
 
-  .admin-menu {
+  .admin-sidebar--abierto {
+    visibility: visible;
+    transform: translateX(0);
+    transition-delay: 0s;
+  }
+
+  .admin-barra-movil {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #350909;
+    color: white;
+  }
+
+  .admin-logo-movil {
     display: grid;
-    grid-template-columns:
-      repeat(2, 1fr);
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #c51d31;
+    font-weight: bold;
+  }
+
+  .admin-barra-movil button,
+  .admin-cerrar-menu {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  .admin-cerrar-menu {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+  }
+
+  .admin-fondo-menu {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgb(0 0 0 / 55%);
+    touch-action: none;
   }
 
   .admin-logout {
@@ -487,11 +551,13 @@
 
 }
 
-@media (max-width: 500px) {
-
-  .admin-menu {
-    grid-template-columns: 1fr;
+@media (max-width: 850px) and (prefers-reduced-motion: reduce) {
+  .admin-sidebar {
+    transition: none;
   }
+}
+
+@media (max-width: 500px) {
 
   .dashboard-seccion-header {
     flex-direction: column;

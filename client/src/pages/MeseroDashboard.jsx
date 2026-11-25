@@ -37,6 +37,25 @@ function MeseroDashboard({
     setSeccion
   ] = useState('inicio')
 
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const botonMenu = useRef(null)
+  const botonCerrarMenu = useRef(null)
+
+  useEffect(() => {
+    if (menuAbierto) botonCerrarMenu.current?.focus()
+  }, [menuAbierto])
+
+  function cerrarMenu() {
+    if (!menuAbierto) return
+    setMenuAbierto(false)
+    botonMenu.current?.focus()
+  }
+
+  function navegarMenu(destino) {
+    setSeccion(destino)
+    cerrarMenu()
+  }
+
   const [
     procesandoEvento,
     setProcesandoEvento
@@ -463,11 +482,34 @@ function MeseroDashboard({
   return (
     <div className="mesero-layout">
 
+      <header className="mesero-barra-movil">
+        <button type="button" ref={botonMenu} aria-label="Abrir menú"
+          aria-expanded={menuAbierto} aria-controls="mesero-menu-lateral"
+          onClick={() => setMenuAbierto(true)}>
+          <span aria-hidden="true">☰</span>
+        </button>
+        <span className="mesero-logo-icono" aria-hidden="true">M</span>
+        <strong>MesereArte</strong>
+      </header>
+
+      {menuAbierto && (
+        <div className="mesero-fondo-menu" aria-hidden="true" onClick={cerrarMenu} />
+      )}
+
       {/* ===================================
           SIDEBAR
       =================================== */}
 
-      <aside className="mesero-sidebar">
+      <aside id="mesero-menu-lateral"
+        className={menuAbierto ? 'mesero-sidebar mesero-sidebar--abierto' : 'mesero-sidebar'}
+        onKeyDown={(evento) => {
+          if (evento.key === 'Escape') cerrarMenu()
+        }}>
+
+        <button type="button" className="mesero-cerrar-menu" ref={botonCerrarMenu}
+          aria-label="Cerrar menú" onClick={cerrarMenu}>
+          <span aria-hidden="true">×</span>
+        </button>
 
         <div className="mesero-logo">
 
@@ -498,7 +540,7 @@ function MeseroDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion('inicio')
+              navegarMenu('inicio')
             }
           >
             Inicio
@@ -511,7 +553,7 @@ function MeseroDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion('eventos')
+              navegarMenu('eventos')
             }
           >
             Mis eventos
@@ -525,7 +567,7 @@ function MeseroDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'disponibilidad'
               )
             }
@@ -540,9 +582,10 @@ function MeseroDashboard({
                 ? 'activo'
                 : ''
             }
-            onClick={
-              abrirNotificaciones
-            }
+            onClick={() => {
+              abrirNotificaciones()
+              cerrarMenu()
+            }}
           >
             <span>
               Notificaciones
@@ -563,7 +606,7 @@ function MeseroDashboard({
 
           <button
             className={seccion === 'capitan' ? 'activo' : ''}
-            onClick={() => setSeccion('capitan')}
+            onClick={() => navegarMenu('capitan')}
           >
             Funciones de capitán
           </button>
@@ -575,7 +618,7 @@ function MeseroDashboard({
                 : ''
             }
             onClick={() =>
-              setSeccion(
+              navegarMenu(
                 'perfil'
               )
             }

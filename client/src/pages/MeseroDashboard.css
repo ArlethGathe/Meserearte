@@ -23,6 +23,12 @@
   position: relative;
 }
 
+.mesero-barra-movil,
+.mesero-cerrar-menu,
+.mesero-fondo-menu {
+  display: none;
+}
+
 .mesero-logo {
   display: flex;
   align-items: center;
@@ -504,9 +510,63 @@
   }
 
   .mesero-sidebar {
-    width: 100%;
-    min-width: 100%;
-    min-height: auto;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1001;
+    width: min(82%, 310px);
+    min-width: 0;
+    min-height: 0;
+    padding-top: 58px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform 240ms ease, visibility 0s linear 240ms;
+  }
+
+  .mesero-sidebar--abierto {
+    visibility: visible;
+    transform: translateX(0);
+    transition-delay: 0s;
+  }
+
+  .mesero-barra-movil {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #350909;
+    color: white;
+  }
+
+  .mesero-barra-movil button,
+  .mesero-cerrar-menu {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  .mesero-cerrar-menu {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+  }
+
+  .mesero-fondo-menu {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgb(0 0 0 / 55%);
+    touch-action: none;
   }
 
   .mesero-logout {
@@ -544,6 +604,12 @@
 
   .mesero-mensaje {
     margin: 15px 20px 0;
+  }
+}
+
+@media (max-width: 850px) and (prefers-reduced-motion: reduce) {
+  .mesero-sidebar {
+    transition: none;
   }
 }
 
