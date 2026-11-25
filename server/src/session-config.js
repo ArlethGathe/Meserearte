@@ -17,10 +17,19 @@ export function leerConfiguracionSesion(env = process.env) {
   if (!['true', 'false'].includes(secure) || (secure === 'false' && env.NODE_ENV !== 'development')) {
     throw new Error('SESSION_COOKIE_SECURE=false solo se permite durante desarrollo local.')
   }
-  const sameSite = (env.SESSION_COOKIE_SAMESITE ?? 'lax').toLowerCase()
-  if (!['lax', 'strict'].includes(sameSite)) {
-    throw new Error('SESSION_COOKIE_SAMESITE debe ser lax o strict.')
-  }
+ const sameSite = (env.SESSION_COOKIE_SAMESITE ?? 'lax').toLowerCase()
+
+if (!['lax', 'strict', 'none'].includes(sameSite)) {
+  throw new Error(
+    'SESSION_COOKIE_SAMESITE debe ser lax, strict o none.'
+  )
+}
+
+if (sameSite === 'none' && secure !== 'true') {
+  throw new Error(
+    'SESSION_COOKIE_SAMESITE=none requiere SESSION_COOKIE_SECURE=true.'
+  )
+}
   const nombre = env.SESSION_COOKIE_NAME ?? 'meserearte_session'
   if (typeof nombre !== 'string' || nombre.trim() !== nombre
     || !/^[a-zA-Z0-9_-]{1,64}$/.test(nombre) || (secure === 'false' && /^__(host|secure)-/i.test(nombre))) {
