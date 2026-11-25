@@ -17,6 +17,7 @@ import {
 } from '../context/MesereArteContexto.jsx'
 
 import { API_URL, apiFetch } from '../api.js'
+import { obtenerProximosEventos } from '../proximos-eventos.js'
 
 function MeseroDashboard({
   usuario,
@@ -358,6 +359,8 @@ function MeseroDashboard({
 
   const totalEventosCapitan =
     eventosCapitan.length
+
+  const proximosEventos = obtenerProximosEventos(eventosAsignados).slice(0, 3)
 
   /* ========================================
      FECHA
@@ -814,12 +817,11 @@ function MeseroDashboard({
                 <div>
 
                   <h2>
-                    Mis eventos
+                    Próximos eventos
                   </h2>
 
                   <p>
-                    Eventos que tienes
-                    asignados actualmente.
+                    Tus eventos asignados que aún no terminan.
                   </p>
 
                 </div>
@@ -838,11 +840,10 @@ function MeseroDashboard({
 
               <div className="mesero-eventos">
 
-                {eventosAsignados.length >
+                {proximosEventos.length >
                 0 ? (
 
-                  eventosAsignados
-                    .slice(0, 3)
+                  proximosEventos
                     .map(
                       (evento) => (
 
@@ -926,8 +927,7 @@ function MeseroDashboard({
 
                   <div className="mesero-vacio">
 
-                    No tienes eventos
-                    asignados actualmente.
+                    No tienes próximos eventos asignados.
 
                   </div>
 

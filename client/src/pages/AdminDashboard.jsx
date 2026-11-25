@@ -18,6 +18,7 @@ import {
 } from '../context/MesereArteContexto.jsx'
 
 import { API_URL, apiFetch } from '../api.js'
+import { obtenerProximosEventos } from '../proximos-eventos.js'
 
 function AdminDashboard({
   usuario,
@@ -291,19 +292,7 @@ function AdminDashboard({
      PRÓXIMOS EVENTOS
   ======================================== */
 
-  const proximosEventos = [
-    ...eventos
-  ]
-    .sort(
-      (a, b) =>
-        new Date(
-          `${a.fecha}T${a.horario || '00:00'}`
-        ) -
-        new Date(
-          `${b.fecha}T${b.horario || '00:00'}`
-        )
-    )
-    .slice(0, 3)
+  const proximosEventos = obtenerProximosEventos(eventos).slice(0, 3)
 
   /* ========================================
      COMPONENTE
