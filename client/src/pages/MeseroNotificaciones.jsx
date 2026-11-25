@@ -1,7 +1,4 @@
-import {
-  useEffect,
-  useState
-} from 'react'
+import { useState } from 'react'
 
 import './MeseroNotificaciones.css'
 
@@ -12,134 +9,15 @@ import {
 import { API_URL, apiFetch } from '../api.js'
 
 function MeseroNotificaciones({
-  usuario
+  notificaciones,
+  cargando,
+  errorConsulta,
+  cargarNotificaciones,
+  onLeida
 }) {
-  const {
-    meseros,
-    eventos
-  } = useMesereArte()
-
-  const [
-    notificaciones,
-    setNotificaciones
-  ] = useState([])
-
-  const [
-    cargando,
-    setCargando
-  ] = useState(true)
-
-  const [
-    error,
-    setError
-  ] = useState('')
-
-  /* ========================================
-     MESERO ACTUAL
-  ======================================== */
-
-  const meseroActual =
-    meseros.find(
-      (mesero) => mesero.id === usuario.meseroId
-    )
-
-  /* ========================================
-     CARGAR NOTIFICACIONES
-  ======================================== */
-
-  const cargarNotificaciones =
-    async () => {
-      if (!meseroActual?.id) {
-        setNotificaciones([])
-        setCargando(false)
-        return
-      }
-
-      try {
-        setError('')
-
-        const respuesta =
-          await apiFetch(
-            `${API_URL}/notificaciones/mesero/${meseroActual.id}`
-          )
-
-        const datos =
-          await respuesta.json()
-
-        if (!respuesta.ok) {
-          throw new Error(
-            datos.mensaje ||
-            'No fue posible consultar las notificaciones.'
-          )
-        }
-
-        /*
-          Protección adicional:
-          si por algún error existieran
-          dos registros del mismo envío
-          para el mismo mesero,
-          solamente mostramos uno.
-        */
-
-        const claves =
-          new Set()
-
-        const unicas =
-          datos.filter(
-            (item) => {
-              const clave =
-                item.envioId
-                  ? `envio-${item.envioId}`
-                  : `notificacion-${item.id}`
-
-              if (
-                claves.has(
-                  clave
-                )
-              ) {
-                return false
-              }
-
-              claves.add(
-                clave
-              )
-
-              return true
-            }
-          )
-
-        setNotificaciones(
-          unicas
-        )
-
-      } catch (error) {
-        setError(
-          error.message
-        )
-      } finally {
-        setCargando(false)
-      }
-    }
-
-  useEffect(
-    () => {
-      setCargando(true)
-
-      cargarNotificaciones()
-
-      const intervalo =
-        setInterval(
-          cargarNotificaciones,
-          5000
-        )
-
-      return () =>
-        clearInterval(
-          intervalo
-        )
-    },
-    [meseroActual?.id]
-  )
+  const { eventos } = useMesereArte()
+  const [errorLectura, setErrorLectura] = useState('')
+  const error = errorLectura || errorConsulta
 
   /* ========================================
      MARCAR COMO LEÍDA
@@ -148,7 +26,7 @@ function MeseroNotificaciones({
   const marcarComoLeida =
     async (id) => {
       try {
-        setError('')
+        setErrorLectura('')
 
         const respuesta =
           await apiFetch(
@@ -169,21 +47,10 @@ function MeseroNotificaciones({
           )
         }
 
-        setNotificaciones(
-          (anteriores) =>
-            anteriores.map(
-              (item) =>
-                item.id === id
-                  ? {
-                      ...item,
-                      leida: true
-                    }
-                  : item
-            )
-        )
+        onLeida(id)
 
       } catch (error) {
-        setError(
+        setErrorLectura(
           error.message
         )
       }
@@ -257,9 +124,10 @@ function MeseroNotificaciones({
         <button
           type="button"
           className="actualizar-notificaciones"
-          onClick={
-            cargarNotificaciones
-          }
+          onClick={() => {
+            setErrorLectura('')
+            cargarNotificaciones()
+          }}
         >
           Actualizar
         </button>

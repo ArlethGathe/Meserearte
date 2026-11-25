@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState
@@ -71,218 +72,85 @@ function MeseroDashboard({
     setError
   ] = useState('')
 
-  const [
-    notificacionesMesero,
-    setNotificacionesMesero
-  ] = useState([])
+  const [notificacionesMesero, setNotificacionesMesero] = useState([])
+  const [avisoNotificacion, setAvisoNotificacion] = useState(null)
+  const [cargandoNotificaciones, setCargandoNotificaciones] = useState(true)
+  const [errorNotificaciones, setErrorNotificaciones] = useState('')
+  const idsNotificacionesRef = useRef(null)
+  const consultaNotificacionesRef = useRef(null)
 
-  const [
-    avisoNotificacion,
-    setAvisoNotificacion
-  ] = useState(null)
+  const meseroActual = meseros.find((mesero) => mesero.id === usuario.meseroId)
+  const meseroId = meseroActual?.id
 
-  const idsNotificacionesRef =
-    useRef(new Set())
+  const cargarNotificaciones = useCallback(async () => {
+    if (!meseroId || consultaNotificacionesRef.current) return
 
-  const primeraCargaNotificacionesRef =
-    useRef(true)
+    const controlador = new AbortController()
+    consultaNotificacionesRef.current = controlador
+    setErrorNotificaciones('')
+    try {
+      const respuesta = await apiFetch(`${API_URL}/notificaciones/mesero/${meseroId}`, {
+        signal: controlador.signal
+      })
+      const datos = await respuesta.json()
+      if (!respuesta.ok) throw new Error(datos.mensaje || 'No se pudieron consultar las notificaciones.')
+      if (controlador.signal.aborted) return
 
-  /* ========================================
-     MESERO ACTUAL
-  ======================================== */
+      const claves = new Set()
+      const unicas = datos.filter(({ id, envioId }) => {
+        const clave = envioId ? `envio-${envioId}` : `notificacion-${id}`
+        if (claves.has(clave)) return false
+        claves.add(clave)
+        return true
+      })
 
-  const meseroActual =
-    meseros.find(
-      (mesero) => mesero.id === usuario.meseroId
-    )
-
-  /* ========================================
-     NOTIFICACIONES EN TIEMPO REAL
-  ======================================== */
-
-  useEffect(
-    () => {
-      if (!meseroActual?.id) {
-        setNotificacionesMesero([])
-        return undefined
-      }
-
-      let activo = true
-
-      idsNotificacionesRef.current =
-        new Set()
-
-      primeraCargaNotificacionesRef.current =
-        true
-
-      const cargarNotificaciones =
-        async () => {
-          try {
-            const respuesta =
-              await apiFetch(
-                `${API_URL}/notificaciones/mesero/${meseroActual.id}`
-              )
-
-            const datos =
-              await respuesta.json()
-
-            if (!respuesta.ok) {
-              throw new Error(
-                datos.mensaje ||
-                'No se pudieron consultar las notificaciones.'
-              )
-            }
-
-            if (!activo) {
-              return
-            }
-
-            setNotificacionesMesero(
-              datos
-            )
-
-            const idsActuales =
-              new Set(
-                datos.map(
-                  (item) =>
-                    item.id
-                )
-              )
-
-            if (
-              primeraCargaNotificacionesRef
-                .current
-            ) {
-              idsNotificacionesRef.current =
-                idsActuales
-
-              primeraCargaNotificacionesRef.current =
-                false
-
-              return
-            }
-
-            const nuevas =
-              datos.filter(
-                (item) =>
-                  !idsNotificacionesRef
-                    .current
-                    .has(item.id)
-              )
-
-            idsNotificacionesRef.current =
-              idsActuales
-
-            const nuevaNoLeida =
-              nuevas.find(
-                (item) =>
-                  !item.leida
-              )
-
-            if (!nuevaNoLeida) {
-              return
-            }
-
-            setAvisoNotificacion(
-              nuevaNoLeida
-            )
-
-            if (
-              typeof window !==
-                'undefined' &&
-              'Notification' in window &&
-              Notification.permission ===
-                'granted'
-            ) {
-              const aviso =
-                new Notification(
-                  `MesereArte · ${nuevaNoLeida.titulo}`,
-                  {
-                    body:
-                      nuevaNoLeida.mensaje,
-
-                    tag:
-                      `meserearte-${nuevaNoLeida.id}`
-                  }
-                )
-
-              aviso.onclick =
-                () => {
-                  window.focus()
-
-                  setSeccion(
-                    'notificaciones'
-                  )
-
-                  setAvisoNotificacion(
-                    null
-                  )
-
-                  aviso.close()
-                }
-            }
-
-          } catch (error) {
-            console.error(
-              'Error consultando notificaciones del mesero:',
-              error
-            )
-          }
-        }
-
-      cargarNotificaciones()
-
-      const intervalo =
-        setInterval(
-          cargarNotificaciones,
-          5000
-        )
-
-      return () => {
-        activo = false
-
-        clearInterval(
-          intervalo
-        )
-      }
-    },
-    [meseroActual?.id]
-  )
-
-  const notificacionesNoLeidas =
-    notificacionesMesero.filter(
-      (item) =>
-        !item.leida
-    ).length
-
-  const abrirNotificaciones =
-    async () => {
-      setSeccion(
-        'notificaciones'
-      )
-
-      setAvisoNotificacion(
-        null
-      )
-
-      if (
-        typeof window !==
-          'undefined' &&
-        'Notification' in window &&
-        Notification.permission ===
-          'default'
-      ) {
-        try {
-          await Notification
-            .requestPermission()
-        } catch (error) {
-          console.error(
-            'No fue posible solicitar permiso de notificaciones:',
-            error
-          )
-        }
+      const idsAnteriores = idsNotificacionesRef.current
+      idsNotificacionesRef.current = new Set(unicas.map(({ id }) => id))
+      const nueva = idsAnteriores && unicas.find(({ id, leida }) => !leida && !idsAnteriores.has(id))
+      if (nueva) setAvisoNotificacion(nueva)
+      setNotificacionesMesero((anteriores) => {
+        // Un GET iniciado antes de marcar un aviso no puede devolverlo a «sin leer».
+        const leidas = new Set(anteriores.filter(({ leida }) => leida).map(({ id }) => id))
+        return unicas.map((item) => leidas.has(item.id) ? { ...item, leida: true } : item)
+      })
+    } catch (error) {
+      if (!controlador.signal.aborted) setErrorNotificaciones(error.message)
+    } finally {
+      if (consultaNotificacionesRef.current === controlador) {
+        consultaNotificacionesRef.current = null
+        setCargandoNotificaciones(false)
       }
     }
+  }, [meseroId])
+
+  useEffect(() => {
+    idsNotificacionesRef.current = null
+    setNotificacionesMesero([])
+    setAvisoNotificacion(null)
+    setCargandoNotificaciones(Boolean(meseroId))
+    if (!meseroId) return
+
+    cargarNotificaciones()
+    const intervalo = setInterval(cargarNotificaciones, 5000)
+    return () => {
+      clearInterval(intervalo)
+      consultaNotificacionesRef.current?.abort()
+      consultaNotificacionesRef.current = null
+    }
+  }, [meseroId, cargarNotificaciones])
+
+  const notificacionesNoLeidas = notificacionesMesero.filter(({ leida }) => !leida).length
+
+  function confirmarNotificacionLeida(id) {
+    setNotificacionesMesero((anteriores) =>
+      anteriores.map((item) => item.id === id ? { ...item, leida: true } : item)
+    )
+  }
+
+  function abrirNotificaciones() {
+    setSeccion('notificaciones')
+    setAvisoNotificacion(null)
+  }
 
   /* ========================================
      SALA
@@ -561,10 +429,7 @@ function MeseroDashboard({
 
           <button
             className={
-              seccion ===
-              'disponibilidad'
-                ? 'activo'
-                : ''
+              seccion === 'disponibilidad' ? 'mesero-opcion-contador activo' : 'mesero-opcion-contador'
             }
             onClick={() =>
               navegarMenu(
@@ -572,15 +437,17 @@ function MeseroDashboard({
               )
             }
           >
-            Disponibilidad
+            <span>Disponibilidad</span>
+            {eventosPendientes > 0 && (
+              <span className="mesero-notificaciones-contador">
+                {eventosPendientes > 99 ? '99+' : eventosPendientes}
+              </span>
+            )}
           </button>
 
           <button
             className={
-              seccion ===
-              'notificaciones'
-                ? 'activo'
-                : ''
+              seccion === 'notificaciones' ? 'mesero-opcion-contador activo' : 'mesero-opcion-contador'
             }
             onClick={() => {
               abrirNotificaciones()
@@ -1408,7 +1275,11 @@ function MeseroDashboard({
           'notificaciones' && (
             
           <MeseroNotificaciones
-            usuario={usuario}
+            notificaciones={notificacionesMesero}
+            cargando={cargandoNotificaciones}
+            errorConsulta={errorNotificaciones}
+            cargarNotificaciones={cargarNotificaciones}
+            onLeida={confirmarNotificacionLeida}
           />
           
         )}
